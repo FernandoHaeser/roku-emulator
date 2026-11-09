@@ -1,174 +1,259 @@
-# Roku Emulator (beta)
+<div align="center">
 
-Roku OS emulator aiming at near device-level fidelity, running in the browser
-(WebAssembly) and natively. A real Roku in Developer Mode acts as the
-**oracle**: every behavior is validated by diffing the emulator against traces
-recorded on the device.
+<img src="docs/assets/logo.svg" alt="Roku Emulator logo" width="112" height="112" />
 
-## Status
+# Roku Emulator
 
-The emulator runs **BrightScript and SceneGraph channels** in the browser and
-natively. Console output is byte-identical to the reference device for the
-recorded corpus (23 of 24 probes; see known gaps). The browser build renders
-the SceneGraph scene, takes remote input from the keyboard and boots into a
-home screen with the developer channel.
+### Run Roku channels in your browser, verified against a real device.
 
-| Area                                    | State                                                                                        |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Fidelity oracle (`packages/oracle`)     | Working against a real device (H302X, OS 16.0.4), including remote key steps                 |
-| BrightScript engine (`crates/brs-core`) | Lexer, parser, compiler, resumable bytecode VM with threads (main, render, Tasks)            |
-| Native runner (`crates/brs-cli`)        | `brs run`, `brs conformance` (injects probe key steps)                                       |
-| Browser build (`crates/brs-wasm` + web) | Home screen, sideload, Canvas2D renderer, remote keys, persistent registry                   |
-| `ro*` components (F2)                   | roArray, roAssociativeArray, roList, roByteArray, roMessagePort, roTimespan, roDateTime,     |
-|                                         | roAppInfo, roDeviceInfo, roRegistry(Section), roXMLElement, boxed roInt/roFloat/roString/... |
-| SceneGraph core (F3)                    | XML components + extends, fields/observers, focus + onKeyEvent, Task, Timer, roSGScreen      |
-| Renderer (F4)                           | Provisional: Rectangle, Label (wrap/ellipsis), Poster, clipping; system font approximated    |
-| Pending                                 | roUrlTransfer (needs the proxy), roInput, animations, widgets (F5), Video (F6)               |
+**BrightScript and SceneGraph, compiled to WebAssembly, diffed byte by byte against Roku hardware.**
 
-Known gaps (tracked by failing conformance, never masked):
+[![CI](https://img.shields.io/github/actions/workflow/status/FernandoHaeser/roku-emulator/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/FernandoHaeser/roku-emulator/actions/workflows/ci.yml)
+[![Device conformance](https://img.shields.io/badge/device_conformance-23%2F24_probes-22d3ee?style=flat-square)](#how-fidelity-works)
+[![Rust](https://img.shields.io/badge/core-Rust-b7410e?style=flat-square&logo=rust&logoColor=white)](crates/brs-core)
+[![WebAssembly](https://img.shields.io/badge/runs_in-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](crates/brs-wasm)
+[![React](https://img.shields.io/badge/shell-React_+_TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)](apps/web)
+[![Status](https://img.shields.io/badge/status-beta-f59e0b?style=flat-square)](CHANGELOG.md)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-d22128?style=flat-square)](LICENSE)
 
-- `FOR EACH` over an associative array follows the device's internal hash
-  order; the emulator uses insertion order (`language/collections`).
-- Float-literal promotion to Double uses a provisional digit threshold.
-- Font metrics and widget geometry are provisional until F4/F5 probes.
+[Quick start](#quick-start) · [How fidelity works](#how-fidelity-works) · [Features](#features) · [Status](#status) · [Commands](#commands) · [FAQ](#faq) · [Documentation](#documentation) · [License](#license)
 
-## Architecture
+<code>make setup && make dev</code>
 
-The emulator core is written in **Rust** and compiled to:
+</div>
 
-- **WebAssembly** for the browser (loaded by a Web Worker in `apps/web`), and
-- **native** binaries (`brs` CLI today, a desktop app for Linux, Windows and
-  macOS later).
+> [!NOTE]
+> Independent open project. Not affiliated with, endorsed by or sponsored by
+> Roku, Inc. "Roku" is a trademark of Roku, Inc., used here only to describe
+> compatibility. The emulator contains no Roku firmware, fonts or system assets.
 
-One core, two targets: no rewrite when moving to desktop. The web shell (React)
-and the oracle (Node) stay in TypeScript; the oracle's goldens are the shared
-conformance suite for both targets. Details in
-[docs/architecture.md](docs/architecture.md).
+<div align="center">
 
-### Repository layout
+<br />
 
-| Path                | Contents                                                          |
-| ------------------- | ----------------------------------------------------------------- |
-| `crates/brs-core`   | BrightScript engine: lexer, parser, compiler, VM, values, runtime |
-| `crates/brs-cli`    | Native `brs` binary: run a channel, run conformance               |
-| `crates/brs-wasm`   | C-ABI WebAssembly exports used by the browser worker              |
-| `apps/web`          | React shell, Web Worker runtime host, Playwright e2e tests        |
-| `packages/protocol` | Typed messages between the shell and the worker; remote keys      |
-| `packages/oracle`   | Device client: sideload, console capture, ECP, screenshots, diff  |
-| `fidelity/`         | Probe channels and their device-recorded `golden/` traces         |
-| `profiles/`         | Reference device profile (identifiers redacted)                   |
-| `scripts/`          | `cargo.sh` (rustup toolchain wrapper), `build-wasm.sh`            |
-| `docs/`             | Architecture, device-verified semantics, fidelity workflow        |
+<img src="docs/assets/emulator.png" alt="The web shell running a SceneGraph channel, with its console output on the right" width="1100" />
 
-### Documentation
+<br /><br />
 
-- [docs/architecture.md](docs/architecture.md): engine pipeline, VM, hosts,
-  wasm ABI, worker loop.
-- [docs/brightscript-semantics.md](docs/brightscript-semantics.md): language
-  behaviors confirmed on the device, with the probe that proves each one.
-- [docs/fidelity-workflow.md](docs/fidelity-workflow.md): how to add a probe,
-  record it on the device and make the emulator match.
-- [docs/git-workflow.md](docs/git-workflow.md): gitflow branches
-  (`develop` default, `release` pre-prod, `master` prod), PRs and releases.
-- [CHANGELOG.md](CHANGELOG.md)
+</div>
 
-## Requirements
+---
 
-- macOS or Linux with `make`, `curl` and nvm (or fnm). `make setup` installs
-  the rest: Node 22, pnpm 9, Rust via rustup (pinned by `rust-toolchain.toml`,
-  with the `wasm32-unknown-unknown` target). Homebrew's `rust` formula is not
-  enough (no wasm target); the scripts prefer rustup's toolchain even when it
-  is on PATH.
-- A Roku device with Developer Mode enabled, and
-  _Settings > System > Advanced system settings > Control by mobile apps_ set to **Permissive**
+Testing a Roku channel usually means a physical device, a sideload per change
+and a telnet console. **Roku Emulator** runs the same sideload `.zip` in any
+browser: it boots into a home screen, launches your developer channel, renders
+its SceneGraph scene, takes the remote from your keyboard and streams the
+console, all locally.
 
-### Troubleshooting
+The goal is **device-level fidelity**, not "looks about right". A real Roku in
+Developer Mode is the **oracle**: every behavior is captured on the device and
+the emulator must reproduce it exactly, down to `PRINT` column widths and the
+Micro Debugger crash dump.
 
-- `EHOSTUNREACH` from Node while `curl` works: macOS Local Network privacy is
-  blocking that Node binary. Allow your terminal in _System Settings > Privacy &
-  Security > Local Network_ (toggle off/on if already enabled). A newly installed
-  Node version may trigger a permission prompt on first LAN access.
-- `zsh: correct 'pnpm' to 'npm'`: pnpm is not active in your shell (usually
-  an older default Node). Use the `make` targets, or `source scripts/env.sh`.
-- Connect timeouts right after a probe: the device stalls while the Home screen
-  reloads. The oracle retries connection-phase failures automatically.
+## Quick start
 
-## Setup
+macOS or Linux with `make`, `curl` and nvm (or fnm):
 
-```sh
-make setup        # or ./scripts/setup.sh
+```bash
+git clone git@github.com:FernandoHaeser/roku-emulator.git
+cd roku-emulator
+make setup   # Node 22, pnpm, Rust + wasm target, dependencies, .env
+make dev     # http://127.0.0.1:5173
 ```
 
-`setup` checks each prerequisite and installs what is missing (it asks first;
-`./scripts/setup.sh --yes` skips the questions, `make setup-e2e` also installs
-the Playwright browser):
+Open the page, press **OK** on _Instalar canal_ (or click _Abrir canal (.zip)_)
+and pick your channel's sideload zip. It becomes the developer channel and
+launches right away.
 
-1. Node 22 via nvm or fnm (from `.nvmrc`).
-2. pnpm via corepack (version from `package.json`).
-3. rustup, the pinned toolchain and the `wasm32-unknown-unknown` target
-   (Homebrew on macOS, the official rustup installer elsewhere).
-4. `pnpm install --frozen-lockfile`, Rust crates and the wasm build.
-5. `.env` from `.env.example` when missing. Fill `ROKU_HOST` and
-   `ROKU_DEV_PASSWORD` to use the oracle (never commit `.env`).
+Prefer the terminal? Run it natively, console to stdout:
 
-No `nvm use` is needed afterwards: every `make` target runs through
-`scripts/run.sh`, which activates the right Node, pnpm and Rust. To use the raw
-tools in your own shell, `source scripts/env.sh`. `make doctor` prints the
-resolved versions.
+```bash
+make run CHANNEL=path/to/channel   # directory or .zip
+```
 
-## Running a channel
+<table>
+<tr>
+<td width="50%" valign="top">
 
-- **Browser:** `make dev`, open http://127.0.0.1:5173. The TV boots into the
-  home screen. Click _Abrir canal (.zip)_ (or OK on _Instalar canal_) and pick a
-  sideload zip: it becomes the developer channel and launches right away.
-  Console output appears in the console panel.
-- **Native:** `make run CHANNEL=<dir|zip>` (wraps `brs run`)
-  prints the channel's console output to stdout.
-
-Remote control (keyboard, layout independent):
+**Remote control** (layout independent)
 
 | Key             | Remote                   |
 | --------------- | ------------------------ |
-| Arrows          | Up/Down/Left/Right       |
+| Arrows          | Up / Down / Left / Right |
 | Enter           | OK                       |
 | Backspace / Esc | Back                     |
-| H / Home        | Home (leave the channel) |
+| H / Home        | Home (leave channel)     |
 | O               | Options (`*`)            |
 | Space / , / .   | Play / Rev / Fwd         |
 | R               | Instant replay           |
 
-On the home screen: OK opens the focused tile, Options opens the channel menu
-(open / remove). The developer channel and its registry survive page reloads.
+</td>
+<td width="50%" valign="top">
 
-`CreateObject` of a class the engine does not implement yet prints the
-device's `BRIGHTSCRIPT: ERROR: Runtime: unknown classname "X"` diagnostic and
-returns `invalid`.
+**Home screen**
+
+<img src="docs/assets/home-screen.png" alt="Emulator home screen with the developer channel tile" />
+
+OK opens the focused tile, Options opens the channel menu (open / remove).
+The developer channel and its registry survive page reloads, like a reboot.
+
+</td>
+</tr>
+</table>
+
+## How fidelity works
+
+```mermaid
+flowchart LR
+    P["Probe channel<br/>fidelity/area/name"] -->|make record| D["Real Roku<br/>(Developer Mode)"]
+    D -->|console · app-ui · screenshot| G["golden/<br/>committed traces"]
+    P -->|make conformance| E["Emulator<br/>(native + WebAssembly)"]
+    E --> X{"byte-exact<br/>diff"}
+    G --> X
+    X -->|mismatch| F["fix the engine"]
+    F --> E
+```
+
+1. **Probe:** a minimal channel exercises one area (operators, `roDateTime`,
+   observer order, focus...) and prints between `@@PROBE_BEGIN` / `@@PROBE_END`.
+2. **Record:** the oracle sideloads it on the device, sends remote keys and
+   captures the console, `query/app-ui` and a screenshot into `golden/`.
+3. **Match:** `make conformance` runs every probe in the engine and diffs it
+   with the golden. CI runs it on every pull request, without a device.
+
+When the official documentation and a golden disagree, **the golden wins**.
+Every confirmed behavior is written down in
+[docs/brightscript-semantics.md](docs/brightscript-semantics.md) next to the
+probe that proves it. Known gaps stay as failing probes, never masked.
+
+## Features
+
+| Area                    | What it does                                                                                                                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BrightScript engine** | Lexer, parser, compiler and a resumable bytecode VM in Rust. Device-exact `PRINT`, number formatting, numeric promotion, `TRY/CATCH`, and the Micro Debugger crash dump (source window, digest, backtrace, locals). |
+| **Threads**             | Main, render and one thread per `Task`, round-robin scheduled, with rendezvous on field sets, like the device.                                                                                                      |
+| **SceneGraph**          | XML components with `extends` chains, typed fields, `observeField`, `alwaysNotify`, focus chain and `onKeyEvent`, `Task`, `Timer`, `roSGScreen`, `m.global`, `boundingRect`.                                        |
+| **Runtime objects**     | `roArray`, `roAssociativeArray`, `roList`, `roByteArray`, `roMessagePort` + `wait`, `roDateTime`, `roTimespan`, `roAppInfo`, `roDeviceInfo`, `roRegistry`, `roXMLElement`, boxed types, `ParseJson` / `FormatJson`. |
+| **Browser host**        | One Rust core compiled to WebAssembly, run in a Web Worker in time slices; Canvas2D renderer of the SceneGraph display list; persistent registry.                                                                   |
+| **Native host**         | The same core as a CLI (`brs run`, `brs conformance`); a desktop app comes later from the same crate.                                                                                                               |
+| **Oracle**              | Node client for the real device: Digest-auth sideload, telnet console, ECP keys and queries, screenshots, text / XML / pixel diffs.                                                                                 |
+
+## Status
+
+Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELOG.md).
+
+| Area                       | State                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| Fidelity oracle            | Working against a real device (H302X, Roku OS 16.0.4), including remote key steps                |
+| BrightScript language (F1) | 23 / 24 probes byte-exact                                                                        |
+| Runtime objects (F2)       | Core objects done; `roUrlTransfer` (needs the local proxy), `roInput`, crypto, `roRegex` pending |
+| SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                  |
+| Renderer (F4)              | Provisional: Rectangle, Label (wrap / ellipsis), Poster, clipping                                |
+| Widgets (F5), Video (F6)   | Not started                                                                                      |
+| VS Code debugging (F7)     | Planned: deploy + console, then breakpoints via the debug protocol                               |
+
+**Known gaps** (tracked by failing conformance):
+
+- `FOR EACH` over an associative array follows the device's internal hash
+  order; the emulator uses insertion order (`language/collections`).
+- Float-literal promotion to Double uses a provisional digit threshold.
+- System font metrics and widget geometry are provisional until F4/F5 probes.
+  The Roku system font is not redistributable, so a sans-serif stack is used.
+
+## Roadmap
+
+| Phase                 | Scope                                                                                                           | Status      |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| F0 · Foundation       | Monorepo, oracle, reference device profile                                                                      | Done        |
+| F1 · Language         | BrightScript semantics byte-exact vs the device                                                                 | Done        |
+| F2 · Runtime objects  | `ro*` non-visual components                                                                                     | In progress |
+| F3 · SceneGraph core  | Components, fields, observers, threads, focus                                                                   | Done        |
+| F4 · Renderer         | Pixel diffs vs device screenshots, fonts, animations                                                            | Provisional |
+| F5 · Widgets          | RowList, MarkupGrid, keyboards, dialogs... measured on the device                                               | Planned     |
+| F6 · Video            | `Video` node over Shaka Player, Widevine via EME                                                                | Planned     |
+| F7 · Tooling          | Dev installer, telnet console and debug protocol, so the VS Code BrightScript extension deploys and debugs here | Planned     |
+| F8 · Shell            | Clickable remote, node inspector, network and registry panels, hot reload                                       | Partial     |
+| F9 · Closed libraries | Configurable mocks for ads, analytics and channel store                                                         | Planned     |
+
+## Architecture
+
+```
+apps/web (React shell) ── postMessage ──▶ Web Worker
+  home screen · console                   ├─ brs-wasm (Rust core → WebAssembly)
+  sideload · remote keys                  │    compiler · VM · threads · ro* · SceneGraph
+                                          └─ CanvasRenderer (display list → OffscreenCanvas)
+
+crates/brs-cli    same Rust core, native: brs run · brs conformance
+packages/oracle   Node client ⇄ real Roku: sideload · telnet console · ECP · screenshots
+```
+
+One core, two targets: the web shell and the oracle stay in TypeScript, and the
+oracle's goldens are the shared conformance suite for both. Details in
+[docs/architecture.md](docs/architecture.md).
+
+| Path                | Contents                                                                      |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `crates/brs-core`   | BrightScript engine: lexer, parser, compiler, VM, runtime objects, SceneGraph |
+| `crates/brs-cli`    | Native `brs` binary: run a channel, run conformance                           |
+| `crates/brs-wasm`   | C-ABI WebAssembly exports used by the browser worker                          |
+| `apps/web`          | React shell, worker runtime host, Canvas2D renderer, Playwright e2e           |
+| `packages/protocol` | Typed messages between the shell and the worker; remote keys                  |
+| `packages/oracle`   | Device client: sideload, console capture, ECP, screenshots, diff              |
+| `fidelity/`         | Probe channels and their device-recorded `golden/` traces                     |
+| `profiles/`         | Reference device profile (identifiers redacted)                               |
+| `scripts/`          | Setup, environment activation, cargo wrapper, wasm build                      |
 
 ## Commands
 
-| Command                               | What it does                                         |
-| ------------------------------------- | ---------------------------------------------------- |
-| `make help`                           | List every target                                    |
-| `make dev`                            | Build wasm + web shell at http://127.0.0.1:5173      |
-| `make run CHANNEL=<dir\|zip>`         | Run a channel natively, console to stdout            |
-| `make test`                           | Rust + TypeScript unit tests                         |
-| `make conformance`                    | Run probes in the engine and diff with goldens       |
-| `make e2e`                            | Browser fidelity tests (Playwright)                  |
-| `make check`                          | Every CI gate except e2e                             |
-| `make format`                         | Prettier + rustfmt                                   |
-| `make build` / `make wasm`            | Production build / wasm only                         |
-| `make record PROBE=fidelity/language` | Run probes on the device and write `golden/`         |
-| `make oracle ARGS="device-info"`      | Oracle CLI (`profile`, `list`, `screenshot`, `diff`) |
-| `make clean`                          | Remove build outputs                                 |
+| Command                               | What it does                                                    |
+| ------------------------------------- | --------------------------------------------------------------- |
+| `make help`                           | List every target                                               |
+| `make setup`                          | Install Node 22, pnpm, Rust + wasm target, dependencies, `.env` |
+| `make dev`                            | Build wasm + web shell at http://127.0.0.1:5173                 |
+| `make run CHANNEL=<dir\|zip>`         | Run a channel natively, console to stdout                       |
+| `make test`                           | Rust + TypeScript unit tests                                    |
+| `make conformance`                    | Run probes in the engine and diff with goldens                  |
+| `make e2e`                            | Browser fidelity tests (Playwright)                             |
+| `make check`                          | Every CI gate except e2e                                        |
+| `make format`                         | Prettier + rustfmt                                              |
+| `make build` / `make wasm`            | Production build / wasm only                                    |
+| `make record PROBE=fidelity/language` | Run probes on the device and write `golden/`                    |
+| `make oracle ARGS="device-info"`      | Oracle CLI (`profile`, `list`, `screenshot`, `diff`)            |
+| `make doctor`                         | Print the resolved tool versions                                |
+| `make clean`                          | Remove build outputs                                            |
 
-The `pnpm` scripts behind them (`pnpm dev`, `pnpm conformance`,
-`pnpm oracle ...`) work too when Node 22 and pnpm are active in your shell.
+Every target runs through `scripts/run.sh`, which activates the right Node,
+pnpm and Rust; no `nvm use` needed. To use the raw tools in your shell,
+`source scripts/env.sh`.
 
-## Probes
+<details>
+<summary><strong>Setup details</strong></summary>
+
+`make setup` (or `./scripts/setup.sh`) checks each prerequisite and installs
+what is missing. It asks first; `./scripts/setup.sh --yes` skips the questions
+and `make setup-e2e` also installs the Playwright browser.
+
+1. Node 22 via nvm or fnm (from `.nvmrc`).
+2. pnpm via corepack (version from `package.json`).
+3. rustup, the pinned toolchain and the `wasm32-unknown-unknown` target.
+   Homebrew's `rust` formula is not enough (no wasm target); the scripts prefer
+   rustup's toolchain even when it is on PATH.
+4. `pnpm install --frozen-lockfile`, Rust crates and the wasm build.
+5. `.env` from `.env.example` when missing. Fill `ROKU_HOST` and
+   `ROKU_DEV_PASSWORD` to use the oracle. **Never commit `.env`.**
+
+To record goldens you need a Roku with Developer Mode enabled and
+_Settings > System > Advanced system settings > Control by mobile apps_ set to
+**Permissive**.
+
+</details>
+
+<details>
+<summary><strong>Writing a probe</strong></summary>
 
 A probe is a minimal channel under `fidelity/<area>/<name>/` that prints its
-observable output between `@@PROBE_BEGIN` and `@@PROBE_END`. Optional
-`probe.json` adds remote key steps and app-ui/screenshot capture:
+observable output between `@@PROBE_BEGIN` and `@@PROBE_END`. An optional
+`probe.json` adds remote key steps and app-ui / screenshot capture:
 
 ```json
 {
@@ -181,7 +266,86 @@ observable output between `@@PROBE_BEGIN` and `@@PROBE_END`. Optional
 ```
 
 Key steps start `startDelayMs` after `@@PROBE_BEGIN` (default 1000), both on
-the device and in the emulator. `kind: "bench"` probes produce metrics used to calibrate device-mode timing and
-are never diffed. Goldens in `golden/` are committed; raw device logs go to the
-git-ignored `.oracle/`. Full workflow in
+the device and in the emulator. `kind: "bench"` probes produce timing metrics
+and are never diffed. Goldens in `golden/` are committed; raw device logs go to
+the git-ignored `.oracle/`. Full workflow in
 [docs/fidelity-workflow.md](docs/fidelity-workflow.md).
+
+</details>
+
+<details>
+<summary><strong>Troubleshooting</strong></summary>
+
+- **`EHOSTUNREACH` from Node while `curl` works:** macOS Local Network privacy
+  is blocking that Node binary. Allow your terminal in _System Settings >
+  Privacy & Security > Local Network_ (toggle off/on if already enabled).
+- **`zsh: correct 'pnpm' to 'npm'`:** pnpm is not active in your shell. Use the
+  `make` targets, or `source scripts/env.sh`.
+- **Connect timeouts right after a probe:** the device stalls while the Home
+  screen reloads. The oracle retries connection-phase failures automatically.
+- **`CreateObject` returns `invalid`:** the class is not implemented yet; the
+  console shows the device's `unknown classname "X"` diagnostic.
+
+</details>
+
+## FAQ
+
+<details>
+<summary><strong>Do I need a Roku to use it?</strong></summary>
+
+No. Running channels, conformance and e2e work without a device: the goldens
+are committed. A device is only needed to record new goldens.
+
+</details>
+
+<details>
+<summary><strong>Is the home screen the real Roku UI?</strong></summary>
+
+No. The Roku OS interface is proprietary, so the home screen is an original
+launcher that follows the device's interaction model (tile grid, OK, Back,
+Options, Home), not its look.
+
+</details>
+
+<details>
+<summary><strong>Was Roku firmware reverse engineered?</strong></summary>
+
+No. Fidelity comes from black-box observation only: probes run on a device the
+author owns and the emulator is written from scratch to match their output.
+No firmware, fonts or system assets are extracted or shipped.
+
+</details>
+
+<details>
+<summary><strong>Can I debug from VS Code like on a device?</strong></summary>
+
+Not yet. Phase F7 makes the emulator answer like a Roku (dev installer, ECP,
+telnet console, debug protocol), so the BrightScript extension can deploy,
+show the console and set breakpoints without changes.
+
+</details>
+
+## Documentation
+
+| Document                                                         | Contents                                                                                      |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [docs/architecture.md](docs/architecture.md)                     | Engine pipeline, VM and threads, SceneGraph, display list, wasm ABI, worker loop, home screen |
+| [docs/brightscript-semantics.md](docs/brightscript-semantics.md) | Behaviors confirmed on the device, each with the probe that proves it                         |
+| [docs/fidelity-workflow.md](docs/fidelity-workflow.md)           | Add a probe, record it on the device, make the emulator match                                 |
+| [docs/git-workflow.md](docs/git-workflow.md)                     | Gitflow: `develop` (default), `release` (pre-prod), `master` (prod), PRs and releases         |
+| [CHANGELOG.md](CHANGELOG.md)                                     | Changes per phase                                                                             |
+
+## Contributing
+
+Work happens on `feature/*` branches with pull requests into `develop`; CI runs
+format, lint, type checks, unit tests, conformance and e2e. See
+[docs/git-workflow.md](docs/git-workflow.md).
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE).
+
+Apache-2.0 includes an explicit **patent grant**: every contributor licenses
+the patents their contribution needs, and anyone who sues claiming the project
+infringes a patent loses that license. Contributions are accepted under the
+same license (section 5).

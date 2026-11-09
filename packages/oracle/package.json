@@ -1,6 +1,7 @@
 {
   "name": "@roku-emu/oracle",
   "version": "0.0.0",
+  "license": "Apache-2.0",
   "private": true,
   "type": "module",
   "description": "Records fidelity traces from a real Roku device and diffs them against the emulator.",
