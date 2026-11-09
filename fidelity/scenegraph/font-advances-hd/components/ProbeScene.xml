@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Per-character advance widths of every system font: auto-sized Labels with
+     the character repeated 10 and 30 times; advance = (w30 - w10) / 20. -->
+<component name="ProbeScene" extends="Scene">
+  <interface>
+    <field id="chars" type="string" />
+  </interface>
+  <script type="text/brightscript">
+    <![CDATA[
+    sub init()
+        chars = ""
+        for code = 32 to 126
+            chars = chars + Chr(code)
+        end for
+        chars = chars + "áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇñÑ"
+        m.top.chars = chars
+        fonts = ["SmallestSystemFont", "SmallestBoldSystemFont", "SmallSystemFont", "SmallBoldSystemFont", "MediumSystemFont", "MediumBoldSystemFont", "LargeSystemFont", "LargeBoldSystemFont", "ExtraLargeSystemFont", "ExtraLargeBoldSystemFont"]
+        for each font in fonts
+            for i = 0 to Len(chars) - 1
+                c = Mid(chars, i + 1, 1)
+                for each count in [10, 30]
+                    label = m.top.CreateChild("Label")
+                    label.id = font
+                    label.font = "font:" + font
+                    label.text = String(count, c)
+                end for
+            end for
+        end for
+    end sub
+    ]]>
+  </script>
+</component>

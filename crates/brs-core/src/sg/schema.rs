@@ -37,6 +37,10 @@ fn no() -> Value {
 fn zero_f() -> Value {
     Value::Float(0.0)
 }
+/// Label `lineSpacing` default (scenegraph/label-wrap, FHD channel).
+fn line_spacing() -> Value {
+    Value::Float(12.0)
+}
 fn one_f() -> Value {
     Value::Float(1.0)
 }
@@ -221,7 +225,7 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("numLines", Integer, zero_i),
             spec("maxLines", Integer, zero_i),
             spec("wrap", Boolean, no),
-            spec("lineSpacing", Float, zero_f),
+            spec("lineSpacing", Float, line_spacing),
             spec("displayPartialLines", Boolean, no),
             spec("ellipsizeOnBoundary", Boolean, no),
             spec("truncateOnDelimiter", String, empty),
@@ -237,7 +241,7 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("loadWidth", Float, zero_f),
             spec("loadHeight", Float, zero_f),
             spec("loadDisplayMode", String, || Value::string("noScale")),
-            spec("loadStatus", String, || Value::string("noScale")),
+            spec("loadStatus", String, || Value::string("none")),
             spec("bitmapWidth", Float, zero_f),
             spec("bitmapHeight", Float, zero_f),
             spec("bitmapMargins", AssocArray, invalid),

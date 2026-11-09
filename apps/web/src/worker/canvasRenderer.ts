@@ -3,22 +3,62 @@
  * coordinates scaled to the surface (the device also scales the channel's
  * ui_resolution to the output mode).
  *
- * Provisional fidelity (F4 refines it against device screenshots): system
- * font metrics, Poster blendColor and image filtering are approximations.
+ * Fidelity: rectangle edges and text metrics follow device measurements
+ * (fidelity/scenegraph/render-rects-*, label-metrics, font-*). Glyph shapes
+ * come from a substitute font; Poster blendColor and image filtering are
+ * still approximations.
  */
-import { layoutLines, parseDisplayList, rgbaToCss, type DisplayList } from "./displayList";
+import { parseDisplayList, rgbaToCss, type DisplayList } from "./displayList";
+import { SUBSTITUTE_FAMILY } from "./substituteFont";
 
-/** Fallback stack: the Roku system font is not redistributable. */
-const FONT_FAMILY = "system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+/** Absorbs float error in design * scale products (102 * 2/3 must stay 68). */
+const SNAP_EPSILON = 1e-4;
+
+/** Device edge rule for filled boxes: floor the scaled start and the scaled size. */
+export function snapToOutputPixels(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  scaleX: number,
+  scaleY: number,
+): { x: number; y: number; width: number; height: number } {
+  const snap = (value: number) => Math.floor(value + SNAP_EPSILON);
+  return {
+    x: snap(x * scaleX),
+    y: snap(y * scaleY),
+    width: Math.max(0, snap(w * scaleX)),
+    height: Math.max(0, snap(h * scaleY)),
+  };
+}
+
+/** Bundled substitute first; the generic stack only covers a failed load. */
+const FONT_FAMILY = `${SUBSTITUTE_FAMILY}, system-ui, sans-serif`;
+
+/**
+ * Substitute glyph calibration against device screenshots
+ * (fidelity/scenegraph/label-metrics): stroke weights matching the device's
+ * ink density, and the glyph top offset in output pixels.
+ */
+const TEXT_WEIGHT = { regular: 350, bold: 570 };
+const GLYPH_TOP_OUTPUT_PX = -1;
 
 type ImageEntry =
   { state: "loading" } | { state: "ready"; bitmap: ImageBitmap } | { state: "failed" };
 
 export class CanvasRenderer {
   private readonly context: OffscreenCanvasRenderingContext2D;
+  private fontGeneration = 0;
+  private readonly packageFonts = new Map<string, string | null>();
   private readonly images = new Map<string, ImageEntry>();
   private list: DisplayList | null = null;
   private framePending = false;
+  /** Output px per design px (vertical), set at the start of each frame. */
+  private outputScaleY = 1;
+  /** Open rotations; pixel snapping only applies to axis-aligned drawing. */
+  private rotationDepth = 0;
+  private readonly patches = new Map<string, [number, number, number, number]>();
+  private readonly tinted = new Map<string, OffscreenCanvas>();
 
   /**
    * @param readPackageFile resolves `pkg:/` URIs from the running channel.
@@ -42,6 +82,10 @@ export class CanvasRenderer {
       if (entry.state === "ready") entry.bitmap.close();
     }
     this.images.clear();
+    this.fontGeneration++;
+    this.packageFonts.clear();
+    this.tinted.clear();
+    this.patches.clear();
     this.context.fillStyle = "#000";
     this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
@@ -99,6 +143,7 @@ export class CanvasRenderer {
     if (!list) return;
     const scaleX = this.canvas.width / list.w;
     const scaleY = this.canvas.height / list.h;
+    this.outputScaleY = scaleY;
 
     context.save();
     context.setTransform(scaleX, 0, 0, scaleY, 0, 0);
@@ -107,26 +152,61 @@ export class CanvasRenderer {
     context.fillStyle = rgbaToCss(list.bg);
     context.fillRect(0, 0, list.w, list.h);
 
+    this.rotationDepth = 0;
     for (const item of list.items) {
       switch (item[0]) {
         case "r": {
           const [, x, y, w, h, color, opacity] = item;
           context.fillStyle = rgbaToCss(color, opacity);
-          context.fillRect(x, y, w, h);
+          // The device fills whole output pixels without antialiasing:
+          // start = floor(x * scale), size = floor(w * scale)
+          // (fidelity/scenegraph/render-rects-{fhd,hd}).
+          if (this.rotationDepth > 0) {
+            context.fillRect(x, y, w, h);
+            break;
+          }
+          const box = snapToOutputPixels(x, y, w, h, scaleX, scaleY);
+          context.save();
+          context.setTransform(1, 0, 0, 1, 0, 0);
+          context.fillRect(box.x, box.y, box.width, box.height);
+          context.restore();
           break;
         }
         case "i": {
-          const [, x, y, w, h, uri, opacity] = item;
+          const [, x, y, w, h, uri, opacity, blend] = item;
           const bitmap = this.image(uri);
           if (!bitmap) break;
-          // Width/height 0 means "bitmap size" on the device.
-          const width = w > 0 ? w : bitmap.width;
-          const height = h > 0 ? h : bitmap.height;
+          const source = this.blend(uri, bitmap, blend);
+          // The engine sends the bitmap size (design px) when width/height are 0;
+          // 0 here only means the load result has not reached the engine yet.
+          const width = w > 0 ? w : bitmap.width / scaleX;
+          const height = h > 0 ? h : bitmap.height / scaleY;
+          context.save();
           context.globalAlpha = opacity;
-          context.drawImage(bitmap, x, y, width, height);
-          context.globalAlpha = 1;
+          if (this.rotationDepth > 0) {
+            this.drawImage(uri, source, bitmap, x, y, width, height, scaleX, scaleY);
+          } else {
+            const box = snapToOutputPixels(x, y, width, height, scaleX, scaleY);
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            this.drawImage(uri, source, bitmap, box.x, box.y, box.width, box.height, 1, 1);
+          }
+          context.restore();
           break;
         }
+        case "R": {
+          const [, pivotX, pivotY, radians] = item;
+          context.save();
+          context.translate(pivotX, pivotY);
+          // SceneGraph rotation is counterclockwise; canvas y points down.
+          context.rotate(-radians);
+          context.translate(-pivotX, -pivotY);
+          this.rotationDepth += 1;
+          break;
+        }
+        case "Q":
+          context.restore();
+          this.rotationDepth -= 1;
+          break;
         case "t":
           this.drawText(item);
           break;
@@ -146,38 +226,174 @@ export class CanvasRenderer {
     context.restore();
   }
 
-  private drawText(item: Extract<DisplayList["items"][number], { 0: "t" }>): void {
-    const [, x, y, w, h, text, size, bold, color, opacity, horizAlign, vertAlign, wrap, maxLines] =
-      item;
-    if (!text) return;
-    const context = this.context;
-    context.font = `${bold ? "bold " : ""}${size}px ${FONT_FAMILY}`;
-    context.fillStyle = rgbaToCss(color, opacity);
-    context.textBaseline = "top";
-    const lineHeight = Math.round((size * 46) / 45);
-    const lines = layoutLines(text, w, wrap, maxLines, (value) => context.measureText(value).width);
-    const blockHeight = lines.length * lineHeight;
-    let top = y;
-    if (vertAlign === "center") top = y + (h - blockHeight) / 2;
-    else if (vertAlign === "bottom") top = y + h - blockHeight;
+  /**
+   * Poster blendColor: the device multiplies each texel by the color
+   * (fidelity/scenegraph/render-composite). White (the default) is a no-op.
+   */
+  private blend(uri: string, bitmap: ImageBitmap, rgba: number): CanvasImageSource {
+    const unsigned = rgba >>> 0;
+    if ((unsigned | 0xff) >>> 0 === 0xffffffff) return bitmap;
+    const key = `${uri}|${unsigned}`;
+    const cached = this.tinted.get(key);
+    if (cached) return cached;
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const context = canvas.getContext("2d")!;
+    context.drawImage(bitmap, 0, 0);
+    context.globalCompositeOperation = "multiply";
+    context.fillStyle = rgbaToCss(unsigned | 0xff);
+    context.fillRect(0, 0, bitmap.width, bitmap.height);
+    // Multiply fills transparent texels too; restore the bitmap's alpha.
+    context.globalCompositeOperation = "destination-in";
+    context.drawImage(bitmap, 0, 0);
+    this.tinted.set(key, canvas);
+    return canvas;
+  }
 
+  private drawImage(
+    uri: string,
+    source: CanvasImageSource,
+    bitmap: ImageBitmap,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    scaleX: number,
+    scaleY: number,
+  ): void {
+    const context = this.context;
+    if (
+      !uri.split(/[?#]/)[0]!.toLowerCase().endsWith(".9.png") ||
+      bitmap.width < 3 ||
+      bitmap.height < 3
+    ) {
+      context.drawImage(source, x, y, width, height);
+      return;
+    }
+    const sw = bitmap.width - 2,
+      sh = bitmap.height - 2;
+    if (width * scaleX < sw || height * scaleY < sh) {
+      context.drawImage(source, 1, 1, sw, sh, x, y, width, height);
+      return;
+    }
+    let patch = this.patches.get(uri);
+    if (!patch) {
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const pixels = canvas.getContext("2d")!;
+      pixels.drawImage(bitmap, 0, 0);
+      const data = pixels.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      const marked = (px: number, py: number) => {
+        const at = (py * bitmap.width + px) * 4;
+        return data[at + 3]! > 127 && data[at]! < 32 && data[at + 1]! < 32 && data[at + 2]! < 32;
+      };
+      const range = (length: number, horizontal: boolean): [number, number] => {
+        const marks = Array.from({ length }, (_, i) => i).filter((i) =>
+          horizontal ? marked(i + 1, 0) : marked(0, i + 1),
+        );
+        return marks.length ? [marks[0]!, marks[marks.length - 1]! + 1] : [0, length];
+      };
+      patch = [...range(sw, true), ...range(sh, false)];
+      this.patches.set(uri, patch);
+    }
+    const [left, right, top, bottom] = patch;
+    const sx = [0, left, right, sw],
+      sy = [0, top, bottom, sh];
+    const dx = [0, left / scaleX, width - (sw - right) / scaleX, width];
+    const dy = [0, top / scaleY, height - (sh - bottom) / scaleY, height];
+    for (let row = 0; row < 3; row++)
+      for (let col = 0; col < 3; col++) {
+        const sourceWidth = sx[col + 1]! - sx[col]!,
+          sourceHeight = sy[row + 1]! - sy[row]!;
+        if (sourceWidth > 0 && sourceHeight > 0)
+          context.drawImage(
+            source,
+            1 + sx[col]!,
+            1 + sy[row]!,
+            sourceWidth,
+            sourceHeight,
+            x + dx[col]!,
+            y + dy[row]!,
+            dx[col + 1]! - dx[col]!,
+            dy[row + 1]! - dy[row]!,
+          );
+      }
+  }
+
+  private fontFamily(uri: string): string {
+    if (!uri) return FONT_FAMILY;
+    const loaded = this.packageFonts.get(uri);
+    if (loaded) return loaded;
+    if (!this.packageFonts.has(uri)) {
+      this.packageFonts.set(uri, null);
+      const generation = this.fontGeneration;
+      void Promise.resolve(this.readPackageFile(uri))
+        .then(async (bytes) => {
+          if (!bytes || typeof FontFace === "undefined") return;
+          const family = `RokuPackage${generation}_${Math.random().toString(36).slice(2)}`;
+          const face = await new FontFace(family, bytes).load();
+          const fonts =
+            (globalThis as unknown as { fonts?: FontFaceSet; document?: Document }).fonts ??
+            globalThis.document?.fonts;
+          fonts?.add(face);
+          if (this.fontGeneration !== generation) return;
+          this.packageFonts.set(uri, family);
+          this.requestFrame();
+        })
+        .catch(() => {
+          /* Invalid fonts retain the substitute. */
+        });
+    }
+    return FONT_FAMILY;
+  }
+
+  private drawText(item: Extract<DisplayList["items"][number], { 0: "t" }>): void {
+    const [
+      ,
+      x,
+      y,
+      w,
+      h,
+      lines,
+      size,
+      bold,
+      color,
+      opacity,
+      horizAlign,
+      vertAlign,
+      lineBox,
+      lineSpacing,
+      fontUri,
+      ascent,
+    ] = item;
+    if (!lines.length) return;
+    const context = this.context;
+    const family = this.fontFamily(fontUri);
+    const packaged = !!fontUri && !!this.packageFonts.get(fontUri);
+    context.font = `${packaged ? 400 : bold ? TEXT_WEIGHT.bold : TEXT_WEIGHT.regular} ${size}px ${family}`;
+    context.fillStyle = rgbaToCss(color, opacity);
+    context.textBaseline = packaged ? "alphabetic" : "top";
+    context.textAlign = "left";
+    const blockHeight = lines.length * lineBox + Math.max(0, lines.length - 1) * lineSpacing;
+    let top = y;
+    if (vertAlign === "center") top += (h - blockHeight) / 2;
+    else if (vertAlign === "bottom") top += h - blockHeight;
     context.save();
     context.beginPath();
-    context.rect(x, y, w, Math.max(h, blockHeight));
+    context.rect(x, y, w, h);
     context.clip();
-    lines.forEach((line, index) => {
+    lines.forEach(([line, deviceWidth], index) => {
+      const drawnWidth = context.measureText(line).width;
       let left = x;
-      if (horizAlign === "center") {
-        context.textAlign = "center";
-        left = x + w / 2;
-      } else if (horizAlign === "right") {
-        context.textAlign = "right";
-        left = x + w;
-      } else {
-        context.textAlign = "left";
-      }
-      // Center glyphs vertically in the line box, like the device's metrics.
-      context.fillText(line, left, top + index * lineHeight + (lineHeight - size) / 2);
+      if (horizAlign === "center") left += (w - deviceWidth) / 2;
+      else if (horizAlign === "right") left += w - deviceWidth;
+      const lineTop =
+        top +
+        index * (lineBox + lineSpacing) +
+        (packaged ? ascent : (lineBox - size) / 2 + GLYPH_TOP_OUTPUT_PX / this.outputScaleY);
+      context.save();
+      context.translate(left, lineTop);
+      if (drawnWidth > 0 && deviceWidth > 0) context.scale(deviceWidth / drawnWidth, 1);
+      context.fillText(line, 0, 0);
+      context.restore();
     });
     context.restore();
   }

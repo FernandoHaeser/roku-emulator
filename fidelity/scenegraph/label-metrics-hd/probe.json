@@ -1,0 +1,11 @@
+{
+  "kind": "calibration",
+  "settleMs": 1500,
+  "capture": {
+    "appUi": false,
+    "screenshot": true
+  },
+  "visual": {
+    "tolerance": 0.075
+  }
+}

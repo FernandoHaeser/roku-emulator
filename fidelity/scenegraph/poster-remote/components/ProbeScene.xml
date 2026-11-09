@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Remote Poster probe: loadStatus transitions and bitmap size for https
+     images, chained so the order is deterministic: a first load, a missing
+     file, the first URL again (cached) and a detached Poster (cached). -->
+<component name="ProbeScene" extends="Scene">
+  <interface>
+    <field id="done" type="boolean" />
+  </interface>
+  <script type="text/brightscript">
+  <![CDATA[
+  sub init()
+      base = "https://raw.githubusercontent.com/FernandoHaeser/roku-emulator/develop/docs/assets/"
+      m.url = base + "home-screen.png"
+      m.missingUrl = base + "missing.png"
+      m.posters = {}
+      watch("first", m.url, true)
+  end sub
+
+  sub watch(name as string, uri as string, attach as boolean)
+      poster = CreateObject("roSGNode", "Poster")
+      poster.id = name
+      m.posters[name] = poster
+      poster.observeField("loadStatus", "onStatus")
+      if attach then m.top.appendChild(poster)
+      poster.uri = uri
+      print name; " set "; poster.loadStatus; " "; poster.bitmapWidth; "x"; poster.bitmapHeight
+  end sub
+
+  sub onStatus(event as object)
+      poster = event.getRoSGNode()
+      status = event.getData()
+      print poster.id; " -> "; status; " "; poster.bitmapWidth; "x"; poster.bitmapHeight
+      if status = "loading" then return
+      if poster.id = "first" then
+          watch("missing", m.missingUrl, true)
+      else if poster.id = "missing" then
+          watch("again", m.url, true)
+      else if poster.id = "again" then
+          watch("detached", m.url, false)
+      else
+          print "done"
+          m.top.done = true
+      end if
+  end sub
+  ]]>
+  </script>
+</component>

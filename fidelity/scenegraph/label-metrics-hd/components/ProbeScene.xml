@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Text metrics probe: auto-sized Labels (no width) for every system font, so
+     boundingRect() reports the device's exact advance width and line height. -->
+<component name="ProbeScene" extends="Scene">
+  <script type="text/brightscript">
+    <![CDATA[
+    sub init()
+        fonts = ["SmallestSystemFont", "SmallestBoldSystemFont", "SmallSystemFont", "SmallBoldSystemFont", "MediumSystemFont", "MediumBoldSystemFont", "LargeSystemFont", "LargeBoldSystemFont", "ExtraLargeSystemFont", "ExtraLargeBoldSystemFont"]
+        texts = ["Roku Emulator fidelity probe", "The quick brown fox jumps over the lazy dog", "0123456789", "WWWWW", "iiiii", "Ação é Útil"]
+        y = 10
+        for each font in fonts
+            x = 10
+            for each text in texts
+                label = m.top.CreateChild("Label")
+                label.id = font
+                label.font = "font:" + font
+                label.text = text
+                label.translation = [x, y]
+                label.color = "0xFFFFFFFF"
+                x = x + 200
+            end for
+            y = y + 70
+        end for
+    end sub
+    ]]>
+  </script>
+  <children>
+    <Rectangle id="background" width="1280" height="720" color="0x000000FF" />
+  </children>
+</component>

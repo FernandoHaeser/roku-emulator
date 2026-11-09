@@ -1,0 +1,31 @@
+default lineSpacing  12 
+SmallestSystemFont|0|0 | Avatar |  29 
+SmallestSystemFont|0|0 | Avatar Avatar |  70 
+SmallestSystemFont|0|0 | Avatar Avatar Avatar |  111 
+SmallestSystemFont|0|0 | Avatar Avatar Avatar Avatar |  152 
+SmallestSystemFont|10|0 | Avatar Avatar Avatar |  107 
+SmallestSystemFont|0|2 | Avatar Avatar Avatar |  70 
+MediumSystemFont|0|0 | Avatar |  38 
+MediumSystemFont|0|0 | Avatar Avatar |  88 
+MediumSystemFont|0|0 | Avatar Avatar Avatar |  138 
+MediumSystemFont|0|0 | Avatar Avatar Avatar Avatar |  188 
+MediumSystemFont|10|0 | Avatar Avatar Avatar |  134 
+MediumSystemFont|0|2 | Avatar Avatar Avatar |  88 
+LargeBoldSystemFont|0|0 | Avatar |  46 
+LargeBoldSystemFont|0|0 | Avatar Avatar |  104 
+LargeBoldSystemFont|0|0 | Avatar Avatar Avatar |  162 
+LargeBoldSystemFont|0|0 | Avatar Avatar Avatar Avatar |  220 
+LargeBoldSystemFont|10|0 | Avatar Avatar Avatar |  158 
+LargeBoldSystemFont|0|2 | Avatar Avatar Avatar |  104 
+pkg24|0|0 | Avatar |  31 
+pkg24|0|0 | Avatar Avatar |  74 
+pkg24|0|0 | Avatar Avatar Avatar |  117 
+pkg24|0|0 | Avatar Avatar Avatar Avatar |  160 
+pkg24|10|0 | Avatar Avatar Avatar |  113 
+pkg24|0|2 | Avatar Avatar Avatar |  74 
+pkg40|0|0 | Avatar |  50 
+pkg40|0|0 | Avatar Avatar |  112 
+pkg40|0|0 | Avatar Avatar Avatar |  174 
+pkg40|0|0 | Avatar Avatar Avatar Avatar |  236 
+pkg40|10|0 | Avatar Avatar Avatar |  170 
+pkg40|0|2 | Avatar Avatar Avatar |  112 

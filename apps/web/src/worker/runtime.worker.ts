@@ -15,7 +15,9 @@ import engineUrl from "@/wasm/brs.wasm?url";
 import { CanvasRenderer } from "./canvasRenderer";
 import { BrsEngine, EngineStatus, type EngineStatusCode } from "./engine";
 import { waitDebugCommand } from "./debugMailbox";
+import { imageSize } from "./imageHeaders";
 import { LineBuffer } from "./lineBuffer";
+import { loadSubstituteFont } from "./substituteFont";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -30,7 +32,7 @@ let renderer: CanvasRenderer | null = null;
 let headless = false;
 let debugMailbox: SharedArrayBuffer | undefined;
 let nextHttpId = 1;
-const httpRequests = new Map<number, { coreId: number; generation: number }>();
+const httpRequests = new Map<number, { coreId: number; generation: number; imageUri?: string }>();
 let enginePromise: Promise<BrsEngine> | null = null;
 let active: BrsEngine | null = null;
 let channelName = "";
@@ -90,9 +92,10 @@ function engine(): Promise<BrsEngine> {
   return enginePromise;
 }
 
-function initSurface(canvas: OffscreenCanvas, width: number, height: number): void {
+async function initSurface(canvas: OffscreenCanvas, width: number, height: number): Promise<void> {
   canvas.width = width;
   canvas.height = height;
+  await loadSubstituteFont();
   try {
     renderer = new CanvasRenderer(canvas, (uri) => active?.packageFile(uri) ?? null);
   } catch (error) {
@@ -135,6 +138,15 @@ function toChannelStatus(code: EngineStatusCode): ChannelStatus {
 
 /** Pushes the SceneGraph frame and registry changes produced by the last slice. */
 function publishState(instance: BrsEngine): void {
+  for (const uri of instance.imageRequests()) {
+    const id = nextHttpId++;
+    httpRequests.set(id, { coreId: 0, generation, imageUri: uri });
+    post({
+      type: "httpRequest",
+      id,
+      request: JSON.stringify({ url: uri, method: "GET", timeoutMs: 30000 }),
+    });
+  }
   const result = instance.displayList(drawnRevision);
   if (result.kind === "list") {
     drawnRevision = instance.revision();
@@ -280,7 +292,7 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
       debugMailbox = message.debugMailbox;
       headless = message.headless === true;
       if (headless) post({ type: "ready", renderer: "Node Worker / WebAssembly" });
-      else if (message.canvas) initSurface(message.canvas, message.width, message.height);
+      else if (message.canvas) void initSurface(message.canvas, message.width, message.height);
       break;
     case "launchChannel":
       void launchChannel(
@@ -308,7 +320,20 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
       const request = httpRequests.get(message.id);
       httpRequests.delete(message.id);
       if (active && request && request.generation === generation) {
-        active.httpComplete(request.coreId, message.response);
+        if (request.imageUri) {
+          let size: [number, number] | null = null;
+          try {
+            const response = JSON.parse(message.response) as { status: number; body?: string };
+            if (response.status >= 200 && response.status < 300) {
+              size = imageSize(
+                Uint8Array.from(atob(response.body ?? ""), (char) => char.charCodeAt(0)),
+              );
+            }
+          } catch {
+            /* A malformed response is a failed image load. */
+          }
+          active.imageComplete(request.imageUri, ...(size ?? [0, 0]));
+        } else active.httpComplete(request.coreId, message.response);
         schedule(active, generation, 0);
       }
       break;

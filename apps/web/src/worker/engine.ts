@@ -23,6 +23,8 @@ interface EngineExports {
   brs_key(pressed: number): void;
   brs_debugger_command(): number;
   brs_http_complete(id: number): void;
+  brs_image_requests(): number;
+  brs_image_complete(): void;
   brs_launch_args(): void;
   brs_input(): void;
   brs_revision(): number;
@@ -175,6 +177,15 @@ export class BrsEngine {
     this.exports.brs_input();
   }
 
+  imageRequests(): string[] {
+    return JSON.parse(
+      this.decoder.decode(this.blobBytes(this.exports.brs_image_requests())),
+    ) as string[];
+  }
+  imageComplete(uri: string, width: number, height: number): void {
+    this.writeScratch(JSON.stringify({ uri, width, height }));
+    this.exports.brs_image_complete();
+  }
   httpComplete(id: number, response: string): void {
     this.writeScratch(response);
     this.exports.brs_http_complete(id);

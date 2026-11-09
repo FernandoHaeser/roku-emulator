@@ -1,15 +1,16 @@
 //! Geometry (boundingRect) and the display list handed to host renderers.
 //!
 //! Coordinates are in the channel's design resolution (`ui_resolutions`);
-//! hosts scale to their surface. Font metrics are provisional: system font
-//! sizes follow Roku's published FHD values and the line height matches the
-//! `scenegraph/label-basic` golden (LargeBoldSystemFont -> 46 px).
+//! hosts scale to their surface. Label metrics come from device calibration
+//! (see `text.rs`).
 
 use std::rc::Rc;
 
 use super::{with_node, Node};
 use crate::value::{Object, ObjectRef, Value};
 use crate::vm::Vm;
+
+use super::text::{self, FontSpec, PackageFont};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Rect {
@@ -40,9 +41,10 @@ impl Rect {
     }
 }
 
-/// System font size in design pixels for a `font:` URI.
-pub fn font_size(vm: &Vm, font: &Value) -> (f64, bool) {
-    let fhd = vm.sg.design_height >= 1080.0 || vm.sg.design_height == 0.0;
+/// Font of a Label's `font` field: a `font:` system URI or a Font node.
+pub fn label_font(vm: &Vm, font: &Value) -> FontSpec {
+    let fhd = is_fhd(vm);
+    let output_scale = super::bitmap::design_per_output(vm);
     let (name, explicit) = match font {
         Value::String(name) => (name.to_string(), None),
         Value::Object(object) => match &*object.borrow() {
@@ -51,37 +53,73 @@ pub fn font_size(vm: &Vm, font: &Value) -> (f64, bool) {
         },
         _ => (String::new(), None),
     };
-    let lower = name.to_lowercase();
-    let bold = lower.contains("bold");
+    let package = vm
+        .sg
+        .fonts
+        .get(&name)
+        .cloned()
+        .flatten()
+        .map(|data| PackageFont {
+            uri: name.as_str().into(),
+            data,
+        });
+    let bold = package.is_none() && name.to_lowercase().contains("bold");
+    // A Font node with its own size is not a calibrated system font.
     if let Some(size) = explicit.filter(|s| *s > 0.0) {
-        return (size, bold);
+        return FontSpec {
+            id: None,
+            size,
+            bold,
+            package,
+            output_scale,
+        };
     }
-    let fhd_size = if lower.contains("smallest") {
-        27.0
-    } else if lower.contains("small") {
-        33.0
-    } else if lower.contains("large") {
-        45.0
-    } else {
-        36.0
-    };
-    (
-        if fhd {
+    // Unknown names fall back to the Label default (MediumSystemFont).
+    let id = text::system_font(&name).or_else(|| text::system_font("MediumSystemFont"));
+    let fhd_size = id.map_or(36.0, text::system_size);
+    FontSpec {
+        id: if package.is_some() { None } else { id },
+        size: if fhd {
             fhd_size
         } else {
             (fhd_size * 2.0 / 3.0).round()
         },
         bold,
-    )
+        package,
+        output_scale,
+    }
 }
 
-fn line_height(size: f64) -> f64 {
-    (size * 46.0 / 45.0).round()
+/// Lines and metrics of a Label (design px, before any transform).
+pub fn label_layout(vm: &Vm, node: &Node) -> (FontSpec, text::Layout) {
+    let font = label_font(vm, &node.raw("font"));
+    let layout = text::layout(
+        &font,
+        &node.text("text"),
+        is_fhd(vm),
+        node.number("width"),
+        node.flag("wrap"),
+        node.number("maxLines").max(0.0) as usize,
+        node.number("lineSpacing"),
+    );
+    (font, layout)
 }
 
-/// Rough text advance (provisional until host font metrics are wired in).
-fn text_width(text: &str, size: f64) -> f64 {
-    (text.chars().count() as f64 * size * 0.52).round()
+fn is_fhd(vm: &Vm) -> bool {
+    vm.sg.design_height >= 1080.0 || vm.sg.design_height == 0.0
+}
+
+/// Poster size: explicit width/height, else the loaded bitmap size (design px).
+fn poster_size(node: &Node) -> (f64, f64) {
+    let pick = |explicit: &str, bitmap: &str| {
+        let value = node.number(explicit);
+        if value > 0.0 {
+            value
+        } else {
+            node.number(bitmap)
+        }
+    };
+    (pick("width", "bitmapWidth"), pick("height", "bitmapHeight"))
 }
 
 fn has(node: &Node, type_name: &str) -> bool {
@@ -92,27 +130,30 @@ fn has(node: &Node, type_name: &str) -> bool {
 pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
     let (own, children) = with_node(object, |node| {
         let own = if has(node, "Label") {
-            let (size, _) = font_size(vm, &node.raw("font"));
-            let text = node.text("text");
-            let width = node.number("width");
-            let width = if width > 0.0 {
-                width
-            } else {
-                text_width(&text, size)
+            let (_, layout) = label_layout(vm, node);
+            let pick = |name: &str, measured: f64| {
+                let value = node.number(name);
+                if value > 0.0 {
+                    value
+                } else {
+                    measured
+                }
             };
-            let height = node.number("height");
-            let height = if height > 0.0 {
-                height
-            } else {
-                line_height(size)
-            };
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width: pick("width", layout.width()),
+                height: pick("height", layout.height()),
+            })
+        } else if has(node, "Poster") {
+            let (width, height) = poster_size(node);
             Some(Rect {
                 x: 0.0,
                 y: 0.0,
                 width,
                 height,
             })
-        } else if has(node, "Rectangle") || has(node, "Poster") {
+        } else if has(node, "Rectangle") {
             Some(Rect {
                 x: 0.0,
                 y: 0.0,
@@ -195,7 +236,7 @@ struct Transform {
 ///
 /// `{"w":1920,"h":1080,"bg":<rgba>,"items":[...]}` where items are
 /// `["r",x,y,w,h,rgba,opacity]`, `["i",x,y,w,h,uri,opacity,blendRgba]`,
-/// `["t",x,y,w,h,text,size,bold,rgba,opacity,halign,valign,wrap,maxLines]`,
+/// `["t",x,y,w,h,[[line,width]...],size,bold,rgba,opacity,halign,valign,lineHeight,lineSpacing,fontUri,ascent]`,
 /// `["c",x,y,w,h]` (push clip) and `["C"]` (pop clip).
 pub fn display_list(vm: &Vm) -> Option<String> {
     let screen = vm.sg.screens.iter().rev().find(|s| s.shown && !s.closed)?;
@@ -287,45 +328,54 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
         } else if has(node, "Poster") {
             let uri = node.text("uri");
             if !uri.is_empty() {
+                let (pw, ph) = poster_size(node);
                 items.push(format!(
                     "[\"i\",{},{},{},{},{},{},{}]",
                     transform.x,
                     transform.y,
-                    w,
-                    h,
+                    pw * transform.sx,
+                    ph * transform.sy,
                     json_string(&uri),
                     transform.opacity,
                     node.number("blendColor") as i64 as i32
                 ));
             }
         } else if has(node, "Label") {
-            let (size, bold) = font_size(vm, &node.raw("font"));
-            let text = node.text("text");
+            let (font, layout) = label_layout(vm, node);
             let width = if w > 0.0 {
                 w
             } else {
-                text_width(&text, size) * transform.sx
+                layout.width() * transform.sx
             };
             let height = if h > 0.0 {
                 h
             } else {
-                line_height(size) * transform.sy
+                layout.height() * transform.sy
             };
+            let lines: Vec<String> = layout
+                .lines
+                .iter()
+                .map(|(line, line_width)| {
+                    format!("[{},{}]", json_string(line), line_width * transform.sx)
+                })
+                .collect();
             items.push(format!(
-                "[\"t\",{},{},{},{},{},{},{},{},{},{},{},{},{}]",
+                "[\"t\",{},{},{},{},[{}],{},{},{},{},{},{},{},{},{},{}]",
                 transform.x,
                 transform.y,
                 width,
                 height,
-                json_string(&text),
-                size * transform.sy,
-                bold,
+                lines.join(","),
+                font.size * transform.sy,
+                font.bold,
                 node.number("color") as i64 as i32,
                 transform.opacity,
                 json_string(&node.text("horizAlign")),
                 json_string(&node.text("vertAlign")),
-                node.flag("wrap"),
-                node.number("maxLines")
+                layout.line_height * transform.sy,
+                layout.line_spacing * transform.sy,
+                json_string(font.package.as_ref().map_or("", |p| &p.uri)),
+                text::ascent(&font) * transform.sy
             ));
         }
         let clip = node.field("clippingRect").and_then(|f| match &f.value {
@@ -347,11 +397,26 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
             },
             _ => None,
         });
-        Some((transform, items, clip))
+        // Rotation (radians, counterclockwise) about scaleRotateCenter, applied
+        // by the host to this node's items and its whole subtree.
+        let rotation = node.number("rotation");
+        let rotate = (rotation != 0.0).then(|| {
+            let (cx, cy) = node.vector("scaleRotateCenter");
+            format!(
+                "[\"R\",{},{},{}]",
+                transform.x + cx * transform.sx,
+                transform.y + cy * transform.sy,
+                rotation
+            )
+        });
+        Some((transform, items, clip, rotate))
     });
-    let Some((transform, items, clip)) = state else {
+    let Some((transform, items, clip, rotate)) = state else {
         return;
     };
+    if let Some(rotate) = &rotate {
+        push_item(out, first, rotate);
+    }
     if let Some(clip) = &clip {
         push_item(out, first, clip);
     }
@@ -363,5 +428,8 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
     }
     if clip.is_some() {
         push_item(out, first, "[\"C\"]");
+    }
+    if rotate.is_some() {
+        push_item(out, first, "[\"Q\"]");
     }
 }

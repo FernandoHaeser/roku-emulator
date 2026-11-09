@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-scenegraph-render-composite" />
+		<screen type="SGScreen" focused="true">
+			<ProbeScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle name="background" rcid="0" bounds="{0, 0, 1920, 1080}" color="#000000ff" index="0" />
+				<Rectangle rcid="0" translation="{60, 60}" bounds="{60, 60, 240, 160}" color="#ffffffff" index="1" />
+				<Rectangle rcid="0" opacity="50" translation="{120, 100}" bounds="{120, 100, 240, 160}" color="#2563ebff" index="2" />
+				<RenderableNode children="2" rcid="0" opacity="50" translation="{420, 60}" bounds="{420, 60, 300, 200}" index="0">
+					<Rectangle rcid="0" bounds="{0, 0, 240, 160}" color="#ffffffff" index="0" />
+					<Rectangle rcid="0" opacity="50" translation="{60, 40}" bounds="{60, 40, 240, 160}" color="#e11d48ff" index="1" />
+				</RenderableNode>
+				<Rectangle rcid="0" translation="{780, 60}" bounds="{780, 60, 240, 160}" color="#ffffff80" index="3" />
+				<Rectangle rcid="0" translation="{1100, 60}" scale="{2, 1.5}" bounds="{1100, 60, 240, 120}" color="#16a34aff" index="4" />
+				<Rectangle rcid="0" translation="{1500, 140}" rotation="0.785398" scaleRotateCenter="{80, 50}" bounds="{1488.0762, 98.07613, 183.84778, 183.84775}" color="#facc15ff" index="5" />
+				<RenderableNode children="2" rcid="0" clippingRect="{0, 0, 200, 120}" translation="{60, 380}" bounds="{60, 380, 450, 280}" index="1">
+					<Rectangle rcid="0" bounds="{0, 0, 300, 200}" color="#ffffffff" index="0" />
+					<Rectangle rcid="0" translation="{150, 80}" bounds="{150, 80, 300, 200}" color="#e11d48ff" index="1" />
+				</RenderableNode>
+				<Poster rcid="0" translation="{360, 380}" bounds="{360, 380, 186, 126}" uri="pkg:/images/quad.png" loadStatus="3" index="1" />
+				<Poster rcid="0" translation="{540, 380}" bounds="{540, 380, 248, 168}" uri="pkg:/images/quad.png" loadStatus="3" index="2" />
+				<Poster rcid="0" translation="{840, 380}" bounds="{840, 380, 300, 100}" uri="pkg:/images/quad.png" loadStatus="3" index="3" />
+				<Poster rcid="0" translation="{1180, 380}" bounds="{1180, 380, 300, 100}" uri="pkg:/images/quad.png" loadStatus="3" index="4" />
+				<Poster rcid="0" translation="{1520, 380}" bounds="{1520, 380, 300, 100}" uri="pkg:/images/quad.png" loadStatus="3" index="5" />
+				<Poster rcid="0" translation="{60, 700}" bounds="{60, 700, 248, 168}" uri="pkg:/images/quad.png" loadStatus="3" index="6" />
+				<Poster rcid="0" translation="{360, 700}" bounds="{360, 700, 248, 168}" uri="pkg:/images/quad.png" loadStatus="3" index="7" />
+				<Poster rcid="0" opacity="40" translation="{660, 700}" bounds="{660, 700, 248, 168}" uri="pkg:/images/quad.png" loadStatus="3" index="8" />
+				<Poster rcid="0" translation="{960, 700}" bounds="{960, 700, 248, 168}" uri="pkg:/images/quad.png" loadStatus="3" index="9" />
+			</ProbeScene>
+		</screen>
+	</topscreen>
+</app-ui>

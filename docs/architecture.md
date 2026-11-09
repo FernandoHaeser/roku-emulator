@@ -166,10 +166,16 @@ The status codes are mirrored in `apps/web/src/worker/engine.ts`
 `CanvasRenderer` (`canvasRenderer.ts`) draws the display list on the
 transferred `OffscreenCanvas` with Canvas2D, scaling design coordinates to the
 surface. Poster images come from the package (`brs_package_file`) or over
-HTTP, decoded with `createImageBitmap` and cached per URI. Text layout
-(word wrap, `maxLines`, ellipsis) lives in the pure `displayList.ts`.
-Provisional until F4: system font (not redistributable; a sans-serif stack is
-used), `blendColor`, filtering.
+HTTP, decoded with `createImageBitmap` and cached per URI. The engine queues
+remote Poster URIs; the host proxy returns image dimensions to WASM through
+`brs_image_complete`, waking the render thread to deliver loadStatus observers.
+Nine-patch marker borders are removed and stretch regions preserve corner sizes
+in output pixels. The engine owns text layout (`sg/text.rs`): shaped package
+fonts, wrap, maxLines, ellipsis and lineSpacing. Display lists carry those lines
+and measured widths so browser and VS Code draw the same layout. Package fonts
+are registered as FontFace assets; system glyphs use a bundled OFL substitute
+with device-calibrated advances. System font metrics, glyph shapes, blendColor
+and filtering remain approximate until the remaining F4 comparisons pass.
 
 ### Shell and home screen (`apps/web`)
 

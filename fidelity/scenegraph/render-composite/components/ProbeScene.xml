@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Compositing probe: opacity (own and inherited), scale, rotation, clipping
+     and Poster sizing modes / blendColor with a 124x84 quadrant image. -->
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Rectangle id="background" width="1920" height="1080" color="0x000000FF" />
+
+    <!-- Row 1: opacity -->
+    <Rectangle translation="[60, 60]" width="240" height="160" color="0xFFFFFFFF" />
+    <Rectangle translation="[120, 100]" width="240" height="160" color="0x2563EBFF" opacity="0.5" />
+    <Group translation="[420, 60]" opacity="0.5">
+      <Rectangle width="240" height="160" color="0xFFFFFFFF" />
+      <Rectangle translation="[60, 40]" width="240" height="160" color="0xE11D48FF" opacity="0.5" />
+    </Group>
+    <Rectangle translation="[780, 60]" width="240" height="160" color="0xFFFFFF80" />
+
+    <!-- Row 1: scale and rotation (around scaleRotateCenter) -->
+    <Rectangle translation="[1100, 60]" width="120" height="80" color="0x16A34AFF" scale="[2, 1.5]" />
+    <Rectangle translation="[1500, 140]" width="160" height="100" color="0xFACC15FF" rotation="0.785398" scaleRotateCenter="[80, 50]" />
+
+    <!-- Row 2: clipping -->
+    <Group translation="[60, 380]" clippingRect="[0, 0, 200, 120]">
+      <Rectangle width="300" height="200" color="0xFFFFFFFF" />
+      <Rectangle translation="[150, 80]" width="300" height="200" color="0xE11D48FF" />
+    </Group>
+
+    <!-- Row 2: Poster sizing -->
+    <Poster translation="[360, 380]" uri="pkg:/images/quad.png" />
+    <Poster translation="[540, 380]" uri="pkg:/images/quad.png" width="248" height="168" />
+    <Poster translation="[840, 380]" uri="pkg:/images/quad.png" width="300" height="100" loadDisplayMode="scaleToFit" />
+    <Poster translation="[1180, 380]" uri="pkg:/images/quad.png" width="300" height="100" loadDisplayMode="scaleToFill" />
+    <Poster translation="[1520, 380]" uri="pkg:/images/quad.png" width="300" height="100" loadDisplayMode="scaleToZoom" />
+
+    <!-- Row 3: blendColor and opacity on Posters -->
+    <Poster translation="[60, 700]" uri="pkg:/images/quad.png" width="248" height="168" blendColor="0x808080FF" />
+    <Poster translation="[360, 700]" uri="pkg:/images/quad.png" width="248" height="168" blendColor="0x00FFFFFF" />
+    <Poster translation="[660, 700]" uri="pkg:/images/quad.png" width="248" height="168" opacity="0.4" />
+    <Poster translation="[960, 700]" uri="pkg:/images/quad.png" width="248" height="168" loadDisplayMode="noScale" />
+  </children>
+</component>

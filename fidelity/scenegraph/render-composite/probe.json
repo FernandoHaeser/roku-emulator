@@ -1,0 +1,11 @@
+{
+  "kind": "conformance",
+  "settleMs": 2500,
+  "capture": {
+    "appUi": true,
+    "screenshot": true
+  },
+  "visual": {
+    "tolerance": 0.012
+  }
+}

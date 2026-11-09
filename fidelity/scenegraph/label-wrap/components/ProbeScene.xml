@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Wrapped Label heights: 1 to 4 lines (width fits one "Avatar" per line),
+     system and package fonts, with lineSpacing and maxLines. -->
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Label id="SmallestSystemFont|0|0" width="136" wrap="true" text="Avatar" font="font:SmallestSystemFont" />
+    <Label id="SmallestSystemFont|0|0" width="136" wrap="true" text="Avatar Avatar" font="font:SmallestSystemFont" />
+    <Label id="SmallestSystemFont|0|0" width="136" wrap="true" text="Avatar Avatar Avatar" font="font:SmallestSystemFont" />
+    <Label id="SmallestSystemFont|0|0" width="136" wrap="true" text="Avatar Avatar Avatar Avatar" font="font:SmallestSystemFont" />
+    <Label id="SmallestSystemFont|10|0" width="136" wrap="true" text="Avatar Avatar Avatar" lineSpacing="10" font="font:SmallestSystemFont" />
+    <Label id="SmallestSystemFont|0|2" width="136" wrap="true" text="Avatar Avatar Avatar" maxLines="2" font="font:SmallestSystemFont" />
+    <Label id="MediumSystemFont|0|0" width="176" wrap="true" text="Avatar" font="font:MediumSystemFont" />
+    <Label id="MediumSystemFont|0|0" width="176" wrap="true" text="Avatar Avatar" font="font:MediumSystemFont" />
+    <Label id="MediumSystemFont|0|0" width="176" wrap="true" text="Avatar Avatar Avatar" font="font:MediumSystemFont" />
+    <Label id="MediumSystemFont|0|0" width="176" wrap="true" text="Avatar Avatar Avatar Avatar" font="font:MediumSystemFont" />
+    <Label id="MediumSystemFont|10|0" width="176" wrap="true" text="Avatar Avatar Avatar" lineSpacing="10" font="font:MediumSystemFont" />
+    <Label id="MediumSystemFont|0|2" width="176" wrap="true" text="Avatar Avatar Avatar" maxLines="2" font="font:MediumSystemFont" />
+    <Label id="LargeBoldSystemFont|0|0" width="240" wrap="true" text="Avatar" font="font:LargeBoldSystemFont" />
+    <Label id="LargeBoldSystemFont|0|0" width="240" wrap="true" text="Avatar Avatar" font="font:LargeBoldSystemFont" />
+    <Label id="LargeBoldSystemFont|0|0" width="240" wrap="true" text="Avatar Avatar Avatar" font="font:LargeBoldSystemFont" />
+    <Label id="LargeBoldSystemFont|0|0" width="240" wrap="true" text="Avatar Avatar Avatar Avatar" font="font:LargeBoldSystemFont" />
+    <Label id="LargeBoldSystemFont|10|0" width="240" wrap="true" text="Avatar Avatar Avatar" lineSpacing="10" font="font:LargeBoldSystemFont" />
+    <Label id="LargeBoldSystemFont|0|2" width="240" wrap="true" text="Avatar Avatar Avatar" maxLines="2" font="font:LargeBoldSystemFont" />
+    <Label id="pkg24|0|0" width="138" wrap="true" text="Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg24|0|0" width="138" wrap="true" text="Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg24|0|0" width="138" wrap="true" text="Avatar Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg24|0|0" width="138" wrap="true" text="Avatar Avatar Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg24|10|0" width="138" wrap="true" text="Avatar Avatar Avatar" lineSpacing="10">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg24|0|2" width="138" wrap="true" text="Avatar Avatar Avatar" maxLines="2">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="pkg40|0|0" width="232" wrap="true" text="Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="pkg40|0|0" width="232" wrap="true" text="Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="pkg40|0|0" width="232" wrap="true" text="Avatar Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="pkg40|0|0" width="232" wrap="true" text="Avatar Avatar Avatar Avatar">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="pkg40|10|0" width="232" wrap="true" text="Avatar Avatar Avatar" lineSpacing="10">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="pkg40|0|2" width="232" wrap="true" text="Avatar Avatar Avatar" maxLines="2">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+  </children>
+</component>

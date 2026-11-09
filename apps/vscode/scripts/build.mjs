@@ -2,8 +2,10 @@ import { build } from "esbuild";
 import { cp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repo = resolve(root, "../..");
+const webRequire = createRequire(resolve(repo, "apps/web/package.json"));
 await mkdir(resolve(root, "dist"), { recursive: true });
 await build({
   entryPoints: [resolve(root, "src/extension.ts")],
@@ -63,7 +65,7 @@ await build({
   platform: "node",
   format: "esm",
   target: "node20",
-  loader: { ".wasm": "file" },
+  loader: { ".wasm": "file", ".woff2": "file" },
   alias: { "@": resolve(repo, "apps/web/src") },
   plugins: [
     {
@@ -74,6 +76,10 @@ await build({
             args.resolveDir,
             args.path.replace(/^@\//, resolve(repo, "apps/web/src") + "/").replace(/\?url$/, ""),
           ),
+        }));
+        // Package assets imported with ?url (the substitute font).
+        build.onResolve({ filter: /\.woff2\?url$/ }, (args) => ({
+          path: webRequire.resolve(args.path.replace(/\?url$/, "")),
         }));
       },
     },

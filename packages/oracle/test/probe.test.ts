@@ -40,7 +40,16 @@ describe("parseProbeSpec", () => {
       startDelayMs: 1000,
       settleMs: 0,
       capture: { appUi: false, screenshot: false },
+      visual: { tolerance: 0.001, threshold: 0.1 },
     });
+  });
+
+  it("validates the visual budget", () => {
+    expect(parseProbeSpec({ visual: { tolerance: 0.05 } }).visual).toEqual({
+      tolerance: 0.05,
+      threshold: 0.1,
+    });
+    expect(() => parseProbeSpec({ visual: { tolerance: 2 } })).toThrow(/visual.tolerance/);
   });
 
   it("validates remote keys", () => {

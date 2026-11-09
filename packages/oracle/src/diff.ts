@@ -62,6 +62,36 @@ function decodeImage(data: Buffer, extension: "png" | "jpg"): RgbaImage {
   return jpeg.decode(data, { useTArray: true, formatAsRGBA: true });
 }
 
+export interface ImageComparison {
+  width: number;
+  height: number;
+  /** Fraction (0..1) of pixels that differ beyond the threshold. */
+  ratio: number;
+  /** PNG highlighting differing pixels, for debugging renderer changes. */
+  diffPng: Buffer;
+}
+
+/** Pixel comparison with a diff image; sizes must match (callers scale first). */
+export function compareImages(
+  expected: NonNullable<Trace["screenshot"]>,
+  actual: NonNullable<Trace["screenshot"]>,
+  threshold = DEFAULT_DIFF_OPTIONS.pixelThreshold,
+): ImageComparison {
+  const a = decodeImage(expected.data, expected.extension);
+  const b = decodeImage(actual.data, actual.extension);
+  if (a.width !== b.width || a.height !== b.height) {
+    throw new Error(`size mismatch: ${a.width}x${a.height} vs ${b.width}x${b.height}`);
+  }
+  const diff = new PNG({ width: a.width, height: a.height });
+  const differing = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold });
+  return {
+    width: a.width,
+    height: a.height,
+    ratio: differing / (a.width * a.height),
+    diffPng: PNG.sync.write(diff),
+  };
+}
+
 export function diffImages(
   expected: NonNullable<Trace["screenshot"]>,
   actual: NonNullable<Trace["screenshot"]>,

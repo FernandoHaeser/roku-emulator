@@ -13,6 +13,7 @@ use std::{env, fs};
 
 use std::collections::VecDeque;
 
+use brs_core::sg::bitmap;
 use brs_core::sg::runtime::queue_key;
 use brs_core::{launch, Channel, Host, Object, Status, Value};
 
@@ -174,9 +175,24 @@ fn execute(
     };
     let started = Instant::now();
     let mut next_key_at: Option<Instant> = None;
+    // Remote Poster images: fetched on threads, answered between slices.
+    let (image_sender, image_receiver) = std::sync::mpsc::channel();
+    let mut images_in_flight = 0usize;
     let status = match launch(channel, Box::new(host)) {
         Ok(mut vm) => loop {
             let status = vm.run(200_000);
+            for uri in bitmap::take_requests(&mut vm) {
+                let sender = image_sender.clone();
+                images_in_flight += 1;
+                std::thread::spawn(move || {
+                    let size = http::image_size(&uri);
+                    let _ = sender.send((uri, size));
+                });
+            }
+            for (uri, size) in image_receiver.try_iter() {
+                images_in_flight -= 1;
+                bitmap::complete(&mut vm, &uri, size);
+            }
             let (begun, ended) = {
                 let text = output.borrow();
                 let begin = text.rfind(PROBE_BEGIN);
@@ -217,7 +233,7 @@ fn execute(
                     None if begun && !keys.steps.is_empty() => {
                         std::thread::sleep(Duration::from_millis(10))
                     }
-                    None if !vm.env.http_pending.is_empty() => {
+                    None if !vm.env.http_pending.is_empty() || images_in_flight > 0 => {
                         std::thread::sleep(Duration::from_millis(10))
                     }
                     None => break Status::Waiting,
@@ -336,6 +352,16 @@ fn conformance(root: &Path) -> ExitCode {
             continue;
         }
         let expected = fs::read_to_string(golden.join("console.txt")).unwrap_or_default();
+        if json_string_field(&meta, "kind").as_deref() == Some("calibration") {
+            let total = expected.lines().count();
+            let exact = expected
+                .lines()
+                .zip(output.lines())
+                .filter(|(device, emulator)| device == emulator)
+                .count();
+            println!("CALIB {name} ({exact}/{total} lines exact)");
+            continue;
+        }
         if output == expected {
             println!("PASS  {name}");
             passed += 1;

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-scenegraph-label-package-font" />
+		<screen type="SGScreen" focused="true">
+			<ProbeScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle name="background" rcid="0" bounds="{0, 0, 1920, 1080}" color="#000000ff" index="0" />
+				<Label name="l24" rcid="0" translation="{60, 60}" bounds="{60, 60, 341, 31}" text="Package font 24 AVATAR Wave" color="#fefefeff" index="0" />
+				<Label name="l36" rcid="0" translation="{60, 160}" bounds="{60, 160, 521, 45}" text="Package font 36 AVATAR Wave" color="#facc15ff" index="1" />
+				<Label name="l60" rcid="0" translation="{60, 280}" bounds="{60, 280, 888, 75}" text="Package font 60 AVATAR Wave" color="#fefefeff" index="2" />
+				<Label name="l90" rcid="0" translation="{60, 440}" bounds="{60, 440, 1355, 111}" text="Kerning: To Wa Ty 0123456789" color="#fefefeff" index="3" />
+				<Label name="wrap" rcid="0" translation="{60, 700}" bounds="{60, 700, 800, 174}" text="Wrapped package font text that needs more than one line to fit inside the label width." color="#fefefeff" index="4" />
+				<Label name="system" rcid="0" translation="{1000, 700}" bounds="{1000, 700, 359, 38}" text="System font next to it" color="#fefefeff" index="5" />
+			</ProbeScene>
+		</screen>
+	</topscreen>
+</app-ui>

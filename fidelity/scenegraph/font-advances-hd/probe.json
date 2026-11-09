@@ -1,0 +1,8 @@
+{
+  "kind": "calibration",
+  "startDelayMs": 0,
+  "capture": {
+    "appUi": false,
+    "screenshot": false
+  }
+}

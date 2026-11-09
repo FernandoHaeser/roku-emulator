@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Kerning probe: auto-sized Labels "a"*10 + "b"*10 for every ordered pair of
+     letters and common punctuation, in the two largest system fonts.
+     kern(a,b) = w - 10*adv(a) - 10*adv(b) - offset(b), with adv/offset from
+     scenegraph/font-advances. -->
+<component name="ProbeScene" extends="Scene">
+  <script type="text/brightscript">
+    <![CDATA[
+    sub init()
+        chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-'"
+        for each font in ["ExtraLargeSystemFont", "ExtraLargeBoldSystemFont"]
+            for i = 1 to Len(chars)
+                for j = 1 to Len(chars)
+                    if i <> j then
+                        label = m.top.CreateChild("Label")
+                        label.id = font
+                        label.font = "font:" + font
+                        label.text = String(10, Mid(chars, i, 1)) + String(10, Mid(chars, j, 1))
+                    end if
+                end for
+            end for
+        end for
+    end sub
+    ]]>
+  </script>
+</component>

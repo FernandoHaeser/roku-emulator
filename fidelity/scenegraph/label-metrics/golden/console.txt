@@ -1,0 +1,61 @@
+background | invalid |  1920  x  1080 
+SmallestSystemFont | Roku Emulator fidelity probe |  338  x  29 
+SmallestSystemFont | The quick brown fox jumps over the lazy dog |  525  x  29 
+SmallestSystemFont | 0123456789 |  153  x  29 
+SmallestSystemFont | WWWWW |  126  x  29 
+SmallestSystemFont | iiiii |  30  x  29 
+SmallestSystemFont | Ação é Útil |  126  x  29 
+SmallestBoldSystemFont | Roku Emulator fidelity probe |  344  x  29 
+SmallestBoldSystemFont | The quick brown fox jumps over the lazy dog |  531  x  29 
+SmallestBoldSystemFont | 0123456789 |  153  x  29 
+SmallestBoldSystemFont | WWWWW |  126  x  29 
+SmallestBoldSystemFont | iiiii |  30  x  29 
+SmallestBoldSystemFont | Ação é Útil |  131  x  29 
+SmallSystemFont | Roku Emulator fidelity probe |  417  x  35 
+SmallSystemFont | The quick brown fox jumps over the lazy dog |  647  x  35 
+SmallSystemFont | 0123456789 |  186  x  35 
+SmallSystemFont | WWWWW |  149  x  35 
+SmallSystemFont | iiiii |  38  x  35 
+SmallSystemFont | Ação é Útil |  156  x  35 
+SmallBoldSystemFont | Roku Emulator fidelity probe |  432  x  35 
+SmallBoldSystemFont | The quick brown fox jumps over the lazy dog |  668  x  35 
+SmallBoldSystemFont | 0123456789 |  191  x  35 
+SmallBoldSystemFont | WWWWW |  156  x  35 
+SmallBoldSystemFont | iiiii |  38  x  35 
+SmallBoldSystemFont | Ação é Útil |  161  x  35 
+MediumSystemFont | Roku Emulator fidelity probe |  459  x  38 
+MediumSystemFont | The quick brown fox jumps over the lazy dog |  717  x  38 
+MediumSystemFont | 0123456789 |  203  x  38 
+MediumSystemFont | WWWWW |  164  x  38 
+MediumSystemFont | iiiii |  38  x  38 
+MediumSystemFont | Ação é Útil |  174  x  38 
+MediumBoldSystemFont | Roku Emulator fidelity probe |  473  x  38 
+MediumBoldSystemFont | The quick brown fox jumps over the lazy dog |  732  x  38 
+MediumBoldSystemFont | 0123456789 |  207  x  38 
+MediumBoldSystemFont | WWWWW |  171  x  38 
+MediumBoldSystemFont | iiiii |  45  x  38 
+MediumBoldSystemFont | Ação é Útil |  179  x  38 
+LargeSystemFont | Roku Emulator fidelity probe |  579  x  46 
+LargeSystemFont | The quick brown fox jumps over the lazy dog |  903  x  46 
+LargeSystemFont | 0123456789 |  255  x  46 
+LargeSystemFont | WWWWW |  209  x  46 
+LargeSystemFont | iiiii |  53  x  46 
+LargeSystemFont | Ação é Útil |  219  x  46 
+LargeBoldSystemFont | Roku Emulator fidelity probe |  596  x  46 
+LargeBoldSystemFont | The quick brown fox jumps over the lazy dog |  924  x  46 
+LargeBoldSystemFont | 0123456789 |  263  x  46 
+LargeBoldSystemFont | WWWWW |  215  x  46 
+LargeBoldSystemFont | iiiii |  60  x  46 
+LargeBoldSystemFont | Ação é Útil |  224  x  46 
+ExtraLargeSystemFont | Roku Emulator fidelity probe |  698  x  56 
+ExtraLargeSystemFont | The quick brown fox jumps over the lazy dog |  1089  x  56 
+ExtraLargeSystemFont | 0123456789 |  311  x  56 
+ExtraLargeSystemFont | WWWWW |  252  x  56 
+ExtraLargeSystemFont | iiiii |  60  x  56 
+ExtraLargeSystemFont | Ação é Útil |  263  x  56 
+ExtraLargeBoldSystemFont | Roku Emulator fidelity probe |  714  x  56 
+ExtraLargeBoldSystemFont | The quick brown fox jumps over the lazy dog |  1109  x  56 
+ExtraLargeBoldSystemFont | 0123456789 |  314  x  56 
+ExtraLargeBoldSystemFont | WWWWW |  254  x  56 
+ExtraLargeBoldSystemFont | iiiii |  68  x  56 
+ExtraLargeBoldSystemFont | Ação é Útil |  270  x  56 

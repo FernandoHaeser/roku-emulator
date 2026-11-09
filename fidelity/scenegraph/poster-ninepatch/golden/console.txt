@@ -1,0 +1,49 @@
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 300
+    width: 600
+    x: 60
+    y: 60
+}
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 450
+    width: 150
+    x: 720
+    y: 60
+}
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 72
+    width: 72
+    x: 960
+    y: 60
+}
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 30
+    width: 30
+    x: 1200
+    y: 60
+}
+ready  75 x 75  <Component: roAssociativeArray> =
+{
+    height: 300
+    width: 300
+    x: 1500
+    y: 60
+}
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 300
+    width: 600
+    x: 60
+    y: 600
+}
+ready  72 x 72  <Component: roAssociativeArray> =
+{
+    height: 300
+    width: 600
+    x: 720
+    y: 600
+}
