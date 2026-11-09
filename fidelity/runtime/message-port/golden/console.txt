@@ -1,0 +1,4 @@
+roMessagePort
+true            true
+true            true            true
+Invalid

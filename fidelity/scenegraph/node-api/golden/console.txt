@@ -1,0 +1,63 @@
+main: before CreateScene
+main: after CreateScene
+init: m.top subtype NodeApiScene id=''
+global tag: global-ok
+ 7              roInt            0.5            roFloat         true
+score after string set: 12 roInt
+score after float set: 3
+true            true            false
+invalid         invalid
+roSGNode        Group            2              false           true
+ 100             50             -16776961       roInt
+<Component: roArray> =
+[
+    0
+    0
+]               true             1 
+group           true
+Movie            1              x                1              c1
+true            roAssociativeArray
+ 6               6              true
+true
+ 9
+<Component: roSGNode:Node> =
+{
+    id: ""
+    focusable: false
+    focusedChild: <Component: roInvalid>
+    change: <Component: roAssociativeArray>
+    value: 9
+}
+<Component: roSGNode:Rectangle> =
+{
+    width: 100
+    height: 50
+    color: -16776961
+    blendingEnabled: true
+    effect: <Component: roInvalid>
+    visible: true
+    opacity: 1
+    clippingRect: <Component: roAssociativeArray>
+    translation: <Component: roArray>
+    scale: <Component: roArray>
+    rotation: 0
+    scaleRotateCenter: <Component: roArray>
+    childRenderOrder: "last"
+    renderPass: 0
+    inheritParentTransform: true
+    inheritParentOpacity: true
+    muteAudioGuide: false
+    enableRenderTracking: false
+    renderTracking: "disabled"
+    id: "rect"
+    focusable: false
+    focusedChild: <Component: roInvalid>
+    change: <Component: roAssociativeArray>
+}
+true
+true             1              true
+true             2              rect
+true            Rectangle
+ 3              lbl
+BRIGHTSCRIPT: ERROR: roSGNode: Failed to create roSGNode with type NotAComponent: pkg:/components/NodeApiScene.brs(38)
+true            true

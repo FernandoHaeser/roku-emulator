@@ -2,6 +2,7 @@ export const styles = {
   root: "flex min-h-screen flex-col bg-neutral-950 text-neutral-100",
   header: "flex items-center justify-between border-b border-neutral-800 px-4 py-3",
   title: "text-sm font-semibold tracking-wide",
+  actions: "flex items-center gap-3",
   status: {
     base: "rounded px-2 py-0.5 text-xs font-medium",
     starting: "bg-neutral-800 text-neutral-300",

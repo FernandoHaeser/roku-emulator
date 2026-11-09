@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ObserverScene" extends="Scene">
+  <interface>
+    <field id="value" type="integer" onChange="onValueInterface" />
+    <field id="always" type="integer" alwaysNotify="true" />
+    <field id="quiet" type="integer" />
+  </interface>
+  <script type="text/brightscript" uri="ObserverScene.brs" />
+</component>

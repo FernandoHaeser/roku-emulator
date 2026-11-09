@@ -2,6 +2,7 @@
   "kind": "conformance",
   "status": "ok",
   "profile": "H302X-16.0.4",
-  "recordedAt": "2026-11-09T02:54:52.124Z",
-  "durationMs": 2300
+  "recordedAt": "2026-11-09T03:50:10.608Z",
+  "durationMs": 2313,
+  "packageMd5": "818dae3861dbe9b0b31108a50ba7eb73"
 }

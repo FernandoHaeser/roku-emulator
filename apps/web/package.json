@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit -p . && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@roku-emu/protocol": "workspace:*",
@@ -15,6 +16,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

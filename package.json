@@ -7,15 +7,19 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @roku-emu/web dev",
-    "build": "pnpm -r build",
+    "dev": "pnpm build:wasm && pnpm --filter @roku-emu/web dev",
+    "build": "pnpm build:wasm && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "oracle": "pnpm --filter @roku-emu/oracle cli"
+    "oracle": "pnpm --filter @roku-emu/oracle cli",
+    "build:wasm": "./scripts/build-wasm.sh",
+    "test:rust": "./scripts/cargo.sh test --workspace",
+    "conformance": "./scripts/cargo.sh run --release -q -p brs-cli -- conformance fidelity",
+    "e2e": "pnpm build:wasm && pnpm --filter @roku-emu/web e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

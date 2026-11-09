@@ -1,0 +1,30 @@
+{
+  "kind": "conformance",
+  "steps": [
+    {
+      "key": "Right",
+      "waitMs": 400
+    },
+    {
+      "key": "Down",
+      "waitMs": 400
+    },
+    {
+      "key": "OK",
+      "waitMs": 400
+    },
+    {
+      "key": "Left",
+      "waitMs": 400
+    },
+    {
+      "key": "Up",
+      "waitMs": 400
+    },
+    {
+      "key": "Back",
+      "waitMs": 400
+    }
+  ],
+  "settleMs": 300
+}

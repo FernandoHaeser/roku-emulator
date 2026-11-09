@@ -1,0 +1,29 @@
+before
+
+BrightScript Micro Debugger.
+Enter any BrightScript statement, debug commands, or HELP.
+
+
+Current Function:
+002:  sub Main()
+003:      print "@@PROBE_BEGIN"
+004:      value = "text"
+005:      print "before"
+006:*     result = value + 1
+007:      print "unreachable"; result
+008:      print "@@PROBE_END"
+009:  end sub
+Source Digest(s): 
+pkg: dev 1.0.1 946a9fbe probe-language-runtime-error
+
+Type Mismatch. Operator "+" can't be applied to "String" and "Integer". (runtime error &h18) in pkg:/source/main.brs(6)
+Backtrace:
+#0  Function main() As Void
+   file/line: pkg:/source/main.brs(6)
+Local Variables:
+global           Interface:ifGlobal
+m                roAssociativeArray refcnt=2 count:0
+value            String (VT_STR_CONST) val:"text"
+result           <uninitialized>
+
+Brightscript Debugger> 

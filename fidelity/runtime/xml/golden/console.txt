@@ -1,0 +1,11 @@
+true            roXMLElement    rss
+<Component: roAssociativeArray> =
+{
+    version: "2.0"
+}
+2.0
+channel          3
+roXMLList        2
+2               B & C
+Feed             2
+false

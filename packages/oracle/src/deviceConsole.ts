@@ -1,3 +1,4 @@
+/** Telnet client for the device's BrightScript console (port 8085), buffering all output. */
 import { Socket } from "node:net";
 
 /**

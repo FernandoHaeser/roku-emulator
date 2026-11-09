@@ -11,3 +11,12 @@ coverage/
 
 # Oracle scratch output (goldens live under fidelity/**/golden and ARE committed)
 .oracle/
+
+# Rust build output
+target/
+# Generated wasm bindings (built by `pnpm build:wasm`)
+apps/web/src/wasm/
+
+# Playwright output
+test-results/
+playwright-report/

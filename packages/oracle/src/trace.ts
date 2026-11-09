@@ -1,3 +1,4 @@
+/** Trace format on disk (`golden/`): console.txt, meta.json, app-ui.xml, screenshot.jpg. */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ProbeKind, ProbeOutput } from "./probe.js";
@@ -14,6 +15,11 @@ export interface TraceMeta {
   profile: string;
   recordedAt: string;
   durationMs: number;
+  /**
+   * MD5 (hex) of the sideloaded zip. The device prints its first 8 hex digits as
+   * the "Source Digest" in crash dumps, so the emulator needs it to match them.
+   */
+  packageMd5?: string;
 }
 
 export interface Trace {

@@ -1,0 +1,23 @@
+main: before CreateScene
+main: after CreateScene
+set value 1
+  onValueInterface  1
+  onValueA roSGNodeEvent value  1 
+  onValueB  1
+set value 1 again
+set value 2
+  onValueInterface  2
+  onValueA roSGNodeEvent value  2 
+  onValueB  2
+set quiet 5 twice
+  onQuiet  5
+set always 3 twice
+  onAlways  3
+  onAlways  3
+unobserve value
+  onValueInterface  4
+after unobserve
+  onCount  10 role node subtype Node
+setFields
+  onQuiet  8
+  onValueInterface  7

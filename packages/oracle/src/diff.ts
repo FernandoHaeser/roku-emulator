@@ -1,3 +1,4 @@
+/** Trace comparison: exact text, XML tree (app-ui) and pixel diff with tolerance. */
 import jpeg from "jpeg-js";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";

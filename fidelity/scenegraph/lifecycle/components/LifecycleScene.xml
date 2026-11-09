@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="LifecycleScene" extends="Scene">
+  <script type="text/brightscript" uri="LifecycleScene.brs" />
+  <children>
+    <Child id="first" name="first" />
+    <Group id="wrap">
+      <Child id="second" name="second" />
+    </Group>
+  </children>
+</component>

@@ -1,0 +1,20 @@
+for 1
+for 2
+for 3
+down 10
+down 6
+down 2
+after loop i = 1
+ 10
+x
+true
+while 1
+while 3
+while 4
+exit-for 1
+exit-for 2
+single-line then
+single-line else
+seven
+logic
+not

@@ -1,0 +1,44 @@
+ 12             Hello           World           World           Wor
+ 5               9               0
+HELLO, WORLD    hello, world
+abcd            true            false           false
+ 5              -5               2.5             42              12.5            0               3 
+A                65              0
+quote: "x"
+ 12             He              ell              7               4
+pad|
+ 4
+ 43              5 
+12|             1.5|            -3|
+
+BrightScript Micro Debugger.
+Enter any BrightScript statement, debug commands, or HELP.
+
+
+Current Function:
+009:      print str(5), str(-5), str(2.5), stri(42), val("12.5"), val("abc"), val("3 apples")
+010:      print chr(65), asc("A"), asc("")
+011:      print "quote: ""x"""
+012:      print s.len(), s.left(2), s.mid(1, 3), s.instr("World"), s.instr(0, "o")
+013:      print "  pad  ".trim() + "|"
+014:      print "a,b,,c".split(",").count()
+015:      print "42".toint() + 1, "2.5".tofloat() * 2
+016:      print 12.toStr() + "|", (1.5).toStr() + "|", (-3).toStr() + "|"
+017:*     print "abc".ucase(), "ABC".lcase()
+018:      print "x".len() = 1
+019:      print type("x"), type(s.len())
+020:      print "@@PROBE_END"
+021:  end sub
+Source Digest(s): 
+pkg: dev 1.0.1 843f3b22 probe-language-strings
+
+Member function not found in BrightScript Component or interface. (runtime error &hf4) in pkg:/source/main.brs(17)
+Backtrace:
+#0  Function main() As Void
+   file/line: pkg:/source/main.brs(17)
+Local Variables:
+global           Interface:ifGlobal
+m                roAssociativeArray refcnt=2 count:0
+s                String (VT_STR_CONST) val:"Hello, World"
+
+Brightscript Debugger> 

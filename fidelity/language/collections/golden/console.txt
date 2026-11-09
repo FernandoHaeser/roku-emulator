@@ -1,0 +1,44 @@
+ 4               3               9               9
+ 9               3
+BRIGHTSCRIPT: ERROR: roArray.Join: non-string value at index 0: pkg:/source/main.brs(9)
+ 0              
+<Component: roArray> =
+[
+    3
+    1
+    2
+]
+BRIGHTSCRIPT: ERROR: roArray.Join: non-string value at index 0: pkg:/source/main.brs(12)
+
+true
+ 5               1               2              z               true            true
+a,b,c,D,zed
+a= 1
+D= 4
+c= 3
+zed=z
+b= 2
+<Component: roAssociativeArray> =
+{
+    a: 1
+    b: 2
+    c: 3
+    D: 4
+    zed: "z"
+}
+ 4
+<Component: roAssociativeArray> =
+{
+    list: <Component: roArray>
+    name: "n"
+}
+<Component: roArray> =
+[
+    1
+    "two"
+    3.5
+    true
+    invalid
+]
+ 5
+roArray         roAssociativeArray

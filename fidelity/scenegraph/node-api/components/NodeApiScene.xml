@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="NodeApiScene" extends="Scene">
+  <interface>
+    <field id="score" type="integer" value="7" />
+    <field id="label" type="string" />
+    <field id="ratio" type="float" value="0.5" />
+    <field id="flags" type="assocarray" />
+    <field id="items" type="array" />
+  </interface>
+  <script type="text/brightscript" uri="NodeApiScene.brs" />
+  <children>
+    <Group id="group">
+      <Rectangle id="rect" width="100" height="50" color="0xFF0000FF" />
+      <Label id="lbl" text="hi" />
+    </Group>
+  </children>
+</component>

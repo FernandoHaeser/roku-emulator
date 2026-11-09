@@ -1,0 +1,17 @@
+main: before CreateScene
+main: after CreateScene
+inner focustrue outer chaintrue outer focusfalse
+scene chaintrue focusedChild outer inner
+main: after Show
+scene key right press true
+scene key right press false
+scene key down press true
+scene key down press false
+scene key OK press true
+scene key OK press false
+scene key left press true
+scene key left press false
+scene key up press true
+scene key up press false
+scene key back press true
+scene key back press false

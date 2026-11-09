@@ -12,6 +12,17 @@ describe("extractProbeOutput", () => {
     expect(extractProbeOutput(raw).output).toBe("new\n");
   });
 
+  it("waits for the END line to be complete", () => {
+    expect(hasProbeEnded("@@PROBE_BEGIN\nx\n@@PROBE_END")).toBe(false);
+    expect(hasProbeEnded("@@PROBE_BEGIN\nx\n@@PROBE_END\r\n")).toBe(true);
+  });
+
+  it("does not treat non-fatal diagnostics as crashes", () => {
+    const text =
+      "------ Compiling dev 'p' ------\n@@PROBE_BEGIN\nBRIGHTSCRIPT: ERROR: roArray.Join: non-string value\n";
+    expect(hasProbeEnded(text)).toBe(false);
+  });
+
   it("flags crashes and incomplete runs", () => {
     const crash =
       "@@PROBE_BEGIN\nType Mismatch. (runtime error &h18)\nBrightScript Micro Debugger.\n";
@@ -26,6 +37,7 @@ describe("parseProbeSpec", () => {
     expect(parseProbeSpec(undefined)).toEqual({
       kind: "conformance",
       steps: [],
+      startDelayMs: 1000,
       settleMs: 0,
       capture: { appUi: false, screenshot: false },
     });

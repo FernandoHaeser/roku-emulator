@@ -1,0 +1,13 @@
+[package]
+name = "brs-wasm"
+description = "WebAssembly build of the BrightScript engine (plain C ABI) for the browser worker."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+brs-core = { path = "../brs-core" }

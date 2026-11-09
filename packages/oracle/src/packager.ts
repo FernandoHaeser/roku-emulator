@@ -1,3 +1,4 @@
+/** Packages a probe directory into a sideload zip the device accepts (explicit directory entries, no symlinks). */
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { zipSync, type Zippable } from "fflate";

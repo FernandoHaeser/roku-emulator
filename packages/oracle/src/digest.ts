@@ -1,3 +1,4 @@
+/** HTTP Digest authentication (RFC 7616), used by the developer web installer. */
 import { createHash, randomBytes } from "node:crypto";
 
 /**

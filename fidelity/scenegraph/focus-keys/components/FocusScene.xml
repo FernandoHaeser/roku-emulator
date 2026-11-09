@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FocusScene" extends="Scene">
+  <script type="text/brightscript" uri="FocusScene.brs" />
+  <children>
+    <Group id="outer">
+      <Group id="inner" focusable="true" />
+    </Group>
+  </children>
+</component>

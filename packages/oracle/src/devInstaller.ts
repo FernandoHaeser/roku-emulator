@@ -1,3 +1,4 @@
+/** Client for the device's developer web installer: `/plugin_install` (install, remove) and `/plugin_inspect` (screenshot). */
 import type { OracleConfig } from "./config.js";
 import { digestFetch } from "./digest.js";
 import { withConnectRetry } from "./retry.js";

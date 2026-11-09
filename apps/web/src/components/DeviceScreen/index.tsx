@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { styles } from "./styles";
 
 interface DeviceScreenProps {
@@ -5,17 +6,18 @@ interface DeviceScreenProps {
   hostRef: (element: HTMLDivElement | null) => void;
   width: number;
   height: number;
+  /** Shell UI drawn over the channel canvas (the home screen). */
+  overlay?: ReactNode;
 }
 
-/** TV frame that keeps the channel's aspect ratio at any window size. */
-export function DeviceScreen({ hostRef, width, height }: DeviceScreenProps) {
+/** TV frame that keeps a 16:9 aspect ratio at any window size. */
+export function DeviceScreen({ hostRef, width, height, overlay }: DeviceScreenProps) {
   return (
     <section className={styles.frame} aria-label="Tela do dispositivo">
-      <div
-        ref={hostRef}
-        className={styles.screen}
-        style={{ aspectRatio: `${width} / ${height}` }}
-      />
+      <div className={styles.screen} style={{ aspectRatio: `${width} / ${height}` }}>
+        <div ref={hostRef} className={styles.canvasHost} />
+        {overlay}
+      </div>
     </section>
   );
 }

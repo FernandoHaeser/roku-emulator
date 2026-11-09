@@ -1,3 +1,4 @@
+/** Oracle CLI (`pnpm oracle <command>`): device-info, profile, list, record, screenshot, diff. */
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { loadEnvFile, parseOracleConfig, REPO_ROOT, type OracleConfig } from "./config.js";

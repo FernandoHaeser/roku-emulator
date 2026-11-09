@@ -1,3 +1,4 @@
+/** Device profile from `query/device-info`, with identifiers redacted and volatile fields dropped. */
 import { XMLParser } from "fast-xml-parser";
 
 /**

@@ -1,23 +1,43 @@
 name: CI
 
+# Gitflow: develop (default, integration), release (pre-prod), master (prod).
+# See docs/git-workflow.md.
 on:
   push:
-    branches: [main]
+    branches: [develop, release, master]
   pull_request:
+    branches: [develop, release, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      # Emulator output vs traces recorded on the reference device.
+      - run: cargo run --release -q -p brs-cli -- conformance fidelity
+        continue-on-error: true # known gap: AA FOR EACH hash order (see README)
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter @roku-emu/web exec playwright install --with-deps --only-shell chromium
+      - run: pnpm --filter @roku-emu/web e2e

@@ -1,0 +1,34 @@
+name: Branch policy
+
+# Enforces the gitflow promotion path on pull requests:
+#   feature/*, bugfix/*  -> develop
+#   develop, bugfix/*    -> release   (release candidates and their fixes)
+#   release              -> master    (production)
+#   hotfix/*             -> master or release
+# Back-merges (master/release -> develop) are always allowed.
+on:
+  pull_request:
+    branches: [release, master]
+
+permissions: {}
+
+jobs:
+  source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check source branch
+        env:
+          # Branch names come from the PR: read them through env, never inline
+          # them into the script (script injection).
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          case "$BASE_REF:$HEAD_REF" in
+            release:develop | release:bugfix/* | release:hotfix/* | master:release | master:hotfix/*)
+              echo "OK: $HEAD_REF -> $BASE_REF"
+              ;;
+            *)
+              echo "::error::'$HEAD_REF' cannot merge into '$BASE_REF'. See docs/git-workflow.md."
+              exit 1
+              ;;
+          esac

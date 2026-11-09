@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="Child" extends="Base">
+  <interface>
+    <field id="name" type="string" onChange="onName" />
+    <function name="describe" />
+  </interface>
+  <script type="text/brightscript" uri="Child.brs" />
+</component>

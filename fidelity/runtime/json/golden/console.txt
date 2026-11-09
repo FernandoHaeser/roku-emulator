@@ -1,0 +1,23 @@
+roAssociativeArray               5
+ 1              Integer
+<Component: roArray> =
+[
+    1
+    2.5
+    "x"
+    true
+    invalid
+]
+Float           Invalid         true
+-3              -3
+LongInteger      3000000000
+Float            1000 
+{"Nested":{"k":-3},"a":[1,2.5,"x",true,null],"b":1,"big":3000000000,"e":1000}
+[1,"two",3.5,false,null]
+{"text":"quote \" slash / back \\ tab\t nl\n uni \u00E9"}
+"plain"         42              1.5
+BRIGHTSCRIPT: ERROR: ParseJSON: Unknown identifier 'not json': pkg:/source/main.brs(16)
+true
+ 0               0
+str
+{}              []

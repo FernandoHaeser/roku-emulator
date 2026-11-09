@@ -1,3 +1,4 @@
+/** Retry for connection-phase failures only (the device stalls while the Home screen reloads). */
 import { errorCode } from "./errors.js";
 
 /**

@@ -1,0 +1,4 @@
+roAppInfo
+dev             true            probe-runtime-appinfo           1.0.1
+BRIGHTSCRIPT: WARNING: roAppInfo.GetSubtitle: This function is deprecated: pkg:/source/main.brs(7)
+1               true            true

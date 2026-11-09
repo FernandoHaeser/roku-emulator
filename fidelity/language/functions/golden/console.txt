@@ -1,0 +1,8 @@
+ 3628800
+Hi Ana          Hi World
+ 3              Integer
+ 3              Float
+Invalid
+Function         120
+ 81
+ 16

@@ -1,0 +1,11 @@
+[package]
+name = "brs-core"
+description = "BrightScript lexer, parser, compiler and resumable bytecode VM (host independent)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Pure-Rust inflate for reading channel zips (works on wasm32 and native).
+miniz_oxide = "0.8"

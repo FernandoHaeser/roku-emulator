@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="TaskScene" extends="Scene">
+  <script type="text/brightscript" uri="TaskScene.brs" />
+  <children>
+    <Timer id="timer" duration="0.2" repeat="false" />
+  </children>
+</component>

@@ -4,6 +4,9 @@ import { isConnectError, withConnectRetry } from "./retry.js";
 
 /** External Control Protocol client (port 8060): remote keys, launch and queries. */
 
+/** Keys whose ECP name differs from the onKeyEvent/remote name. */
+const ECP_KEY_NAMES: Partial<Record<RemoteKey, string>> = { OK: "Select" };
+
 export class EcpError extends Error {
   override name = "EcpError";
 }
@@ -30,7 +33,7 @@ export class EcpClient {
   }
 
   keypress(key: RemoteKey): Promise<string> {
-    return this.request("POST", `/keypress/${key}`);
+    return this.request("POST", `/keypress/${ECP_KEY_NAMES[key] ?? key}`);
   }
 
   /** Launches the sideloaded channel, optionally with deep-link params. */

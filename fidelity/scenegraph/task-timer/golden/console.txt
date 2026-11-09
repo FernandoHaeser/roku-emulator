@@ -1,0 +1,12 @@
+main: before CreateScene
+main: after CreateScene
+timer control='none' duration 0.2 
+worker init
+state run
+task started
+main: after Show
+worker running input 20
+result  210
+worker done
+state stop
+timer fired

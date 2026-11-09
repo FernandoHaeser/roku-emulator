@@ -1,0 +1,23 @@
+roRegistry      roRegistrySection
+false           true
+true            true
+true            abc             false
+<Component: roList> =
+(
+    "Alpha"
+    "token"
+)
+true
+<Component: roAssociativeArray> =
+{
+    x: "1"
+    y: "2"
+}
+true            true            false
+true
+<Component: roList> =
+(
+    "probe"
+)
+true             0
+Integer

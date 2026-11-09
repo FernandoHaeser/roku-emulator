@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="Worker" extends="Task">
+  <interface>
+    <field id="input" type="integer" />
+    <field id="result" type="integer" />
+  </interface>
+  <script type="text/brightscript" uri="Worker.brs" />
+</component>

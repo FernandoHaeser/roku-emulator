@@ -1,0 +1,29 @@
+roDeviceInfo
+H000X           43S5135/78G     TV
+<Component: roAssociativeArray> =
+{
+    h: 720
+    w: 1280
+}
+<Component: roAssociativeArray> =
+{
+    height: 720
+    name: "HD"
+    width: 1280
+}
+720p            HDTV            16x9
+1080p           pt_BR           BR
+<Component: roAssociativeArray> =
+{
+    build: "853"
+    major: "16"
+    minor: "0"
+    revision: "4"
+}
+true
+true            String
+BRIGHTSCRIPT: WARNING: roDeviceInfo.GetDrmInfo: This function is deprecated: pkg:/source/main.brs(14)
+<Component: roAssociativeArray> =
+{
+    PlayReady: "tee"
+}

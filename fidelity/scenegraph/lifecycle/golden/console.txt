@@ -1,0 +1,19 @@
+main: before CreateScene
+main: after CreateScene
+base init
+child init id='' name='' parent? false
+child sees base helper: from base
+child onName first
+base init
+child init id='' name='' parent? false
+child sees base helper: from base
+child onName second
+scene init, children: 3
+first name=first
+base init
+child init id='' name='' parent? false
+child sees base helper: from base
+dynamic child created
+child onName dynamic
+callFunc ->described first arg
+callFunc missing ->invalid

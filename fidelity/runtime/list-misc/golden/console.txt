@@ -1,0 +1,14 @@
+roList           3               0              b
+ 0              b                1
+<Component: roList> =
+(
+    1
+)
+item 1
+roString        boxed            5
+roInt           roString        roFloat
+true            true
+BRIGHTSCRIPT: ERROR: Runtime: unknown classname "roNope": pkg:/source/main.brs(19)
+Invalid
+a-b-a
+Hello
