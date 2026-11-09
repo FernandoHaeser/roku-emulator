@@ -20,6 +20,17 @@ function probeOutput(consoleLines: string[]): string {
   return end === -1 ? after.join("\n") : `${after.slice(0, end).join("\n")}\n`;
 }
 
+/**
+ * The crash dump's "Source Digest" is the MD5 of the sideloaded zip, and zip
+ * entries carry file mtimes, which a fresh git checkout resets. The browser
+ * hashes the zip it receives, so the digest only matches the golden on the
+ * machine that recorded it. `brs conformance` checks the digest exactly
+ * (it uses `packageMd5` from golden/meta.json); here it is masked.
+ */
+function maskSourceDigest(text: string): string {
+  return text.replace(/^(pkg: dev \S+ )[0-9a-f]{8}( )/gm, "$1<digest>$2");
+}
+
 for (const probe of PROBES) {
   test(`${probe} matches the device golden`, async ({ page }) => {
     const probeDir = join(repoRoot, "fidelity", probe);
@@ -35,6 +46,6 @@ for (const probe of PROBES) {
     await expect(page.getByText(/^(Finalizado|Crash)$/)).toBeVisible();
 
     const consoleLines = await page.locator('[role="log"] > div').allTextContents();
-    expect(probeOutput(consoleLines)).toBe(golden);
+    expect(maskSourceDigest(probeOutput(consoleLines))).toBe(maskSourceDigest(golden));
   });
 }
