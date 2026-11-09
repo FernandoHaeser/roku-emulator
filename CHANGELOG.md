@@ -28,6 +28,17 @@ README; the project is pre-1.0 and every release is a beta.
 - Display list (`sg::render`) for host renderers.
 - Probes: `scenegraph/{node-api,observers,lifecycle,focus-keys,task-timer}`.
 
+### Added (license)
+
+- Apache License 2.0 (`LICENSE`, `NOTICE`), with its explicit patent grant;
+  `license` set in `Cargo.toml` and every `package.json`.
+
+### Added (branding)
+
+- Project logo (`docs/assets/logo.svg`), also the web shell favicon and header
+  mark; README redesigned with badges, screenshots, fidelity diagram, roadmap
+  and FAQ.
+
 ### Added (web shell)
 
 - Home screen (original launcher with the device's interaction model): tile

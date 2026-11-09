@@ -20,7 +20,10 @@ export function App() {
   return (
     <div className={styles.root}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Roku Emulator</h1>
+        <h1 className={styles.title}>
+          <img src="/favicon.svg" alt="" className={styles.logo} />
+          Roku Emulator
+        </h1>
         <div className={styles.actions}>
           <ChannelLoader
             channelName={channel.name}
