@@ -39,13 +39,11 @@ test("remote Posters report load results through WASM, including cached and deta
     );
     await page.goto("/");
     await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: "poster.zip",
-        mimeType: "application/zip",
-        buffer: Buffer.from(packChannel(scratch)),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "poster.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.from(packChannel(scratch)),
+    });
     const output = page.locator('[role="log"] > div');
     await expect.poll(() => output.allTextContents()).toContain("done");
     const lines = await output.allTextContents();
