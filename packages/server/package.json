@@ -1,0 +1,25 @@
+{
+  "name": "@roku-emu/server",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Local device server: dev installer, ECP and telnet console, so Roku tooling (VS Code BrightScript extension, roku-deploy) talks to the emulator like to a device.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vite": "./src/vitePlugin.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@roku-emu/protocol": "workspace:*",
+    "roku-debug": "0.24.7",
+    "undici": "6.21.3"
+  },
+  "devDependencies": {
+    "roku-deploy": "4.0.0-alpha.10"
+  }
+}

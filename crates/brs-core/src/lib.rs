@@ -12,9 +12,11 @@ pub mod environment;
 pub mod error;
 pub mod json;
 pub mod lexer;
+pub mod lifecycle;
 pub mod md5;
 pub mod ops;
 pub mod parser;
+pub mod runtime_objects;
 pub mod sg;
 pub mod value;
 pub mod vm;
@@ -31,6 +33,14 @@ use compiler::{compile_program, compile_scope, SourceFile};
 /// Compiles a channel (source/ plus every SceneGraph component) and prepares
 /// its entry point, ready for `Vm::run`.
 pub fn launch(channel: &Channel, host: Box<dyn Host>) -> Result<Vm, String> {
+    launch_with_args(channel, host, AssocArray::new())
+}
+pub fn launch_with_args(
+    channel: &Channel,
+    host: Box<dyn Host>,
+    launch_args: AssocArray,
+) -> Result<Vm, String> {
+    let compile_started = host.now_ms();
     let mut files = Vec::new();
     for (path, text) in channel.source_files() {
         files.push(parse_file(&format!("pkg:/{path}"), &text)?);
@@ -107,18 +117,22 @@ pub fn launch(channel: &Channel, host: Box<dyn Host>) -> Result<Vm, String> {
         (1280.0, 720.0)
     };
 
-    vm.write(&format!(
-        "\n------ Running dev '{}' main ------\n",
-        channel.title()
+    let compile_ms = (vm.now_ms() - compile_started).max(0.0).round() as u64;
+    let timestamp = vm.device_timestamp();
+    vm.write(&lifecycle::launch_lines(
+        &timestamp,
+        &channel.title(),
+        compile_ms,
     ));
     for error in component_errors {
         vm.write(&format!("{error}\n"));
     }
     let args = if takes_args {
-        vec![Value::object(Object::AssocArray(AssocArray::new()))]
+        vec![Value::object(Object::AssocArray(launch_args.clone()))]
     } else {
         Vec::new()
     };
+    vm.env.launch_args = launch_args;
     vm.start(entry, args)?;
     Ok(vm)
 }

@@ -17,7 +17,22 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use brs_core::sg::{render, runtime};
-use brs_core::{launch, AssocArray, Channel, Host, Object, Status, Value, Vm};
+use brs_core::{AssocArray, Channel, Host, Object, Status, Value, Vm};
+
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "host")]
+extern "C" {
+    fn debug_wait(output: *const u8, output_len: usize, command: *mut u8, capacity: usize) -> i32;
+    fn debug_resumed();
+    fn http_request(
+        request: *const u8,
+        length: usize,
+        id: u32,
+        response: *mut u8,
+        capacity: usize,
+    ) -> i32;
+    fn http_cancel(id: u32);
+}
 
 struct WasmHost {
     output: Rc<RefCell<Vec<u8>>>,
@@ -38,6 +53,81 @@ impl Host for WasmHost {
     fn epoch_ms(&self) -> f64 {
         self.now_ms.get() + self.epoch_offset_ms
     }
+    fn debug_wait(&mut self) -> Option<String> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut command = vec![0u8; 65_536];
+            let output = self.output.borrow();
+            // SAFETY: both buffers remain allocated throughout the host call.
+            let size = unsafe {
+                debug_wait(
+                    output.as_ptr(),
+                    output.len(),
+                    command.as_mut_ptr(),
+                    command.len(),
+                )
+            };
+            drop(output);
+            if size < 0 {
+                return None;
+            }
+            self.output.borrow_mut().clear();
+            return String::from_utf8(command[..(size as usize).min(command.len())].to_vec()).ok();
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        None
+    }
+    fn http(&mut self, request: &str) -> String {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = request;
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut result = vec![0u8; 12 * 1024 * 1024];
+            // SAFETY: buffers remain allocated throughout the synchronous host call.
+            let length = unsafe {
+                http_request(
+                    request.as_ptr(),
+                    request.len(),
+                    0,
+                    result.as_mut_ptr(),
+                    result.len(),
+                )
+            };
+            if length >= 0 {
+                return String::from_utf8_lossy(&result[..(length as usize).min(result.len())])
+                    .into_owned();
+            }
+        }
+        "{\"status\":-7,\"failure\":\"Synchronous HTTP requires an isolated browser host\"}".into()
+    }
+    fn http_start(&mut self, id: u32, request: &str) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        // SAFETY: request is readable for the duration of this host call; no output buffer for async.
+        unsafe {
+            return http_request(request.as_ptr(), request.len(), id, std::ptr::null_mut(), 0) >= 0;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let _ = (id, request);
+            false
+        }
+    }
+    fn http_cancel(&mut self, id: u32) {
+        #[cfg(target_arch = "wasm32")]
+        // SAFETY: no pointers cross the host boundary.
+        unsafe {
+            http_cancel(id);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = id;
+    }
+    fn debug_resumed(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        // SAFETY: no pointers cross this notification.
+        unsafe {
+            debug_resumed();
+        }
+    }
 }
 
 #[derive(Default)]
@@ -52,6 +142,7 @@ struct State {
     blob: Vec<u8>,
     /// Icon bytes of the last inspected package (`brs_take_icon`).
     inspected_icon: Vec<u8>,
+    launch_args: AssocArray,
 }
 
 thread_local! {
@@ -142,7 +233,7 @@ pub unsafe extern "C" fn brs_load_zip(
                     now_ms: state.now_ms.clone(),
                     epoch_offset_ms,
                 };
-                launch(&channel, Box::new(host))
+                brs_core::launch_with_args(&channel, Box::new(host), state.launch_args.clone())
             });
         match result {
             Ok(vm) => {
@@ -160,10 +251,17 @@ pub unsafe extern "C" fn brs_load_zip(
     })
 }
 
-/// Drops the running channel (Home key / exit to the home screen).
+/// Drops the running channel (Home key / exit to the home screen). Prints
+/// the OS exit lines first, so read the output after calling this.
 #[no_mangle]
 pub extern "C" fn brs_unload() {
-    STATE.with(|state| state.borrow_mut().vm = None);
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if let Some(vm) = state.vm.as_mut() {
+            vm.report_exit();
+        }
+        state.vm = None;
+    });
 }
 
 /// Reads a package's manifest without launching it, for the home screen.
@@ -362,4 +460,53 @@ pub extern "C" fn brs_take_output() -> *const u8 {
 #[no_mangle]
 pub extern "C" fn brs_output_len() -> usize {
     STATE.with(|state| state.borrow().pending.len())
+}
+
+/// Executes a debugger command from the scratch buffer. Returns 1 if resumed.
+#[no_mangle]
+pub extern "C" fn brs_debugger_command() -> i32 {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let command = String::from_utf8_lossy(&state.scratch).into_owned();
+        state
+            .vm
+            .as_mut()
+            .map_or(0, |vm| i32::from(vm.debugger_command(&command)))
+    })
+}
+
+/// Completes an asynchronous HTTP request using the scratch buffer response.
+#[no_mangle]
+pub extern "C" fn brs_http_complete(id: u32) {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let response = String::from_utf8_lossy(&state.scratch).into_owned();
+        if let Some(vm) = &mut state.vm {
+            brs_core::runtime_objects::complete_http(vm, id, &response);
+        }
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn brs_launch_args() {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        state.launch_args = match brs_core::json::parse(&scratch_text(&state)) {
+            Ok(Value::Object(o)) => match &*o.borrow() {
+                Object::AssocArray(a) => a.clone(),
+                _ => AssocArray::new(),
+            },
+            _ => AssocArray::new(),
+        };
+    });
+}
+#[no_mangle]
+pub extern "C" fn brs_input() {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let info = brs_core::json::parse(&scratch_text(&state)).unwrap_or(Value::Invalid);
+        if let Some(vm) = &mut state.vm {
+            brs_core::runtime_objects::deliver_input(vm, info);
+        }
+    });
 }

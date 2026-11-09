@@ -216,6 +216,10 @@ impl AssocArray {
 
 #[derive(Debug, Clone)]
 pub enum Object {
+    Native {
+        class: &'static str,
+        state: AssocArray,
+    },
     Array(Vec<Value>),
     AssocArray(AssocArray),
     /// roList: same storage as roArray, different interfaces and printing.
@@ -254,6 +258,7 @@ pub enum Object {
 impl Object {
     pub fn class_name(&self) -> &'static str {
         match self {
+            Object::Native { class, .. } => class,
             Object::Array(_) => "roArray",
             Object::AssocArray(_) => "roAssociativeArray",
             Object::List(_) => "roList",

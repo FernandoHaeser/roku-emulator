@@ -20,3 +20,8 @@ apps/web/src/wasm/
 # Playwright output
 test-results/
 playwright-report/
+
+# VS Code extension generated runtime and test profiles
+apps/vscode/runtime/
+apps/vscode/.vscode-test/
+*.vsix

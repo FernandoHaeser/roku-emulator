@@ -14,6 +14,7 @@ import type {
 import engineUrl from "@/wasm/brs.wasm?url";
 import { CanvasRenderer } from "./canvasRenderer";
 import { BrsEngine, EngineStatus, type EngineStatusCode } from "./engine";
+import { waitDebugCommand } from "./debugMailbox";
 import { LineBuffer } from "./lineBuffer";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -26,6 +27,10 @@ const post = (message: WorkerToShellMessage, transfer: Transferable[] = []): voi
   self.postMessage(message, transfer);
 
 let renderer: CanvasRenderer | null = null;
+let headless = false;
+let debugMailbox: SharedArrayBuffer | undefined;
+let nextHttpId = 1;
+const httpRequests = new Map<number, { coreId: number; generation: number }>();
 let enginePromise: Promise<BrsEngine> | null = null;
 let active: BrsEngine | null = null;
 let channelName = "";
@@ -39,7 +44,49 @@ let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 const lines = new LineBuffer();
 
 function engine(): Promise<BrsEngine> {
-  enginePromise ??= BrsEngine.load(engineUrl);
+  enginePromise ??= BrsEngine.load(
+    engineUrl,
+    debugMailbox
+      ? {
+          wait(output) {
+            if (output) {
+              post({ type: "consoleRaw", text: output });
+              for (const line of [...lines.push(output), ...lines.flush()])
+                post({ type: "console", stream: "stdout", text: line });
+            }
+            reportStatus("stopped");
+            return waitDebugCommand(debugMailbox!, () => post({ type: "debuggerWaiting" }));
+          },
+          resumed() {
+            reportStatus("running");
+          },
+        }
+      : undefined,
+    {
+      request(coreId, request) {
+        const id = nextHttpId++;
+        if (coreId) {
+          httpRequests.set(id, { coreId, generation });
+          post({ type: "httpRequest", id, request });
+          return null;
+        }
+        if (typeof SharedArrayBuffer !== "function")
+          return JSON.stringify({
+            status: -7,
+            failure: "Synchronous HTTP requires cross-origin isolation",
+          });
+        const buffer = new SharedArrayBuffer(12 * 1024 * 1024 + 8);
+        return waitDebugCommand(buffer, () => post({ type: "httpRequest", id, request, buffer }));
+      },
+      cancel(coreId) {
+        for (const [id, pending] of httpRequests)
+          if (pending.coreId === coreId && pending.generation === generation) {
+            httpRequests.delete(id);
+            post({ type: "httpCancel", id });
+          }
+      },
+    },
+  );
   return enginePromise;
 }
 
@@ -58,6 +105,7 @@ function initSurface(canvas: OffscreenCanvas, width: number, height: number): vo
 
 function emitOutput(instance: BrsEngine, final = false): void {
   const text = instance.takeOutput();
+  if (text) post({ type: "consoleRaw", text });
   const complete = lines.push(text);
   if (final) complete.push(...lines.flush());
   for (const line of complete) post({ type: "console", stream: "stdout", text: line });
@@ -90,7 +138,8 @@ function publishState(instance: BrsEngine): void {
   const result = instance.displayList(drawnRevision);
   if (result.kind === "list") {
     drawnRevision = instance.revision();
-    renderer?.show(result.json);
+    if (headless) post({ type: "displayList", json: result.json });
+    else renderer?.show(result.json);
   }
   const registry = instance.takeRegistry();
   if (registry !== null) post({ type: "registry", channelId, json: registry });
@@ -122,6 +171,8 @@ function runSlice(instance: BrsEngine, runGeneration: number): void {
     schedule(instance, runGeneration, 0);
   } else if (status === EngineStatus.Sleeping) {
     schedule(instance, runGeneration, Math.max(0, instance.sleepUntil() - performance.now()));
+  } else if (status === EngineStatus.Stopped) {
+    reportStatus("stopped");
   } else if (status === EngineStatus.Waiting) {
     // Nothing runnable until input arrives; `key` restarts the loop.
   } else {
@@ -135,17 +186,20 @@ function runSlice(instance: BrsEngine, runGeneration: number): void {
 }
 
 function stopChannel(): void {
+  for (const id of httpRequests.keys()) post({ type: "httpCancel", id });
+  httpRequests.clear();
   generation += 1;
   if (wakeTimer !== null) clearTimeout(wakeTimer);
   wakeTimer = null;
   if (active) {
-    emitOutput(active, true);
     active.unload();
+    emitOutput(active, true);
     active = null;
     // "idle": the user left the channel (Home), as opposed to a STOP statement.
     reportStatus("idle");
   }
   renderer?.clear();
+  if (headless) post({ type: "displayList", json: null });
   drawnRevision = -1;
 }
 
@@ -154,6 +208,8 @@ async function launchChannel(
   name: string,
   zip: ArrayBuffer,
   registry: string | null,
+  stopOnEntry = false,
+  launchArgs: Record<string, string> = {},
 ): Promise<void> {
   stopChannel();
   const runGeneration = generation;
@@ -164,7 +220,12 @@ async function launchChannel(
     const instance = await engine();
     if (runGeneration !== generation) return;
     const epochOffset = Date.now() - performance.now();
-    const loaded = instance.loadChannel(new Uint8Array(zip), performance.now(), epochOffset);
+    const loaded = instance.loadChannel(
+      new Uint8Array(zip),
+      performance.now(),
+      epochOffset,
+      launchArgs,
+    );
     if (!loaded) {
       emitOutput(instance, true);
       reportStatus("error");
@@ -173,6 +234,7 @@ async function launchChannel(
     if (registry) instance.loadRegistry(registry);
     active = instance;
     reportStatus("running");
+    if (stopOnEntry) instance.debuggerCommand("break");
     runSlice(instance, runGeneration);
   } catch (error) {
     post({ type: "fatal", message: `Falha ao carregar o engine: ${String(error)}` });
@@ -215,16 +277,51 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
   const message = event.data;
   switch (message.type) {
     case "init":
-      initSurface(message.canvas, message.width, message.height);
+      debugMailbox = message.debugMailbox;
+      headless = message.headless === true;
+      if (headless) post({ type: "ready", renderer: "Node Worker / WebAssembly" });
+      else if (message.canvas) initSurface(message.canvas, message.width, message.height);
       break;
     case "launchChannel":
-      void launchChannel(message.channelId, message.name, message.zip, message.registry);
+      void launchChannel(
+        message.channelId,
+        message.name,
+        message.zip,
+        message.registry,
+        message.stopOnEntry,
+        message.launchArgs,
+      );
       break;
     case "stopChannel":
       stopChannel();
       break;
     case "inspectChannel":
       void inspectChannel(message.requestId, message.zip);
+      break;
+    case "input":
+      if (active) {
+        active.input(message.args);
+        schedule(active, generation, 0);
+      }
+      break;
+    case "httpComplete": {
+      const request = httpRequests.get(message.id);
+      httpRequests.delete(message.id);
+      if (active && request && request.generation === generation) {
+        active.httpComplete(request.coreId, message.response);
+        schedule(active, generation, 0);
+      }
+      break;
+    }
+    case "debuggerCommand":
+      if (active) {
+        const resumed = active.debuggerCommand(message.command);
+        emitOutput(active, true);
+        if (resumed) {
+          reportStatus("running");
+          schedule(active, generation, 0);
+        }
+      }
       break;
     case "key":
       sendKey(message.key, message.pressed);

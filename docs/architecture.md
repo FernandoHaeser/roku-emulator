@@ -220,3 +220,25 @@ Workflow: [fidelity-workflow.md](fidelity-workflow.md).
   the worker without credentials.
 - Device credentials live only in the git-ignored `.env`; profiles and goldens
   are redacted before being written.
+
+## Local device tooling bridge (F7, first stage)
+
+In development, the Vite plugin starts `packages/server`: one HTTP listener
+for ECP and Digest-authenticated package installation, plus a TCP listener
+for the BrightScript console. The shell subscribes to same-origin SSE events,
+fetches uploaded packages and passes them through its existing inspection and
+WASM launch path. Worker stdout is posted back to the server, which converts
+line endings to CRLF for telnet clients. ECP key, launch and delete events use
+the same shell controls as local interaction. The browser remains necessary
+for execution; Node supplies device-facing transport only.
+
+The runtime emits launch/compile beacons and an exit beacon. Exit formatting
+is provisional until `fidelity/system/app-exit` is recorded on the reference
+device. The telnet console frames bounded UTF-8 commands (including split CRLF and
+Ctrl+C), sends them over the bridge and forwards exact Worker stdout, including
+unterminated prompts. `vm/debugger.rs` preserves the selected thread's frames,
+stack and blocked state; the scheduler freezes while stopped. Continue/step
+resume that thread, with source-line/depth checks in the bytecode loop.
+The worker retains the loaded instance and screen while paused. Synchronous
+SceneGraph callbacks are not resumable yet. The binary protocol remains pending.
+See [deployment configuration and limits](vscode-deploy.md).

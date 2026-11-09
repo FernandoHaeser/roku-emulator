@@ -1,0 +1,11 @@
+**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!NOTICE
+!dist/**
+!media/**
+!runtime/**
+
+dist/electron-test.cjs

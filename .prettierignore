@@ -2,3 +2,6 @@ pnpm-lock.yaml
 dist/
 coverage/
 fidelity/**/golden/
+
+apps/vscode/runtime/
+apps/vscode/.vscode-test/

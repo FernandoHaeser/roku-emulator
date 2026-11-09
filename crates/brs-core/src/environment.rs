@@ -1,7 +1,7 @@
 //! What the channel sees of the device around it: manifest, package files,
 //! the persistent registry and the reference device profile.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use crate::value::{AssocArray, Object, Value};
@@ -68,6 +68,12 @@ pub struct Environment {
     pub registry: RegistryData,
     /// Set when the registry changed since the host last persisted it.
     pub registry_dirty: bool,
+    pub writable_files: BTreeMap<String, Vec<u8>>,
+    pub directories: BTreeSet<String>,
+    pub next_identity: u32,
+    pub launch_args: AssocArray,
+    pub input_ports: Vec<usize>,
+    pub http_pending: BTreeMap<u32, crate::runtime_objects::PendingHttp>,
 }
 
 impl Environment {
@@ -79,6 +85,79 @@ impl Environment {
     pub fn package_file(&self, uri: &str) -> Option<&Vec<u8>> {
         let path = uri.strip_prefix("pkg:/")?.trim_start_matches('/');
         self.files.get(path)
+    }
+
+    pub fn normalize_path(uri: &str) -> Option<String> {
+        let (volume, path) = uri.split_once(":/")?;
+        if !matches!(volume, "pkg" | "tmp" | "cachefs" | "common") {
+            return None;
+        }
+        let mut parts = Vec::new();
+        for part in path.split('/') {
+            match part {
+                "" | "." => {}
+                ".." => {
+                    parts.pop()?;
+                }
+                _ if part.contains('\\') || part.contains('\0') => return None,
+                _ => parts.push(part),
+            }
+        }
+        Some(format!("{volume}:/{}", parts.join("/")))
+    }
+    pub fn read_file(&self, path: &str) -> Option<Vec<u8>> {
+        let path = Self::normalize_path(path)?;
+        if let Some(path) = path.strip_prefix("pkg:/") {
+            self.files.get(path).cloned()
+        } else {
+            self.writable_files.get(&path).cloned()
+        }
+    }
+    pub fn write_file(&mut self, path: &str, bytes: Vec<u8>) -> bool {
+        let Some(path) = Self::normalize_path(path) else {
+            return false;
+        };
+        if !path.starts_with("tmp:/") && !path.starts_with("cachefs:/") {
+            return false;
+        }
+        if bytes.len() > 16 * 1024 * 1024
+            || self
+                .writable_files
+                .values()
+                .map(Vec::len)
+                .sum::<usize>()
+                .saturating_sub(self.writable_files.get(&path).map_or(0, Vec::len))
+                .saturating_add(bytes.len())
+                > 64 * 1024 * 1024
+        {
+            return false;
+        }
+        if let Some((directory, _)) = path.rsplit_once('/') {
+            self.directories.insert(format!("{directory}/"));
+        }
+        self.writable_files.insert(path, bytes);
+        true
+    }
+    pub fn directory_listing(&self, directory: &str) -> Vec<String> {
+        let Some(directory) = Self::normalize_path(directory) else {
+            return vec![];
+        };
+        let prefix = format!("{}/", directory.trim_end_matches('/'));
+        let mut entries = BTreeSet::new();
+        let paths = self
+            .files
+            .keys()
+            .map(|p| format!("pkg:/{p}"))
+            .chain(self.writable_files.keys().cloned())
+            .chain(self.directories.iter().cloned());
+        for path in paths {
+            if let Some(tail) = path.strip_prefix(&prefix) {
+                if let Some(name) = tail.split('/').next().filter(|s| !s.is_empty()) {
+                    entries.insert(name.to_string());
+                }
+            }
+        }
+        entries.into_iter().collect()
     }
 
     /// Registry as JSON (`{"section":{"key":"value"}}`) for host persistence.

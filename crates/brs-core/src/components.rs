@@ -45,10 +45,56 @@ pub fn call(
     name: &str,
     args: &[Value],
 ) -> Option<Result<Value, RuntimeError>> {
+    if matches!(&*object.borrow(), Object::Native { .. }) {
+        return Some(crate::runtime_objects::call(vm, object, name, args));
+    }
     let class = object.borrow().class_name();
     Some(match class {
         "roList" => list_method(object, name, args)?,
-        "roByteArray" => byte_array_method(object, name, args),
+        "roByteArray" => {
+            if matches!(name, "readfile" | "writefile" | "appendfile") {
+                let path = arg_str(args, 0);
+                if name == "readfile" {
+                    if let Some(data) = vm.env.read_file(&path) {
+                        if let Object::ByteArray(bytes) = &mut *object.borrow_mut() {
+                            let offset = arg_int(args, 1).max(0) as usize;
+                            let length = args.get(2).and_then(Value::as_i64).unwrap_or(-1);
+                            if offset <= data.len() {
+                                *bytes = data[offset..(if length < 0 {
+                                    data.len()
+                                } else {
+                                    (offset + length as usize).min(data.len())
+                                })]
+                                    .to_vec();
+                                return Some(Ok(Value::Boolean(true)));
+                            }
+                        }
+                    }
+                    Ok(Value::Boolean(false))
+                } else {
+                    let Object::ByteArray(bytes) = &*object.borrow() else {
+                        unreachable!()
+                    };
+                    let offset = arg_int(args, 1).max(0) as usize;
+                    let length = args.get(2).and_then(Value::as_i64).unwrap_or(-1);
+                    let start = offset.min(bytes.len());
+                    let end = if length < 0 {
+                        bytes.len()
+                    } else {
+                        (start + length as usize).min(bytes.len())
+                    };
+                    let mut out = if name == "appendfile" {
+                        vm.env.read_file(&path).unwrap_or_default()
+                    } else {
+                        vec![]
+                    };
+                    out.extend_from_slice(&bytes[start..end]);
+                    Ok(Value::Boolean(vm.env.write_file(&path, out)))
+                }
+            } else {
+                byte_array_method(object, name, args)
+            }
+        }
         "roMessagePort" => {
             let Object::MessagePort(port) = &*object.borrow() else {
                 unreachable!()
@@ -315,7 +361,7 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
-fn civil_from_days(days: i64) -> (i64, i64, i64) {
+pub(crate) fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097;

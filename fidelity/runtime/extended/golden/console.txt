@@ -1,0 +1,17 @@
+regex=true
+["123 ABC","123","ABC"]
+ab:12 cd:34
+write=true
+exists=true
+read=abc
+readbytes=true
+616263
+BRIGHTSCRIPT: ERROR: WriteAsciiFile: file open for write failed: pkg:/source/main.brs(14)
+readonly=false
+delete=true
+digestsetup= 0
+ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+hmacsetup= 0
+9C196E32DC0175F86F4B1CB89289D6619DE6BEE699E4C378E68309ED97A1A6AB
+ciphersetup= 0
+7649ABAC8119B246CEE98E9B12E9197D

@@ -4,7 +4,21 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "fidelity/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/coverage/**",
+      "fidelity/**",
+      "**/runtime/**",
+      "**/.vscode-test/**",
+    ],
+  },
+  { files: ["apps/vscode/scripts/*.mjs"], languageOptions: { globals: globals.node } },
+  {
+    files: ["apps/vscode/media/*.js"],
+    languageOptions: { globals: { ...globals.browser, acquireVsCodeApi: "readonly" } },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

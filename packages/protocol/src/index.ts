@@ -5,17 +5,23 @@
  */
 import type { RemoteKey } from "./keys";
 
+export * from "./bridge";
 export * from "./keys";
 
 export type ShellToWorkerMessage =
   | {
       type: "init";
-      canvas: OffscreenCanvas;
+      canvas?: OffscreenCanvas | undefined;
+      headless?: boolean;
+      debugMailbox?: SharedArrayBuffer | undefined;
       /** Surface size in pixels; display lists are scaled from the design resolution. */
       width: number;
       height: number;
     }
   | { type: "key"; key: RemoteKey; pressed: boolean }
+  | { type: "debuggerCommand"; command: string }
+  | { type: "httpComplete"; id: number; response: string }
+  | { type: "input"; args: Record<string, string> }
   /** Reads a package's manifest (title, version, icon) without launching it. */
   | { type: "inspectChannel"; requestId: number; zip: ArrayBuffer }
   /**
@@ -28,6 +34,8 @@ export type ShellToWorkerMessage =
       name: string;
       zip: ArrayBuffer;
       registry: string | null;
+      stopOnEntry?: boolean;
+      launchArgs?: Record<string, string> | undefined;
     }
   /** Exits the running channel (remote Home key). */
   | { type: "stopChannel" };
@@ -49,6 +57,12 @@ export interface ChannelInfo {
 export type WorkerToShellMessage =
   | { type: "ready"; renderer: string }
   | { type: "console"; stream: ConsoleStream; text: string }
+  /** Exact engine output for device console clients, including partial prompts. */
+  | { type: "consoleRaw"; text: string }
+  | { type: "displayList"; json: string | null }
+  | { type: "debuggerWaiting" }
+  | { type: "httpRequest"; id: number; request: string; buffer?: SharedArrayBuffer | undefined }
+  | { type: "httpCancel"; id: number }
   | { type: "channelStatus"; status: ChannelStatus; name: string; channelId: string }
   | { type: "channelInfo"; requestId: number; info: ChannelInfo }
   | { type: "channelInfoError"; requestId: number; message: string }

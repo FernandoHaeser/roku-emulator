@@ -1,0 +1,83 @@
+name: VS Code extension
+
+# Builds the extension once (wasm + web shell + bundles) on Linux, then checks
+# the packaged VSIX and a real VS Code debug session on every desktop OS.
+on:
+  push:
+    branches: [develop, release, master]
+  pull_request:
+    branches: [develop, release, master]
+
+concurrency:
+  group: vscode-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vscode-build
+          path: |
+            apps/vscode/dist
+            apps/vscode/runtime
+          if-no-files-found: error
+          retention-days: 3
+
+  test:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: vscode-build
+          path: apps/vscode
+      - name: Cache VS Code download
+        uses: actions/cache@v4
+        with:
+          path: apps/vscode/.vscode-test
+          key: vscode-test-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: vscode-test-${{ runner.os }}-
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install, upgrade and uninstall the VSIX
+        run: pnpm --filter ./apps/vscode test:install
+      - name: Debug session in VS Code (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm --filter ./apps/vscode test:electron
+      - name: Debug session in VS Code
+        if: runner.os != 'Linux'
+        run: pnpm --filter ./apps/vscode test:electron
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-logs-${{ matrix.os }}
+          path: apps/vscode/.vscode-test/last-run-logs
+          if-no-files-found: ignore
