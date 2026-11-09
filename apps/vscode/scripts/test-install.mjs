@@ -1,16 +1,11 @@
 // Install -> upgrade -> uninstall check for the packaged VSIX, using the VS Code
 // CLI against a throwaway profile and extensions directory. Run after `build`.
-import {
-  downloadAndUnzipVSCode,
-  resolveCliArgsFromVSCodeExecutablePath,
-} from "@vscode/test-electron";
 import { createVSIX } from "@vscode/vsce";
-import { execFile } from "node:child_process";
 import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { cliRunner, resolveVSCode } from "./vscode-cli.mjs";
 import * as assert from "node:assert/strict";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,29 +20,9 @@ const scratch = await mkdtemp(join(tmpdir(), "roku-vscode-install-"));
 const extensionsDir = join(scratch, "extensions");
 const userDataDir = join(scratch, "profile");
 
-const macApp = "/Applications/Visual Studio Code.app/Contents/MacOS/Code";
-const executable =
-  process.env.VSCODE_EXECUTABLE ||
-  (process.platform === "darwin" &&
-    (await access(macApp).then(
-      () => macApp,
-      () => undefined,
-    ))) ||
-  (await downloadAndUnzipVSCode(process.env.VSCODE_VERSION || "stable"));
-const [cli, ...cliArgs] = resolveCliArgsFromVSCodeExecutablePath(executable, {
-  reuseMachineInstall: true,
-});
-const shell = process.platform === "win32";
-const quote = (value) => (shell ? `"${value}"` : value);
-const execute = promisify(execFile);
+const runCli = cliRunner(await resolveVSCode());
 const code = (...args) =>
-  execute(
-    quote(cli),
-    [...cliArgs, ...args, "--extensions-dir", extensionsDir, "--user-data-dir", userDataDir].map(
-      quote,
-    ),
-    { shell, maxBuffer: 16 * 1024 * 1024 },
-  );
+  runCli([...args, "--extensions-dir", extensionsDir, "--user-data-dir", userDataDir]);
 
 async function installedVersion() {
   const { stdout } = await code("--list-extensions", "--show-versions");

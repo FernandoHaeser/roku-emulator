@@ -1,11 +1,6 @@
-import {
-  downloadAndUnzipVSCode,
-  resolveCliArgsFromVSCodeExecutablePath,
-  runTests,
-} from "@vscode/test-electron";
-import { access, mkdir, mkdtemp, writeFile, cp, rm } from "node:fs/promises";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { runTests } from "@vscode/test-electron";
+import { mkdir, mkdtemp, writeFile, cp, rm } from "node:fs/promises";
+import { cliRunner, resolveVSCode } from "./vscode-cli.mjs";
 import { tmpdir } from "node:os";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,23 +23,8 @@ await writeFile(
 );
 const extensions = join(root, ".vscode-test/extensions");
 await mkdir(extensions, { recursive: true });
-const execute = promisify(execFile);
-const macApp = "/Applications/Visual Studio Code.app/Contents/MacOS/Code";
-const vscodeExecutable =
-  process.env.VSCODE_EXECUTABLE ||
-  (process.platform === "darwin" &&
-    (await access(macApp).then(
-      () => macApp,
-      () => undefined,
-    ))) ||
-  (await downloadAndUnzipVSCode(process.env.VSCODE_VERSION || "stable"));
-const [cli, ...cliArgs] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutable, {
-  reuseMachineInstall: true,
-});
-// Windows ships the CLI as a .cmd shim, which execFile only runs through a shell.
-const shell = process.platform === "win32";
-const quote = (value) => (shell ? `"${value}"` : value);
-const runCli = (args) => execute(quote(cli), [...cliArgs, ...args].map(quote), { shell });
+const vscodeExecutable = await resolveVSCode();
+const runCli = cliRunner(vscodeExecutable);
 try {
   const located = (
     await runCli(["--locate-extension", "rokucommunity.brightscript"])
