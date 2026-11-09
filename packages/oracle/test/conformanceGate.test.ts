@@ -43,3 +43,15 @@ it("requires review when a known failure is fixed and rejects truncated output",
     "Runner summary is missing",
   );
 });
+
+it("rejects a later trace regression even when the first mismatch is unchanged", () => {
+  const trace = "trace: actual=old expected=device";
+  const baseline = failure.replace("      line 1", `      ${trace}\n      line 1`);
+  const exact = {
+    "runtime/example": { status: "(ok)", detail: [trace, ...known["runtime/example"].detail] },
+  };
+  expect(conformanceErrors(baseline, 1, ["runtime/example"], exact)).toEqual([]);
+  expect(
+    conformanceErrors(baseline.replace("actual=old", "actual=new"), 1, ["runtime/example"], exact),
+  ).toContain("Unexpected failure: runtime/example (ok)");
+});

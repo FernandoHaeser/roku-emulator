@@ -368,6 +368,13 @@ fn conformance(root: &Path) -> ExitCode {
         } else {
             failed += 1;
             println!("FAIL  {name} ({status})");
+            // Fingerprint both complete traces so known first mismatches cannot
+            // hide later regressions in the same probe (not a security hash).
+            println!(
+                "      trace: actual={} expected={}",
+                brs_core::md5::md5_hex(output.as_bytes()),
+                brs_core::md5::md5_hex(expected.as_bytes())
+            );
             if let Some((line, expected_line, actual_line)) = first_difference(&expected, &output) {
                 println!("      line {line}\n      device:   {expected_line}\n      emulator: {actual_line}");
             }

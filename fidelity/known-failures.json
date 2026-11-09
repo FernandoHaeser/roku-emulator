@@ -1,11 +1,17 @@
 {
   "language/collections": {
     "status": "(ok)",
-    "detail": ["line 16", "device:   \"a= 1\"", "emulator: \"b= 2\""]
+    "detail": [
+      "trace: actual=258c096125eaaab17f9af203c5291bcd expected=7659d890211175f32426496476b82e9f",
+      "line 16",
+      "device:   \"a= 1\"",
+      "emulator: \"b= 2\""
+    ]
   },
   "scenegraph/label-package-font": {
     "status": "(ok)",
     "detail": [
+      "trace: actual=5bd3c9cb5866ede16d5e912b2f387584 expected=2dfe4ad55631336d96d6a06fe17da60c",
       "line 6",
       "device:   \"system |  359  x  38 \"",
       "emulator: \"system |  356  x  38 \""

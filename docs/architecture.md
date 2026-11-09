@@ -260,8 +260,8 @@ The device image budgets and goldens are unchanged.
 The conformance CI step runs `pnpm --filter @roku-emu/oracle exec tsx
 src/checkConformance.ts`. It discovers probes from their manifests and fails
 on missing/skipped/duplicate probes, runner failures, or new deviations. Only
-the exact first-mismatch signatures in `fidelity/known-failures.json` are
-accepted; when a signature changes or the probe starts passing, review and
+the exact first-mismatch signatures and fingerprints of both complete traces
+in `fidelity/known-failures.json` are accepted; when a signature changes or the probe starts passing, review and
 update the documented exception. Native `make conformance` still reports
 all device mismatches without exceptions. Calibration data is reported
 separately from exact conformance and visual tests.
