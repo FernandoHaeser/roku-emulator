@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# Device credentials and local config: never commit
+.env
+.env.*
+!.env.example
+
+# Oracle scratch output (goldens live under fidelity/**/golden and ARE committed)
+.oracle/

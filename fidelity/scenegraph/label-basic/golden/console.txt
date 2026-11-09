@@ -1,0 +1,8 @@
+Roku Emulator fidelity probe
+<Component: roAssociativeArray> =
+{
+    height: 46
+    width: 1200
+    x: 160
+    y: 600
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-scenegraph-label-basic" />
+		<screen type="SGScreen" focused="true">
+			<ProbeScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle name="background" rcid="0" bounds="{0, 0, 1920, 1080}" color="#1f2937ff" index="0" />
+				<Rectangle name="box" rcid="0" translation="{160, 160}" bounds="{160, 160, 640, 360}" color="#10b981ff" index="1" />
+				<Label name="title" rcid="0" translation="{160, 600}" bounds="{160, 600, 1200, 46}" text="Roku Emulator fidelity probe" color="#ffffffff" index="0" />
+			</ProbeScene>
+		</screen>
+	</topscreen>
+</app-ui>

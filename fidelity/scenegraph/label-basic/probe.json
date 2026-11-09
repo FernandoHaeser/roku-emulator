@@ -1,0 +1,5 @@
+{
+  "kind": "conformance",
+  "settleMs": 1500,
+  "capture": { "appUi": true, "screenshot": true }
+}

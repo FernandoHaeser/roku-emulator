@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Rectangle id="background" width="1920" height="1080" color="0x1F2937FF" />
+    <Rectangle id="box" translation="[160, 160]" width="640" height="360" color="0x10B981FF" />
+    <Label
+      id="title"
+      translation="[160, 600]"
+      width="1200"
+      text="Roku Emulator fidelity probe"
+      color="0xFFFFFFFF"
+      font="font:LargeBoldSystemFont"
+    />
+  </children>
+</component>

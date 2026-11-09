@@ -1,0 +1,23 @@
+{
+  "name": "@roku-emu/oracle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Records fidelity traces from a real Roku device and diffs them against the emulator.",
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@roku-emu/protocol": "workspace:*",
+    "fast-xml-parser": "^4.5.1",
+    "fflate": "^0.8.2",
+    "jpeg-js": "^0.4.4",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^6.0.5",
+    "tsx": "^4.19.2"
+  }
+}

@@ -1,0 +1,6 @@
+hello
+ 3               3.5             1024
+ 1 2-3
+ab              c
+ 1.5             0.333333        100000000
+true            false           invalid
