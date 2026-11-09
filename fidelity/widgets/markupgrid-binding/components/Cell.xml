@@ -1,0 +1,22 @@
+<component name="Cell" extends="Group">
+<interface><field id="width" type="float" /><field id="height" type="float" /><field id="index" type="integer" /><field id="itemContent" type="node" onChange="contentChanged" /><field id="focusPercent" type="float" onChange="focused" /><field id="itemHasFocus" type="boolean" /></interface>
+<script type="text/brightscript"><![CDATA[
+sub init()
+    m.label = m.top.findNode("label")
+    m.bg = m.top.findNode("bg")
+end sub
+sub contentChanged()
+    m.label.text = m.top.itemContent.title
+    m.bg.width = m.top.width
+    m.bg.height = m.top.height
+    print "cell "; m.top.index; " "; m.top.width; "x"; m.top.height; " "; m.top.itemContent.title
+end sub
+sub focused()
+    if m.top.focusPercent > 0.5 then
+        m.bg.color = "0x22C55EFF"
+    else
+        m.bg.color = "0x334155FF"
+    end if
+end sub
+]]></script>
+<children><Rectangle id="bg" color="0x334155FF" /><Label id="label" translation="[12,20]" color="0xFFFFFFFF" /></children></component>

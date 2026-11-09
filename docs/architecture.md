@@ -265,3 +265,26 @@ in `fidelity/known-failures.json` are accepted; when a signature changes or the 
 update the documented exception. Native `make conformance` still reports
 all device mismatches without exceptions. Calibration data is reported
 separately from exact conformance and visual tests.
+
+### Built-in widgets (F5 foundation)
+
+`sg/widgets.rs` owns built-in key handling, focus, selection and generated
+render nodes. Lists derive from ArrayGrid; their defaults and event ordering
+come from `fidelity/widgets` recordings. Built-in handling runs after a custom
+component's onKeyEvent and before bubbling to its parent. Press/release
+consumption is tracked separately where the device requires it.
+
+Generated item nodes live in a widget cache, with weak parent links. Markup
+components are reused by content-node identity so navigation does not run init
+or itemContent callbacks again. Width/height and indices are bound before
+itemContent, followed by focus fields. RowList stores a separate column per
+row. Only a bounded visible range is instantiated; scrolling transitions are
+currently settled updates, not a reproduction of native intermediate timing.
+
+ButtonGroup creates real Button children and forwards focus/selection. Dialog
+is a modal overlay that intercepts remote input and emits wasClosed on close.
+Keyboard input and cursor state are separate from its generated geometry; its
+TextEditBox is an accessible node. Native artwork is approximated by geometry,
+alpha fills and measured gradients; proprietary device images are not bundled.
+Seven probes cover the supported profile. Sections, specialized variants,
+fully animated focus and complete native-theme parity remain open work.

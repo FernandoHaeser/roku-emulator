@@ -238,6 +238,7 @@ pub fn create_node(vm: &mut Vm, type_name: &str) -> Result<Option<ObjectRef>, Ru
         return Ok(None);
     };
     populate_node(vm, &object)?;
+    super::widgets::initialize(vm, &object)?;
     Ok(Some(object))
 }
 
@@ -356,6 +357,7 @@ pub fn set_field(
         return Ok(());
     };
     side_effects(vm, object, &change.field)?;
+    super::widgets::changed(vm, object, &change.field)?;
     notify(vm, object, change)
 }
 
@@ -525,9 +527,11 @@ pub fn focused_node(vm: &Vm) -> Option<ObjectRef> {
     vm.sg.focus.as_ref().and_then(|w| w.upgrade())
 }
 
-fn set_focus(vm: &mut Vm, target: Option<ObjectRef>) -> Result<(), RuntimeError> {
+pub(super) fn set_focus(vm: &mut Vm, target: Option<ObjectRef>) -> Result<(), RuntimeError> {
+    let target = target.map(|node| super::widgets::focus_target(&node));
     if let Some(old) = focused_node(vm) {
         with_node_mut(&old, |n| n.has_focus = false);
+        super::widgets::blur(vm, &old);
         let keep: Vec<ObjectRef> = target.as_ref().map(ancestors).unwrap_or_default();
         for node in ancestors(&old) {
             if !keep.iter().any(|k| Rc::ptr_eq(k, &node)) {
@@ -538,6 +542,7 @@ fn set_focus(vm: &mut Vm, target: Option<ObjectRef>) -> Result<(), RuntimeError>
     vm.sg.focus = target.as_ref().map(Rc::downgrade);
     if let Some(target) = target {
         with_node_mut(&target, |n| n.has_focus = true);
+        super::widgets::focus(vm, &target)?;
         let chain = ancestors(&target);
         set_raw_and_notify(vm, &target, "focusedChild", node_value(&target))?;
         for pair in chain.windows(2) {
@@ -580,18 +585,25 @@ fn dispatch_key(vm: &mut Vm, key: &str, pressed: bool) -> Result<(), RuntimeErro
     let Some((screen, scene)) = active_scene(vm) else {
         return Ok(());
     };
+    if super::widgets::modal_key(vm, key, pressed)? {
+        return Ok(());
+    }
     let start = focused_node(vm).unwrap_or_else(|| scene.clone());
     let mut handled = false;
     for node in ancestors(&start) {
         let component = with_node(&node, |n| n.component.clone());
-        let Some(component) = component else { continue };
-        let Some(function) = vm.program().lookup(component.scope, "onKeyEvent") else {
-            continue;
-        };
-        let args = vec![Value::string(key), Value::Boolean(pressed)];
-        let m = component.m.clone();
-        let result = vm.run_in_render(|vm| vm.call_sync(function, args, m))?;
-        if crate::ops::condition(&result).unwrap_or(false) {
+        if let Some(component) = component {
+            if let Some(function) = vm.program().lookup(component.scope, "onKeyEvent") {
+                let args = vec![Value::string(key), Value::Boolean(pressed)];
+                let result =
+                    vm.run_in_render(|vm| vm.call_sync(function, args, component.m.clone()))?;
+                if crate::ops::condition(&result).unwrap_or(false) {
+                    handled = true;
+                    break;
+                }
+            }
+        }
+        if super::widgets::key(vm, &node, key, pressed)? {
             handled = true;
             break;
         }
@@ -639,6 +651,7 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
     for node in vm.take_finished_tasks() {
         set_field(vm, &node, "state", Value::string("stop"))?;
     }
+    super::widgets::service(vm)?;
     let now = vm.now_ms();
     let due: Vec<Timer> = vm
         .sg

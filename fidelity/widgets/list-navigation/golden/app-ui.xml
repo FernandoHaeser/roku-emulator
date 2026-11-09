@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-widgets-list-navigation" />
+		<screen type="SGScreen" focused="true">
+			<ListScene children="0" extends="Scene" focused="true" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#101820ff" index="0" />
+				<LabelList name="list" focused="true" focusable="true" rcid="0" translation="{100, 100}" bounds="{64, 91, 672, 330}" children="5" count="3" focusItem="2" index="0">
+					<RenderableNode children="1" focusable="true" rcid="0" index="0" bounds="{0, -184, 600, 80}">
+						<LabelListItem index="0">
+							<Poster rcid="0" translation="{0, 40}" renderPass="3" index="0" />
+							<Poster rcid="0" opacity="0" translation="{0, 40}" renderPass="3" index="1" />
+							<Label rcid="0" translation="{0, 21}" renderPass="1" bounds="{0, 21, 600, 80}" text="Alpha" color="#fefefeff" index="0" />
+							<ScrollingLabel children="2" rcid="0" visible="false" clippingRect="{0, -38, 600, 112}" translation="{0, 21}" renderPass="2" index="0">
+								<Label rcid="0" visible="false" opacity="0" text="Alpha" color="#fefefeff" index="0" />
+								<Label rcid="0" bounds="{0, 0, 600, 36}" text="Alpha" color="#fefefeff" index="1" />
+							</ScrollingLabel>
+						</LabelListItem>
+					</RenderableNode>
+					<RenderableNode children="1" focusable="true" rcid="0" index="1" bounds="{0, -92, 600, 80}">
+						<LabelListItem index="0">
+							<Poster rcid="0" translation="{0, 40}" renderPass="3" index="0" />
+							<Poster rcid="0" opacity="0" translation="{0, 40}" renderPass="3" index="1" />
+							<Label rcid="0" translation="{0, 21}" renderPass="1" bounds="{0, 21, 600, 80}" text="Beta" color="#fefefeff" index="0" />
+							<ScrollingLabel children="2" rcid="0" visible="false" clippingRect="{0, -38, 600, 112}" translation="{0, 21}" renderPass="2" index="0">
+								<Label rcid="0" visible="false" opacity="0" text="Beta" color="#fefefeff" index="0" />
+								<Label rcid="0" bounds="{0, 0, 600, 36}" text="Beta" color="#fefefeff" index="1" />
+							</ScrollingLabel>
+						</LabelListItem>
+					</RenderableNode>
+					<RenderableNode children="1" focusable="true" rcid="0" index="2" focused="true" bounds="{0, 0, 600, 80}">
+						<LabelListItem index="0">
+							<Poster rcid="0" opacity="0" translation="{0, 40}" renderPass="3" index="0" />
+							<Poster rcid="0" translation="{0, 40}" renderPass="3" index="1" />
+							<Label rcid="0" visible="false" translation="{0, 21}" renderPass="1" text="Gamma" color="#000000ff" index="0" />
+							<ScrollingLabel children="2" rcid="0" clippingRect="{0, -38, 600, 112}" translation="{0, 21}" renderPass="2" bounds="{0, 21, 600, 36}" index="0">
+								<Label rcid="0" visible="false" opacity="0" text="Gamma" color="#000000ff" index="0" />
+								<Label rcid="0" bounds="{0, 0, 600, 36}" text="Gamma" color="#000000ff" index="1" />
+							</ScrollingLabel>
+						</LabelListItem>
+					</RenderableNode>
+				</LabelList>
+			</ListScene>
+		</screen>
+	</topscreen>
+</app-ui>

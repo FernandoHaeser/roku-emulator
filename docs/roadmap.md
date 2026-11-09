@@ -33,8 +33,16 @@ home screen; those are the current architecture.
    visually from Roku's proprietary font. Open measurements: one HD column of
    `render-rects-hd` is 1 px narrower than the floor rule; creating render
    nodes from the main thread fails on the device but not in the emulator.
-5. Resume F5 widgets, then F6 playback/DRM and the
-   remaining tools (F8), native desktop and F9 mocks.
+5. F5 widgets: in progress on `feature/f5-widgets`. Seven HD/FHD device probes cover
+   LabelList navigation/wrap, RowList per-row column memory, MarkupGrid custom
+   item bindings, ButtonGroup/modal Dialog events and Keyboard text/cursor
+   behavior. Browser tests compare event traces and device screenshots. Widget
+   animation timing, sections, specialized variants and full theme geometry
+   still require more work; this is not complete widget compatibility.
+6. Continue F6 playback/DRM and the remaining tools (F8). After the agreed
+   implementation sequence, freeze feature work and review GitHub tasks #5–#16
+   (platform integrity and CI/CD). Native desktop/F9 mocks remain later roadmap
+   items. Do not start release/publication automation ahead of that review.
 
 No release dates are committed. A phase being implemented does not imply
 complete Roku compatibility; the recorded probes define verified behavior.

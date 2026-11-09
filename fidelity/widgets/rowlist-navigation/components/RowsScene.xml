@@ -1,0 +1,1 @@
+<component name="RowsScene" extends="Scene"><script type="text/brightscript" uri="RowsScene.brs" /><children><RowList id="rows" translation="[100,100]" itemSize="[700,140]" rowItemSize="[[180,100],[180,100],[180,100]]" rowFocusAnimationStyle="[&quot;floatingfocus&quot;,&quot;floatingfocus&quot;,&quot;floatingfocus&quot;]" numRows="2" /></children></component>

@@ -1,0 +1,26 @@
+itemFocused=0
+focus= 0
+itemFocused=0
+cell  0  240 x 90  Alpha
+cell  1  240 x 90  Beta
+cell  2  240 x 90  Gamma
+cell  3  240 x 90  Delta
+cell  4  240 x 90  Epsilon
+scene left true focus= 0
+scene left false focus= 0
+itemUnfocused=0
+itemFocused=1
+itemUnfocused=1
+itemFocused=2
+scene right true focus= 2
+scene right false focus= 2
+scene down true focus= 2
+scene down false focus= 2
+itemUnfocused=2
+itemFocused=1
+scene up true focus= 1
+scene up false focus= 1
+itemSelected=1
+scene OK true focus= 1
+scene OK false focus= 1
+scene back true focus= 1

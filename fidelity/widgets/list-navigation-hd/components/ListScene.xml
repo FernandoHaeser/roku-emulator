@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ListScene" extends="Scene">
+<script type="text/brightscript" uri="ListScene.brs" />
+<children><Rectangle width="1920" height="1080" color="0x101820FF" /><LabelList id="list" translation="[100,100]" itemSize="[600,80]" itemSpacing="[0,12]" /></children>
+</component>

@@ -1,0 +1,12 @@
+{
+  "kind": "conformance",
+  "steps": [
+    { "key": "Down", "waitMs": 500 },
+    { "key": "OK", "waitMs": 500 },
+    { "key": "Down", "waitMs": 500 },
+    { "key": "OK", "waitMs": 500 },
+    { "key": "Back", "waitMs": 500 }
+  ],
+  "settleMs": 300,
+  "capture": { "appUi": false, "screenshot": false }
+}

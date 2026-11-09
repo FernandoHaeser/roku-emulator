@@ -9,7 +9,7 @@
 **BrightScript and SceneGraph, compiled to WebAssembly, diffed byte by byte against Roku hardware.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/FernandoHaeser/roku-emulator/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/FernandoHaeser/roku-emulator/actions/workflows/ci.yml)
-[![Device conformance](https://img.shields.io/badge/device_conformance-32%2F34_probes-22d3ee?style=flat-square)](#how-fidelity-works)
+[![Device conformance](https://img.shields.io/badge/device_conformance-39%2F41_probes-22d3ee?style=flat-square)](#how-fidelity-works)
 [![Rust](https://img.shields.io/badge/core-Rust-b7410e?style=flat-square&logo=rust&logoColor=white)](crates/brs-core)
 [![WebAssembly](https://img.shields.io/badge/runs_in-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](crates/brs-wasm)
 [![React](https://img.shields.io/badge/shell-React_+_TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)](apps/web)
@@ -149,7 +149,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | Runtime objects (F2)       | Done: network via local proxy, files, regex, crypto (device-verified probe `runtime/extended`)     |
 | SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                    |
 | Renderer (F4)              | Screenshot diffs, measured text, package fonts, Poster/9-patch, remote loads, rotation, animations |
-| Widgets (F5), Video (F6)   | Not started                                                                                        |
+| Widgets (F5), Video (F6)   | Widgets in progress: lists, grid bindings, buttons, modal dialogs and keyboard; Video follows      |
 | VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension           |
 
 **Known gaps** (tracked by failing conformance):
@@ -162,8 +162,9 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 - Float-literal promotion to Double uses a provisional digit threshold.
 - Glyph shapes come from a bundled substitute font (Inter, OFL); widths, line
   breaks and line heights follow device metrics (±1 px for ~3/4 of strings).
-- Widget geometry (F5) is not measured yet; animations are not implemented.
-  The Roku system font is not redistributable, so a sans-serif stack is used.
+- Widget support (F5) is in progress. Native-theme artwork, animated widget
+  scrolling, sections and specialized widgets are not fully reproduced.
+  The Roku system font is not redistributable, so a bundled substitute is used.
 
 ## Roadmap
 
@@ -174,7 +175,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | F2 · Runtime objects    | `ro*` non-visual components                                                                     | Done        |
 | F3 · SceneGraph core    | Components, fields, observers, threads, focus                                                   | Done        |
 | F4 · Renderer           | Pixel diffs vs device screenshots, fonts, animations                                            | In progress |
-| F5 · Widgets            | RowList, MarkupGrid, keyboards, dialogs... measured on the device                               | Planned     |
+| F5 · Widgets            | Device-probed list/grid events and bindings, buttons, modal dialogs and keyboard                | In progress |
 | F6 · Video              | `Video` node over Shaka Player, Widevine via EME                                                | Planned     |
 | F7 · Tooling            | Dev installer, ECP, console, telnet and binary debug protocol                                   | Done        |
 | F8 · Shell              | Clickable remote, node inspector, network and registry panels, hot reload                       | Partial     |

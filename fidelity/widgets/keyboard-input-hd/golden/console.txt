@@ -1,0 +1,12 @@
+text=""
+max= 75
+scene OK false
+text="A"
+scene OK false
+text="Ah"
+scene OK false
+scene options false
+text="AhH"
+scene OK false
+scene back true
+final="AhH" cursor= 3
