@@ -32,8 +32,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       # Emulator output vs traces recorded on the reference device.
-      - run: cargo run --release -q -p brs-cli -- conformance fidelity
-        continue-on-error: true # known gap: AA FOR EACH hash order (see README)
+      - run: pnpm --filter @roku-emu/oracle exec tsx src/checkConformance.ts
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

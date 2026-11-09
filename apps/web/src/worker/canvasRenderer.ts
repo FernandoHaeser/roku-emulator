@@ -69,7 +69,10 @@ export class CanvasRenderer {
       uri: string,
     ) => Uint8Array<ArrayBuffer> | null | Promise<Uint8Array<ArrayBuffer> | null>,
   ) {
-    const context = canvas.getContext("2d", { alpha: false });
+    // Opaque contexts permit LCD subpixel text on Linux (colored fringes).
+    // Use grayscale antialiasing across hosts; draw() still fills the whole
+    // surface with the scene background, so channel output remains opaque.
+    const context = canvas.getContext("2d", { alpha: true });
     if (!context) throw new Error("Canvas2D is not available in this worker");
     this.context = context;
     this.clear();

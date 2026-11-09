@@ -100,12 +100,10 @@ for (const probe of findVisualProbes(fidelityRoot)) {
         width: metrics.width,
       };
     });
-    await test
-      .info()
-      .attach("renderer-fonts", {
-        body: JSON.stringify(fonts, null, 2),
-        contentType: "application/json",
-      });
+    await test.info().attach("renderer-fonts", {
+      body: JSON.stringify(fonts, null, 2),
+      contentType: "application/json",
+    });
     expect(
       fonts.faces.filter((face) => face.family === "RokuEmuSans" && face.status === "loaded"),
     ).toHaveLength(2);

@@ -248,3 +248,20 @@ resume that thread, with source-line/depth checks in the bytecode loop.
 The worker retains the loaded instance and screen while paused. Synchronous
 SceneGraph callbacks are not resumable yet. The binary protocol remains pending.
 See [deployment configuration and limits](vscode-deploy.md).
+
+### Pull-request validation
+
+CI retains the Playwright report, failure traces/screenshots and device
+expected/actual/diff images as artifacts. Visual probes require both bundled
+substitute font faces to have loaded. Canvas contexts allow alpha to avoid
+Linux LCD subpixel text fringes; the renderer still fills the scene background.
+The device image budgets and goldens are unchanged.
+
+The conformance CI step runs `pnpm --filter @roku-emu/oracle exec tsx
+src/checkConformance.ts`. It discovers probes from their manifests and fails
+on missing/skipped/duplicate probes, runner failures, or new deviations. Only
+the exact first-mismatch signatures in `fidelity/known-failures.json` are
+accepted; when a signature changes or the probe starts passing, review and
+update the documented exception. Native `make conformance` still reports
+all device mismatches without exceptions. Calibration data is reported
+separately from exact conformance and visual tests.

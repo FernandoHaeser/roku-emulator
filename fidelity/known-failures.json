@@ -1,0 +1,14 @@
+{
+  "language/collections": {
+    "status": "(ok)",
+    "detail": ["line 16", "device:   \"a= 1\"", "emulator: \"b= 2\""]
+  },
+  "scenegraph/label-package-font": {
+    "status": "(ok)",
+    "detail": [
+      "line 6",
+      "device:   \"system |  359  x  38 \"",
+      "emulator: \"system |  356  x  38 \""
+    ]
+  }
+}
