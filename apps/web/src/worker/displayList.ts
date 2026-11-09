@@ -9,23 +9,29 @@ export type DisplayItem =
   | ["r", number, number, number, number, number, number]
   /** Image (Poster): x, y, w, h, uri, opacity, blendRgba. */
   | ["i", number, number, number, number, string, number, number]
-  /** Text (Label): x, y, w, h, text, size, bold, rgba, opacity, horizAlign, vertAlign, wrap, maxLines. */
+  /** Text: engine-shaped lines, font size, color/alignment, line metrics, package font URI/ascent. */
   | [
       "t",
       number,
       number,
       number,
       number,
-      string,
+      [string, number][],
       number,
       boolean,
       number,
       number,
       string,
       string,
-      boolean,
+      number,
+      number,
+      string,
       number,
     ]
+  /** Push rotation: pivot x, pivot y (design px), radians counterclockwise. */
+  | ["R", number, number, number]
+  /** Pop rotation. */
+  | ["Q"]
   /** Push clip rectangle: x, y, w, h. */
   | ["c", number, number, number, number]
   /** Pop clip. */

@@ -510,3 +510,50 @@ pub extern "C" fn brs_input() {
         }
     });
 }
+
+/// Drains remote Poster URIs for the host transport.
+#[no_mangle]
+pub extern "C" fn brs_image_requests() -> i32 {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let requests = state
+            .vm
+            .as_mut()
+            .map(brs_core::sg::bitmap::take_requests)
+            .unwrap_or_default();
+        let value = Value::object(Object::Array(
+            requests.into_iter().map(Value::string).collect(),
+        ));
+        state.blob = brs_core::json::format(&value)
+            .unwrap_or_else(|_| "[]".into())
+            .into_bytes();
+        state.blob.len() as i32
+    })
+}
+
+/// Supplies the remote Poster header result from scratch JSON.
+#[no_mangle]
+pub extern "C" fn brs_image_complete() {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let Ok(Value::Object(result)) = brs_core::json::parse(&scratch_text(&state)) else {
+            return;
+        };
+        let result = result.borrow();
+        let Object::AssocArray(result) = &*result else {
+            return;
+        };
+        let Some(uri) = result.get("uri").and_then(Value::as_str) else {
+            return;
+        };
+        let size = result
+            .get("width")
+            .and_then(Value::as_f64)
+            .zip(result.get("height").and_then(Value::as_f64))
+            .filter(|(w, h)| *w > 0.0 && *h > 0.0)
+            .map(|(w, h)| (w as u32, h as u32));
+        if let Some(vm) = state.vm.as_mut() {
+            brs_core::sg::bitmap::complete(vm, uri, size);
+        }
+    });
+}

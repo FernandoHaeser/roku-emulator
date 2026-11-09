@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Animation probe: interpolators driven through `fraction` (deterministic
+     values), plus Animation / Sequential / Parallel lifecycles and end values. -->
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Rectangle id="box" width="100" height="100" color="0xFF0000FF" />
+    <Rectangle id="a" width="10" height="10" />
+    <Rectangle id="b" width="10" height="10" />
+
+    <FloatFieldInterpolator id="fopacity" key="[0, 0.5, 1]" keyValue="[0.0, 1.0, 0.2]" fieldToInterp="box.opacity" />
+    <Vector2DFieldInterpolator id="vtrans" key="[0, 1]" keyValue="[[0, 0], [300, 100]]" fieldToInterp="box.translation" />
+    <ColorFieldInterpolator id="ccolor" key="[0, 1]" keyValue="[0xFF000000, 0x00FF80FF]" fieldToInterp="box.color" />
+
+    <Animation id="single" duration="0.3" easeFunction="linear">
+      <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 500]" fieldToInterp="a.width" />
+    </Animation>
+    <SequentialAnimation id="seq">
+      <Animation id="seq1" duration="0.2" easeFunction="linear">
+        <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 50]" fieldToInterp="b.width" />
+      </Animation>
+      <Animation id="seq2" duration="0.2" easeFunction="linear">
+        <FloatFieldInterpolator key="[0, 1]" keyValue="[0, 70]" fieldToInterp="b.height" />
+      </Animation>
+    </SequentialAnimation>
+    <ParallelAnimation id="par">
+      <Animation id="par1" duration="0.2" easeFunction="inQuad">
+        <FloatFieldInterpolator key="[0, 1]" keyValue="[10, 20]" fieldToInterp="a.height" />
+      </Animation>
+      <Animation id="par2" duration="0.4" easeFunction="outCubic">
+        <Vector2DFieldInterpolator key="[0, 1]" keyValue="[[0, 0], [40, 60]]" fieldToInterp="b.translation" />
+      </Animation>
+    </ParallelAnimation>
+  </children>
+</component>

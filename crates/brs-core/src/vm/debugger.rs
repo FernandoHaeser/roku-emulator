@@ -146,7 +146,7 @@ impl Vm {
             "{:<17}Interface:ifGlobal\n{:<17}{}\n",
             "global",
             "m",
-            describe_variable(&frame.m)
+            self.describe_visible_variable(&frame.m)
         );
         for (slot, name) in proto.locals.iter().enumerate() {
             if !name.starts_with('$') {
@@ -157,7 +157,7 @@ impl Vm {
                 out.push_str(&format!(
                     "{:<17}{}\n",
                     name.to_lowercase(),
-                    describe_variable(value)
+                    self.describe_visible_variable(value)
                 ));
             }
         }

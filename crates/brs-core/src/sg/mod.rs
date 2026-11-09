@@ -4,10 +4,14 @@
 //! Behaviors follow traces recorded on the reference device
 //! (fidelity/scenegraph): see docs/brightscript-semantics.md.
 
+pub mod animation;
+pub mod bitmap;
 pub mod component;
+mod font_metrics;
 pub mod render;
 pub mod runtime;
 pub mod schema;
+pub mod text;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -137,7 +141,7 @@ impl FieldKind {
             FieldKind::AssocArray | FieldKind::Array | FieldKind::NodeArray => match &value {
                 Value::Invalid => Value::Invalid,
                 Value::String(text) if self == FieldKind::Array => {
-                    crate::json::parse(text).unwrap_or(Value::Invalid)
+                    crate::json::parse(&hex_to_decimal(text)).unwrap_or(Value::Invalid)
                 }
                 Value::Object(_) => deep_copy(&value),
                 _ => return None,
@@ -453,6 +457,13 @@ pub struct SceneGraph {
     pub pending_scenes: Vec<ObjectRef>,
     pub focus: Option<Weak<RefCell<Object>>>,
     pub timers: Vec<Timer>,
+    /// Started top-level animations (see `animation.rs`).
+    pub animations: Vec<animation::Running>,
+    /// Remote Poster images: load state by URI and hosts' pending work
+    /// (see `bitmap.rs`).
+    pub images: bitmap::Images,
+    /// Font files read from the package, by `pkg:/` URI (`None` = unreadable).
+    pub fonts: HashMap<String, Option<Rc<Vec<u8>>>>,
     /// Remote key events waiting for the render thread: (key, pressed).
     pub keys: std::collections::VecDeque<(String, bool)>,
     /// Design resolution from the manifest (`ui_resolutions`).
@@ -489,5 +500,37 @@ pub fn with_node_mut<T>(object: &ObjectRef, f: impl FnOnce(&mut Node) -> T) -> T
     match &mut *object.borrow_mut() {
         Object::Node(node) => f(node),
         _ => unreachable!("node expected"),
+    }
+}
+
+/// XML array attributes may hold `0x` color literals (e.g. an interpolator's
+/// keyValue); they become signed 32-bit integers like the color fields.
+fn hex_to_decimal(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("0x").or_else(|| rest.find("0X")) {
+        out.push_str(&rest[..start]);
+        let digits: String = rest[start + 2..]
+            .chars()
+            .take_while(char::is_ascii_hexdigit)
+            .collect();
+        match u32::from_str_radix(&digits, 16) {
+            Ok(value) if !digits.is_empty() => out.push_str(&(value as i32).to_string()),
+            _ => out.push_str(&rest[start..start + 2 + digits.len()]),
+        }
+        rest = &rest[start + 2 + digits.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+#[cfg(test)]
+mod hex_tests {
+    #[test]
+    fn converts_color_literals() {
+        assert_eq!(
+            super::hex_to_decimal("[0xFF000000, 0x00FF80FF]"),
+            "[-16777216, 16744703]"
+        );
     }
 }

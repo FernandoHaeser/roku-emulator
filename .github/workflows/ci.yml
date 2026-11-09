@@ -32,8 +32,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       # Emulator output vs traces recorded on the reference device.
-      - run: cargo run --release -q -p brs-cli -- conformance fidelity
-        continue-on-error: true # known gap: AA FOR EACH hash order (see README)
+      - run: pnpm --filter @roku-emu/oracle exec tsx src/checkConformance.ts
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
@@ -41,3 +40,13 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @roku-emu/web exec playwright install --with-deps --only-shell chromium
       - run: pnpm --filter @roku-emu/web e2e
+      - name: Upload browser test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests-${{ github.sha }}
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14

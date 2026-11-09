@@ -21,7 +21,19 @@ home screen; those are the current architecture.
    macOS in CI, and a tag-driven release workflow. Remaining (owner actions):
    create the Marketplace publisher, add `VSCE_PAT` to the `marketplace`
    environment and decide when to publish.
-4. Resume F4/F5 visual fidelity and widgets, then F6 playback/DRM and the
+4. F4 renderer: in progress. Done: 720p surface like the device, screenshot
+   diff suite (`apps/web/e2e/visual.spec.ts`, budgets in each `probe.json`),
+   device edge snapping for rectangles/posters, calibrated text metrics
+   (`scripts/gen-font-metrics.mjs`), bundled substitute font, Poster bitmap
+   loading and natural size, blendColor, rotation, Animation/interpolators,
+   remote Poster load results in native and WASM hosts, 9-patch and package
+   fonts (XML `role="font"`, shaping and shared line layout). Still open:
+   system-font metrics remain approximate (including a 3 px difference in
+   `label-package-font`'s system-font reference); substitute glyphs differ
+   visually from Roku's proprietary font. Open measurements: one HD column of
+   `render-rects-hd` is 1 px narrower than the floor rule; creating render
+   nodes from the main thread fails on the device but not in the emulator.
+5. Resume F5 widgets, then F6 playback/DRM and the
    remaining tools (F8), native desktop and F9 mocks.
 
 No release dates are committed. A phase being implemented does not imply

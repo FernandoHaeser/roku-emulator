@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- 9-patch probe: a 50x50 .9.png (1 px marker border, 12 px red corners,
+     green edges, blue center; stretch markers cover the middle 24 px) drawn
+     at several sizes, next to the same bytes under a plain .png name. -->
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Rectangle id="background" width="1920" height="1080" color="0x000000FF" />
+    <Poster translation="[60, 60]" uri="pkg:/images/panel.9.png" width="600" height="300" />
+    <Poster translation="[720, 60]" uri="pkg:/images/panel.9.png" width="150" height="450" />
+    <Poster translation="[960, 60]" uri="pkg:/images/panel.9.png" />
+    <Poster translation="[1200, 60]" uri="pkg:/images/panel.9.png" width="30" height="30" />
+    <Poster translation="[1500, 60]" uri="pkg:/images/panel.png" width="300" height="300" />
+    <Poster translation="[60, 600]" uri="pkg:/images/panel.9.png" width="600" height="300" blendColor="0x808080FF" />
+    <Poster translation="[720, 600]" uri="pkg:/images/panel.9.png" width="600" height="300" opacity="0.5" />
+  </children>
+</component>

@@ -59,6 +59,29 @@ pub fn request(text: &str) -> String {
         .to_string()
 }
 
+/// Largest image body read when probing a remote Poster image.
+const IMAGE_LIMIT: u64 = 32 * 1024 * 1024;
+
+/// Fetches a remote Poster image and returns its pixel size, or `None` when
+/// the request fails or the body is not a PNG/JPEG.
+pub fn image_size(url: &str) -> Option<(u32, u32)> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return None;
+    }
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(30))
+        .redirects(10)
+        .build();
+    let response = agent.get(url).call().ok()?;
+    let mut body = Vec::new();
+    response
+        .into_reader()
+        .take(IMAGE_LIMIT)
+        .read_to_end(&mut body)
+        .ok()?;
+    brs_core::sg::bitmap::image_size(&body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

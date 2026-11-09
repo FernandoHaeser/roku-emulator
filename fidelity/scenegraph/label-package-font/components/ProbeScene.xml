@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Package font probe: Labels using a TTF from the channel package
+     (Inter Bold static instance, SIL OFL) at several sizes. -->
+<component name="ProbeScene" extends="Scene">
+  <children>
+    <Rectangle id="background" width="1920" height="1080" color="0x000000FF" />
+    <Label id="l24" translation="[60, 60]" text="Package font 24 AVATAR Wave">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="24" />
+    </Label>
+    <Label id="l36" translation="[60, 160]" text="Package font 36 AVATAR Wave" color="0xFACC15FF">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="36" />
+    </Label>
+    <Label id="l60" translation="[60, 280]" text="Package font 60 AVATAR Wave">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="60" />
+    </Label>
+    <Label id="l90" translation="[60, 440]" text="Kerning: To Wa Ty 0123456789">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="90" />
+    </Label>
+    <Label id="wrap" translation="[60, 700]" width="800" wrap="true" text="Wrapped package font text that needs more than one line to fit inside the label width.">
+      <Font role="font" uri="pkg:/fonts/inter-bold.ttf" size="40" />
+    </Label>
+    <Label id="system" translation="[1000, 700]" text="System font next to it" font="font:MediumSystemFont" />
+  </children>
+</component>

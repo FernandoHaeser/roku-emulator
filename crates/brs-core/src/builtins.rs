@@ -362,6 +362,14 @@ fn stri(_: &mut Vm, args: Vec<Value>) -> Result<Value, RuntimeError> {
     if !(2..=36).contains(&radix) {
         return Ok(Value::string(""));
     }
+    // Device: other radixes print the 32-bit two's complement, without the
+    // sign column (StrI(&hFF0000FF, 16) = "ff0000ff", scenegraph/animation).
+    if radix != 10 && i32::try_from(value).is_ok() {
+        return Ok(Value::string(to_radix(
+            i64::from(value as i32 as u32),
+            radix as u32,
+        )));
+    }
     // Device: StrI(42) = " 42" (sign column, like Str).
     let digits = to_radix(value, radix as u32);
     Ok(Value::string(if value >= 0 {

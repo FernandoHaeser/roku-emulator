@@ -21,7 +21,12 @@ const CRASH_PATTERN =
 /** END marker only counts once its line is complete (TCP can split the newline off). */
 const END_LINE_PATTERN = new RegExp(`${PROBE_END_MARKER}\r?\n`);
 
-export type ProbeKind = "conformance" | "bench";
+/**
+ * conformance = golden must match exactly; bench = metrics, never diffed;
+ * calibration = device data used to derive emulator tables (e.g. font
+ * metrics), reported as a match ratio without failing the run.
+ */
+export type ProbeKind = "conformance" | "bench" | "calibration";
 
 export interface ProbeStep {
   key: RemoteKey;
@@ -30,7 +35,6 @@ export interface ProbeStep {
 }
 
 export interface ProbeSpec {
-  /** conformance = golden must match exactly; bench = metrics, never diffed. */
   kind: ProbeKind;
   steps: ProbeStep[];
   /** Wait after the BEGIN marker before the first step (channel UI settling). */
@@ -38,6 +42,12 @@ export interface ProbeSpec {
   /** Wait after the last step before capturing app-ui / screenshot. */
   settleMs: number;
   capture: { appUi: boolean; screenshot: boolean };
+  /**
+   * Screenshot comparison budget for the emulator renderer: max fraction of
+   * differing pixels (0..1) and pixelmatch's per-pixel threshold. Text uses a
+   * substitute font, so probes with labels need a larger budget than shapes.
+   */
+  visual: { tolerance: number; threshold: number };
 }
 
 const DEFAULT_SPEC: ProbeSpec = {
@@ -46,6 +56,7 @@ const DEFAULT_SPEC: ProbeSpec = {
   startDelayMs: 1000,
   settleMs: 0,
   capture: { appUi: false, screenshot: false },
+  visual: { tolerance: 0.001, threshold: 0.1 },
 };
 
 export class ProbeSpecError extends Error {
@@ -59,7 +70,7 @@ export function parseProbeSpec(raw: unknown): ProbeSpec {
   const input = raw as Record<string, unknown>;
 
   const kind = input.kind ?? DEFAULT_SPEC.kind;
-  if (kind !== "conformance" && kind !== "bench") {
+  if (kind !== "conformance" && kind !== "bench" && kind !== "calibration") {
     throw new ProbeSpecError(`Invalid probe kind: ${String(kind)}`);
   }
 
@@ -87,12 +98,23 @@ export function parseProbeSpec(raw: unknown): ProbeSpec {
   }
 
   const capture = (input.capture ?? {}) as Record<string, unknown>;
+  const visualInput = (input.visual ?? {}) as Record<string, unknown>;
+  const visual = { ...DEFAULT_SPEC.visual };
+  for (const key of ["tolerance", "threshold"] as const) {
+    const value = visualInput[key];
+    if (value === undefined) continue;
+    if (typeof value !== "number" || value < 0 || value > 1) {
+      throw new ProbeSpecError(`visual.${key} must be a number between 0 and 1`);
+    }
+    visual[key] = value;
+  }
   return {
     kind,
     steps,
     startDelayMs,
     settleMs,
     capture: { appUi: capture.appUi === true, screenshot: capture.screenshot === true },
+    visual,
   };
 }
 

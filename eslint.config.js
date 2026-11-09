@@ -14,7 +14,10 @@ export default tseslint.config(
       "**/.vscode-test/**",
     ],
   },
-  { files: ["apps/vscode/scripts/*.mjs"], languageOptions: { globals: globals.node } },
+  {
+    files: ["apps/vscode/scripts/*.mjs", "scripts/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
   {
     files: ["apps/vscode/media/*.js"],
     languageOptions: { globals: { ...globals.browser, acquireVsCodeApi: "readonly" } },

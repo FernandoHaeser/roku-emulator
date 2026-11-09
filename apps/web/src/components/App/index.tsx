@@ -3,17 +3,14 @@ import { ChannelLoader } from "@/components/ChannelLoader";
 import { ConsolePanel } from "@/components/ConsolePanel";
 import { DeviceScreen } from "@/components/DeviceScreen";
 import { HomeScreen } from "@/components/HomeScreen";
+import { SURFACE } from "@/config/surface";
 import { useEmulator } from "@/hooks/useEmulator";
 import { styles } from "./styles";
-
-/** Output surface (FHD). Channels render at their design resolution, scaled to it. */
-const SCREEN_WIDTH = 1920;
-const SCREEN_HEIGHT = 1080;
 
 const STATUS_LABEL = { starting: "Iniciando", ready: "Pronto", failed: "Falhou" } as const;
 
 export function App() {
-  const emulator = useEmulator(SCREEN_WIDTH, SCREEN_HEIGHT);
+  const emulator = useEmulator(SURFACE.width, SURFACE.height);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { status, renderer, channel } = emulator;
 
@@ -43,8 +40,8 @@ export function App() {
       <main className={styles.main}>
         <DeviceScreen
           hostRef={emulator.setScreenHost}
-          width={SCREEN_WIDTH}
-          height={SCREEN_HEIGHT}
+          width={SURFACE.width}
+          height={SURFACE.height}
           overlay={
             emulator.view === "home" && (
               <HomeScreen

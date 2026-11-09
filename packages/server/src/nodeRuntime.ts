@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { mkdir, writeFile, rename } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Worker } from "node:worker_threads";
+import { SURFACE } from "../../../apps/web/src/config/surface";
 import { DEBUG_MAILBOX_BYTES, writeDebugCommand } from "../../../apps/web/src/worker/debugMailbox";
 import type { ShellToWorkerMessage, WorkerToShellMessage } from "@roku-emu/protocol";
 import { httpRequest } from "./httpProxy";
@@ -153,8 +154,8 @@ export function startNodeRuntime(bridge: DeviceBridge, workerPath: string, regis
   worker.on("error", (error) => bridge.runtimeMessage({ type: "fatal", message: error.message }));
   worker.postMessage({
     type: "init",
-    width: 1920,
-    height: 1080,
+    width: SURFACE.width,
+    height: SURFACE.height,
     headless: true,
     debugMailbox: mailbox,
   } satisfies ShellToWorkerMessage);

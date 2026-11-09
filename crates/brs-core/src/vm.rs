@@ -130,6 +130,10 @@ struct Frame {
     /// Stack index of the first local; the callee value sits right below.
     base: usize,
     m: Value,
+    /// `m` of the execution context (global AA in Main, the component's `m`
+    /// in component code): plain function calls run with it, while methods
+    /// get their receiver as `m` but keep the caller's context.
+    context_m: Value,
     handlers: Vec<Handler>,
     /// Entry frame of a `call_sync`: its return value stays on the stack for
     /// the native caller instead of ending the thread.
@@ -409,6 +413,9 @@ impl Vm {
         for timer in &self.sg.timers {
             consider(timer.due_ms);
         }
+        if !self.sg.animations.is_empty() {
+            consider(self.now_ms() + crate::sg::animation::FRAME_MS);
+        }
         match earliest {
             Some(until_ms) => Status::Sleeping { until_ms },
             None => Status::Waiting,
@@ -530,6 +537,13 @@ impl Vm {
         self.frames
             .last()
             .map_or(0, |f| self.program.functions[f.function as usize].scope)
+    }
+
+    /// Context `m` of the function being executed (see `Frame::context_m`).
+    fn context_m(&self) -> Value {
+        self.frames
+            .last()
+            .map_or_else(|| self.global_m.clone(), |f| f.context_m.clone())
     }
 
     /// `m` of the function being executed.
@@ -1022,11 +1036,22 @@ impl Vm {
         Ok(())
     }
 
+    /// Calls `index` as a thread/callback entry point: `m` is also the context.
     fn enter_user_function(
         &mut self,
         index: u32,
         argc: usize,
         m: Value,
+    ) -> Result<(), RuntimeError> {
+        self.enter_function_in(index, argc, m.clone(), m)
+    }
+
+    fn enter_function_in(
+        &mut self,
+        index: u32,
+        argc: usize,
+        m: Value,
+        context_m: Value,
     ) -> Result<(), RuntimeError> {
         let program = self.program.clone();
         let proto = &program.functions[index as usize];
@@ -1044,6 +1069,7 @@ impl Vm {
             ip: 0,
             base,
             m,
+            context_m,
             handlers: Vec::new(),
             sync_root: false,
         });
@@ -1054,8 +1080,8 @@ impl Vm {
         let callee_index = self.stack.len() - argc - 1;
         match self.stack[callee_index].clone() {
             Value::Function(FunctionRef::User(index)) => {
-                let m = self.global_m.clone();
-                self.enter_user_function(index, argc, m)
+                let context = self.context_m();
+                self.enter_function_in(index, argc, context.clone(), context)
             }
             Value::Function(FunctionRef::Builtin(index)) => {
                 let args = self.pop_n(argc);
@@ -1079,7 +1105,8 @@ impl Vm {
             };
             if let Some(Value::Function(FunctionRef::User(index))) = member {
                 self.stack[receiver_index] = Value::Function(FunctionRef::User(index));
-                return self.enter_user_function(index, argc, receiver);
+                let context = self.context_m();
+                return self.enter_function_in(index, argc, receiver, context);
             }
         }
         let args = self.pop_n(argc);
@@ -1123,6 +1150,18 @@ impl Vm {
         details.set("message", Value::string(error.message.as_str()));
         details.set("number", Value::Integer(i32::from(error.code)));
         self.stack.push(Value::object(Object::AssocArray(details)));
+    }
+
+    /// Context bookkeeping is internal and must not inflate device-visible counts.
+    fn describe_visible_variable(&self, value: &Value) -> String {
+        let hidden = if let Value::Object(object) = value {
+            self.frames.iter().chain(self.threads.iter().flat_map(|t| t.frames.iter()))
+                .filter(|f| matches!(&f.context_m, Value::Object(context) if Rc::ptr_eq(object, context)))
+                .count()
+        } else {
+            0
+        };
+        describe_variable(value, hidden)
     }
 
     /// Writes the BrightScript Micro Debugger dump, matching the device format.
@@ -1176,7 +1215,7 @@ impl Vm {
             }
             dump.push_str("Local Variables:\n");
             dump.push_str(&format!("{:<17}Interface:ifGlobal\n", "global"));
-            let m_description = describe_variable(&frame.m);
+            let m_description = self.describe_visible_variable(&frame.m);
             dump.push_str(&format!("{:<17}{m_description}\n", "m"));
             for (slot, name) in proto.locals.iter().enumerate() {
                 if name.starts_with('$') {
@@ -1186,7 +1225,7 @@ impl Vm {
                 dump.push_str(&format!(
                     "{:<17}{}\n",
                     name.to_lowercase(),
-                    describe_variable(value)
+                    self.describe_visible_variable(value)
                 ));
             }
         } else {
@@ -1221,7 +1260,7 @@ fn function_signature(proto: &FunctionProto) -> String {
 }
 
 /// Variable description in the debugger's "Local Variables" listing.
-fn describe_variable(value: &Value) -> String {
+fn describe_variable(value: &Value, hidden: usize) -> String {
     match value {
         Value::Uninitialized => "<uninitialized>".into(),
         Value::String(text) => format!("String (VT_STR_CONST) val:\"{text}\""),
@@ -1235,7 +1274,7 @@ fn describe_variable(value: &Value) -> String {
         Value::Object(object) => {
             // The device reports its own reference count; the VM frame and the
             // caller each hold one, which matches the common case of 2.
-            let refs = Rc::strong_count(object);
+            let refs = Rc::strong_count(object).saturating_sub(hidden);
             match &*object.borrow() {
                 Object::AssocArray(aa) => {
                     format!("roAssociativeArray refcnt={refs} count:{}", aa.len())

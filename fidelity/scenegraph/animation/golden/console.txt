@@ -1,0 +1,34 @@
+-- fraction-driven interpolators
+opacity  0 ->  1 
+opacity  0.25  ->  0.5 
+opacity  0.5  ->  1 
+opacity  0.75  ->  0.6 
+opacity  1 ->  0.2 
+opacity  1.5  ->  0.2 
+opacity -0.5  ->  0 
+translation  0 ->  0  0 
+translation  0.5  ->  150  50 
+translation  1 ->  300  100 
+reverse 0.25 ->  225  75 
+color  0 -> ff0000ff
+color  0.5  -> bfff007f
+color  1 -> ff7fff
+-- lifecycles
+initial stopped
+after start running
+  single running
+  single stopped
+single end width  500 
+  seq1 running
+  seq running
+  seq1 stopped
+  seq2 running
+  seq2 stopped
+  seq stopped
+seq end  50  70 
+  par1 running
+  par2 running
+  par running
+  par1 stopped
+  par stopped
+par end  20  40  60 

@@ -26,9 +26,6 @@ use crate::value::{AssocArray, Object, ObjectRef, Value};
 use crate::vm::{Vm, MAIN_THREAD};
 use crate::xml::XmlElement;
 
-/// Theme background the device adds as the first child of every Scene.
-const SCENE_BACKGROUND_URI: &str = "/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png";
-
 fn node_value(object: &ObjectRef) -> Value {
     Value::Object(object.clone())
 }
@@ -151,10 +148,9 @@ fn allocate_node(vm: &mut Vm, type_name: &str) -> Option<ObjectRef> {
     if builtins.contains(&"Scene") {
         if let Some(background) = allocate_node(vm, "Poster") {
             with_node_mut(&background, |n| {
+                // The device draws its theme background here, but BrightScript
+                // reads `uri` as "" (fidelity/scenegraph/render-composite).
                 n.internal = true;
-                if let Some(f) = n.field_mut("uri") {
-                    f.value = Value::string(SCENE_BACKGROUND_URI);
-                }
                 if let Some(f) = n.field_mut("inheritParentTransform") {
                     f.value = Value::Boolean(false);
                 }
@@ -203,11 +199,21 @@ fn create_children(
             ));
             continue;
         };
+        // `role="field"` stores the child in that parent field instead of the
+        // child list (e.g. `<Font role="font" .../>` inside a Label).
+        let mut role = None;
         for (name, text) in &element.attributes {
+            if name.eq_ignore_ascii_case("role") {
+                role = Some(text.clone());
+                continue;
+            }
             set_field_from_text(vm, &child, name, text)?;
         }
-        attach(parent, &child, None);
         create_children(vm, &child, element, file)?;
+        match role {
+            Some(field) => set_field(vm, parent, &field, Value::Object(child))?,
+            None => attach(parent, &child, None),
+        }
     }
     Ok(())
 }
@@ -260,7 +266,7 @@ fn attach(parent: &ObjectRef, child: &ObjectRef, index: Option<usize>) {
     });
 }
 
-fn find_node(object: &ObjectRef, id: &str) -> Option<ObjectRef> {
+pub(super) fn find_node(object: &ObjectRef, id: &str) -> Option<ObjectRef> {
     let (matches, children) = with_node(object, |n| (n.id() == id, n.children.clone()));
     if matches {
         return Some(object.clone());
@@ -268,7 +274,7 @@ fn find_node(object: &ObjectRef, id: &str) -> Option<ObjectRef> {
     children.iter().find_map(|child| find_node(child, id))
 }
 
-fn ancestors(object: &ObjectRef) -> Vec<ObjectRef> {
+pub(super) fn ancestors(object: &ObjectRef) -> Vec<ObjectRef> {
     let mut chain = vec![object.clone()];
     while let Some(parent) = parent_of(chain.last().expect("chain")) {
         chain.push(parent);
@@ -403,6 +409,44 @@ fn notify(vm: &mut Vm, object: &ObjectRef, change: Change) -> Result<(), Runtime
 
 /// Built-in behavior attached to fields (Task.control, Timer.control).
 fn side_effects(vm: &mut Vm, object: &ObjectRef, field: &str) -> Result<(), RuntimeError> {
+    if field.eq_ignore_ascii_case("uri") {
+        let poster = with_node(object, |n| {
+            n.ancestry
+                .iter()
+                .any(|t| &**t == "Poster")
+                .then(|| n.text("uri"))
+        });
+        if let Some(uri) = poster {
+            return super::bitmap::load(vm, object, &uri);
+        }
+        let font = with_node(object, |n| {
+            n.ancestry
+                .iter()
+                .any(|t| &**t == "Font")
+                .then(|| n.text("uri"))
+        });
+        if let Some(uri) = font.filter(|uri| uri.starts_with("pkg:/")) {
+            if !vm.sg.fonts.contains_key(&uri) {
+                let data = vm.env.read_file(&uri).map(std::rc::Rc::new);
+                vm.sg.fonts.insert(uri, data);
+            }
+            vm.sg.revision += 1;
+            return Ok(());
+        }
+    }
+    let (is_animation, is_interpolator) = with_node(object, |n| {
+        (
+            n.ancestry.iter().any(|t| &**t == "AnimationBase"),
+            n.ancestry.iter().any(|t| t.ends_with("FieldInterpolator")),
+        )
+    });
+    if is_interpolator && field.eq_ignore_ascii_case("fraction") {
+        return super::animation::interpolate(vm, object);
+    }
+    if is_animation && field.eq_ignore_ascii_case("control") {
+        let control = with_node(object, |n| n.text("control").to_lowercase());
+        return super::animation::control(vm, object, &control);
+    }
     let (is_task, is_timer) = with_node(object, |n| {
         (
             n.ancestry.iter().any(|t| &**t == "Task"),
@@ -616,6 +660,12 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
             });
         }
         set_field(vm, &node, "fire", Value::Invalid)?;
+    }
+    if !vm.sg.animations.is_empty() {
+        super::animation::tick(vm)?;
+    }
+    if vm.sg.images.has_results() {
+        super::bitmap::apply_results(vm)?;
     }
     if vm.sg.pending_scenes.is_empty() {
         while let Some((key, pressed)) = vm.sg.keys.pop_front() {

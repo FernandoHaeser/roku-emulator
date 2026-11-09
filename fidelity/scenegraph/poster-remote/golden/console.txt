@@ -1,0 +1,13 @@
+first -> loading  0 x 0 
+first set loading  0 x 0 
+first -> ready  1458 x 832.5 
+missing -> loading  0 x 0 
+missing set loading  0 x 0 
+missing -> failed  0 x 0 
+again -> loading  0 x 0 
+again -> ready  1458 x 832.5 
+detached -> loading  0 x 0 
+detached -> ready  1458 x 832.5 
+done
+detached set ready  1458 x 832.5 
+again set ready  1458 x 832.5 

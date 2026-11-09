@@ -9,7 +9,7 @@
 **BrightScript and SceneGraph, compiled to WebAssembly, diffed byte by byte against Roku hardware.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/FernandoHaeser/roku-emulator/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/FernandoHaeser/roku-emulator/actions/workflows/ci.yml)
-[![Device conformance](https://img.shields.io/badge/device_conformance-25%2F26_probes-22d3ee?style=flat-square)](#how-fidelity-works)
+[![Device conformance](https://img.shields.io/badge/device_conformance-32%2F34_probes-22d3ee?style=flat-square)](#how-fidelity-works)
 [![Rust](https://img.shields.io/badge/core-Rust-b7410e?style=flat-square&logo=rust&logoColor=white)](crates/brs-core)
 [![WebAssembly](https://img.shields.io/badge/runs_in-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](crates/brs-wasm)
 [![React](https://img.shields.io/badge/shell-React_+_TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)](apps/web)
@@ -142,22 +142,27 @@ probe that proves it. Known gaps stay as failing probes, never masked.
 
 Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELOG.md).
 
-| Area                       | State                                                                                          |
-| -------------------------- | ---------------------------------------------------------------------------------------------- |
-| Fidelity oracle            | Working against a real device (H302X, Roku OS 16.0.4), including remote key steps              |
-| BrightScript language (F1) | Byte-exact except `language/collections` (25 / 26 probes overall)                              |
-| Runtime objects (F2)       | Done: network via local proxy, files, regex, crypto (device-verified probe `runtime/extended`) |
-| SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                |
-| Renderer (F4)              | Provisional: Rectangle, Label (wrap / ellipsis), Poster, clipping                              |
-| Widgets (F5), Video (F6)   | Not started                                                                                    |
-| VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension       |
+| Area                       | State                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| Fidelity oracle            | Working against a real device (H302X, Roku OS 16.0.4), including remote key steps                  |
+| BrightScript language (F1) | Byte-exact except `language/collections` (25 / 26 probes overall)                                  |
+| Runtime objects (F2)       | Done: network via local proxy, files, regex, crypto (device-verified probe `runtime/extended`)     |
+| SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                    |
+| Renderer (F4)              | Screenshot diffs, measured text, package fonts, Poster/9-patch, remote loads, rotation, animations |
+| Widgets (F5), Video (F6)   | Not started                                                                                        |
+| VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension           |
 
 **Known gaps** (tracked by failing conformance):
 
 - `FOR EACH` over an associative array follows the device's internal hash
   order; the emulator uses insertion order (`language/collections`).
+- System text widths remain approximate: the system-font reference in
+  `scenegraph/label-package-font` differs by 3 design pixels. Package-font
+  measurements in that probe match; glyph screenshots retain visual budgets.
 - Float-literal promotion to Double uses a provisional digit threshold.
-- System font metrics and widget geometry are provisional until F4/F5 probes.
+- Glyph shapes come from a bundled substitute font (Inter, OFL); widths, line
+  breaks and line heights follow device metrics (±1 px for ~3/4 of strings).
+- Widget geometry (F5) is not measured yet; animations are not implemented.
   The Roku system font is not redistributable, so a sans-serif stack is used.
 
 ## Roadmap
@@ -168,7 +173,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | F1 · Language           | BrightScript semantics byte-exact vs the device                                                 | Done        |
 | F2 · Runtime objects    | `ro*` non-visual components                                                                     | Done        |
 | F3 · SceneGraph core    | Components, fields, observers, threads, focus                                                   | Done        |
-| F4 · Renderer           | Pixel diffs vs device screenshots, fonts, animations                                            | Provisional |
+| F4 · Renderer           | Pixel diffs vs device screenshots, fonts, animations                                            | In progress |
 | F5 · Widgets            | RowList, MarkupGrid, keyboards, dialogs... measured on the device                               | Planned     |
 | F6 · Video              | `Video` node over Shaka Player, Widevine via EME                                                | Planned     |
 | F7 · Tooling            | Dev installer, ECP, console, telnet and binary debug protocol                                   | Done        |

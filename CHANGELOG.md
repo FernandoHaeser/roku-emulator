@@ -5,6 +5,32 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F4: renderer fidelity)
+
+- Screenshot diff suite against device goldens with per-probe budgets; new
+  probes `scenegraph/render-rects-{fhd,hd}`, `render-composite`, calibration
+  probes `label-metrics(-hd)`, `font-advances(-hd)`, `font-kerning` and the
+  `calibration` probe kind.
+- 720p output surface (device UI resolution), rectangle/poster edges snapped
+  like the device (floor start, floor size, no antialiasing).
+- Label metrics measured on the device (advances, bearings, kerning, line
+  heights; HD = FHD x 2/3) shared by the engine (`boundingRect`) and the
+  canvas (wrap, ellipsis, alignment); `ExtraLargeSystemFont` (55 px).
+- Bundled substitute font (Inter, SIL OFL 1.1) for OS-independent rendering,
+  weight and position calibrated to device screenshots.
+- Poster: `pkg:/` bitmap size from PNG/JPEG headers, `loadStatus`,
+  `bitmapWidth/Height` in design pixels, natural-size drawing, `blendColor`.
+- Package fonts via XML `role="font"`, Rustybuzz shaping, engine-owned lines
+  shared by Canvas and VS Code, wrap/ellipsis and device lineSpacing.
+- Remote Poster header requests/results in native and WASM hosts, with
+  render-thread loadStatus callbacks, cached and detached-node loads.
+- Nine-patch borders/stretch markers, preserving corners in output pixels.
+- Animation/interpolator scheduling and device-recorded animation probe.
+- Component function calls preserve the component's `m`; internal context
+  references are excluded from debugger reference counts.
+- `rotation` around `scaleRotateCenter`; the Scene's implicit background
+  Poster reads `uri` as "" like the device.
+
 ### Added (F10: VS Code extension, unpublished)
 
 - `apps/vscode`: runtime in a Node Worker, embedded emulator webview, start/
