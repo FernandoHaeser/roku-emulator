@@ -1,3 +1,4 @@
+import { BRIDGE_HEADER, BRIDGE_PATH, type BridgeEvent } from "@roku-emu/protocol";
 /**
  * React hook owning the runtime worker: home screen vs. running channel,
  * sideloading, remote key routing, registry persistence and console lines.
@@ -11,6 +12,9 @@ import type {
   WorkerToShellMessage,
 } from "@roku-emu/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ServerWorker } from "@/worker/serverWorker";
+import { CanvasRenderer } from "@/worker/canvasRenderer";
+import { DEBUG_MAILBOX_BYTES, writeDebugCommand } from "@/worker/debugMailbox";
 import { mapKeyboardCode } from "@/keyboard";
 import {
   DEV_CHANNEL_ID,
@@ -42,14 +46,30 @@ export interface HomeKeyEvent {
 /** Keeps the console bounded so long sessions do not grow memory forever. */
 const MAX_CONSOLE_LINES = 5_000;
 
+const serverRuntimeEnabled =
+  (globalThis as { __ROKU_RUNTIME_HOST__?: string }).__ROKU_RUNTIME_HOST__ === "server" ||
+  new URLSearchParams(location.search).get("host") === "server";
+const deviceBridgeEnabled =
+  serverRuntimeEnabled ||
+  import.meta.env.DEV ||
+  new URLSearchParams(location.search).get("device") === "1";
+let bridgePosts = Promise.resolve();
+
+function postBridge(route: string, body: unknown) {
+  if (!deviceBridgeEnabled) return;
+  bridgePosts = bridgePosts
+    .then(async () => {
+      await fetch(`${BRIDGE_PATH}/${route}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [BRIDGE_HEADER]: "1" },
+        body: JSON.stringify(body),
+      });
+    })
+    .catch(() => undefined);
+}
+
 /** Statuses after which the device leaves the channel and shows the home screen. */
-const EXIT_STATUSES: ReadonlySet<ChannelStatus> = new Set([
-  "finished",
-  "crashed",
-  "stopped",
-  "error",
-  "idle",
-]);
+const EXIT_STATUSES: ReadonlySet<ChannelStatus> = new Set(["finished", "crashed", "error", "idle"]);
 
 /**
  * Owns the runtime Web Worker: transfers the canvas, routes remote keys (home
@@ -71,7 +91,20 @@ export function useEmulator(width: number, height: number) {
   const [homeKey, setHomeKey] = useState<HomeKeyEvent | null>(null);
   const nextLineId = useRef(0);
   const nextRequestId = useRef(0);
-  const workerRef = useRef<Worker | null>(null);
+  const workerRef = useRef<Worker | ServerWorker | null>(null);
+  const debugMailboxRef = useRef<{
+    buffer: SharedArrayBuffer;
+    paused: boolean;
+    waiting: boolean;
+    queue: string[];
+  } | null>(null);
+  const flushDebugCommand = useCallback(() => {
+    const mailbox = debugMailboxRef.current;
+    if (mailbox?.waiting && mailbox.queue.length) {
+      mailbox.waiting = false;
+      writeDebugCommand(mailbox.buffer, mailbox.queue.shift()!);
+    }
+  }, []);
   const viewRef = useRef<ScreenView>("home");
   const pendingInspections = useRef(
     new Map<number, { resolve: (info: ChannelInfo) => void; reject: (error: Error) => void }>(),
@@ -89,9 +122,21 @@ export function useEmulator(width: number, height: number) {
     });
   }, []);
 
-  const send = useCallback((message: ShellToWorkerMessage, transfer: Transferable[] = []) => {
-    workerRef.current?.postMessage(message, transfer);
-  }, []);
+  const send = useCallback(
+    (message: ShellToWorkerMessage, transfer: Transferable[] = []) => {
+      const mailbox = debugMailboxRef.current;
+      if (
+        mailbox?.paused &&
+        (message.type === "debuggerCommand" || message.type === "stopChannel")
+      ) {
+        mailbox.queue.push(message.type === "stopChannel" ? "exit" : message.command);
+        flushDebugCommand();
+        if (message.type === "debuggerCommand") return;
+      }
+      workerRef.current?.postMessage(message, transfer);
+    },
+    [flushDebugCommand],
+  );
 
   useEffect(() => {
     void loadDevChannel().then((stored) => {
@@ -107,10 +152,24 @@ export function useEmulator(width: number, height: number) {
     canvas.style.display = "block";
     screenHost.appendChild(canvas);
 
-    const worker = new Worker(new URL("../worker/runtime.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    const worker = serverRuntimeEnabled
+      ? new ServerWorker()
+      : new Worker(new URL("../worker/runtime.worker.ts", import.meta.url), { type: "module" });
+    const display = serverRuntimeEnabled
+      ? new CanvasRenderer(canvas as unknown as OffscreenCanvas, async (uri) => {
+          const response = await fetch(`${BRIDGE_PATH}/file?uri=${encodeURIComponent(uri)}`);
+          return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+        })
+      : null;
     const inspections = pendingInspections.current;
+    const httpControllers = new Map<number, AbortController>();
+    const mailbox =
+      typeof SharedArrayBuffer === "function"
+        ? new SharedArrayBuffer(DEBUG_MAILBOX_BYTES)
+        : undefined;
+    debugMailboxRef.current = mailbox
+      ? { buffer: mailbox, paused: false, waiting: false, queue: [] }
+      : null;
 
     worker.onmessage = (event: MessageEvent<WorkerToShellMessage>) => {
       const message = event.data;
@@ -118,12 +177,42 @@ export function useEmulator(width: number, height: number) {
         case "ready":
           setStatus("ready");
           setRenderer(message.renderer);
+          if (window.parent !== window)
+            window.parent.postMessage(
+              {
+                type: "roku-emulator-ready",
+                isolated: globalThis.crossOriginIsolated,
+                serverRuntime: serverRuntimeEnabled,
+              },
+              "*",
+            );
           break;
         case "console":
-          append(message.stream, message.text);
+          if (!message.text.startsWith("@@ROKU_EMU_RPC ")) append(message.stream, message.text);
+          break;
+        case "displayList":
+          if (message.json === null) display?.clear();
+          else display?.show(message.json);
+          break;
+        case "consoleRaw":
+          if (!serverRuntimeEnabled) postBridge("console", { text: message.text });
+          break;
+        case "debuggerWaiting":
+          if (debugMailboxRef.current) {
+            debugMailboxRef.current.paused = true;
+            debugMailboxRef.current.waiting = true;
+            flushDebugCommand();
+          }
           break;
         case "channelStatus":
+          if (debugMailboxRef.current)
+            debugMailboxRef.current.paused = message.status === "stopped";
           setChannel({ name: message.name, status: message.status });
+          if (!serverRuntimeEnabled)
+            postBridge("state", {
+              runningTitle: EXIT_STATUSES.has(message.status) ? null : message.name,
+              paused: message.status === "stopped",
+            });
           if (EXIT_STATUSES.has(message.status)) changeView("home");
           break;
         case "channelInfo":
@@ -133,6 +222,41 @@ export function useEmulator(width: number, height: number) {
         case "channelInfoError":
           inspections.get(message.requestId)?.reject(new Error(message.message));
           inspections.delete(message.requestId);
+          break;
+        case "httpRequest": {
+          const controller = new AbortController();
+          httpControllers.set(message.id, controller);
+          void fetch(`${BRIDGE_PATH}/http`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", [BRIDGE_HEADER]: "1" },
+            body: message.request,
+            signal: controller.signal,
+          })
+            .then(async (response) => {
+              if (!response.ok) throw new Error(`HTTP proxy: ${response.status}`);
+              return response.text();
+            })
+            .catch((error: unknown) =>
+              JSON.stringify({
+                status: controller.signal.aborted ? -28 : -7,
+                failure: String(error),
+              }),
+            )
+            .then((response) => {
+              httpControllers.delete(message.id);
+              if (message.buffer) writeDebugCommand(message.buffer, response);
+              else
+                worker.postMessage({
+                  type: "httpComplete",
+                  id: message.id,
+                  response,
+                } satisfies ShellToWorkerMessage);
+            });
+          break;
+        }
+        case "httpCancel":
+          httpControllers.get(message.id)?.abort();
+          httpControllers.delete(message.id);
           break;
         case "registry":
           saveRegistry(message.channelId, message.json);
@@ -149,10 +273,20 @@ export function useEmulator(width: number, height: number) {
     };
 
     workerRef.current = worker;
-    const offscreen = canvas.transferControlToOffscreen();
+    if (serverRuntimeEnabled) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    const offscreen = serverRuntimeEnabled ? undefined : canvas.transferControlToOffscreen();
     worker.postMessage(
-      { type: "init", canvas: offscreen, width, height } satisfies ShellToWorkerMessage,
-      [offscreen],
+      {
+        type: "init",
+        canvas: offscreen,
+        width,
+        height,
+        debugMailbox: mailbox,
+      } satisfies ShellToWorkerMessage,
+      offscreen ? [offscreen] : [],
     );
 
     let homeSequence = 0;
@@ -176,7 +310,7 @@ export function useEmulator(width: number, height: number) {
       if (key === "Home") {
         // Home is handled by the OS, never delivered to the channel.
         if (pressed) {
-          worker.postMessage({ type: "stopChannel" } satisfies ShellToWorkerMessage);
+          send({ type: "stopChannel" });
           changeView("home");
         }
         return;
@@ -193,13 +327,14 @@ export function useEmulator(width: number, height: number) {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      for (const controller of httpControllers.values()) controller.abort();
       worker.terminate();
       workerRef.current = null;
       for (const pending of inspections.values()) pending.reject(new Error("worker stopped"));
       inspections.clear();
       canvas.remove();
     };
-  }, [screenHost, width, height, append, changeView]);
+  }, [screenHost, width, height, append, changeView, send, flushDebugCommand]);
 
   const clearConsole = useCallback(() => setLines([]), []);
 
@@ -214,7 +349,7 @@ export function useEmulator(width: number, height: number) {
   );
 
   const launch = useCallback(
-    (stored: StoredChannel) => {
+    (stored: StoredChannel, stopOnEntry = false, launchArgs: Record<string, string> = {}) => {
       // Transfer a copy: the stored package must stay usable for relaunches.
       const zip = stored.zip.slice(0);
       send(
@@ -224,6 +359,8 @@ export function useEmulator(width: number, height: number) {
           name: stored.fileName,
           zip,
           registry: loadRegistry(DEV_CHANNEL_ID),
+          stopOnEntry,
+          launchArgs,
         },
         [zip],
       );
@@ -234,7 +371,7 @@ export function useEmulator(width: number, height: number) {
 
   /** Sideloads a package like the device's dev installer: replaces the dev channel and launches it. */
   const sideload = useCallback(
-    async (file: File) => {
+    async (file: File, stopOnEntry = false) => {
       const zip = await file.arrayBuffer();
       let info: ChannelInfo;
       try {
@@ -256,19 +393,104 @@ export function useEmulator(width: number, height: number) {
       };
       setDevChannel(stored);
       void saveDevChannel(stored);
-      launch(stored);
+      launch(stored, stopOnEntry);
     },
     [inspect, launch, append],
   );
 
-  const launchDevChannel = useCallback(() => {
-    if (devChannel) launch(devChannel);
-  }, [devChannel, launch]);
+  const launchDevChannel = useCallback(
+    (args: Record<string, string> = {}) => {
+      if (devChannel) launch(devChannel, false, args);
+    },
+    [devChannel, launch],
+  );
 
   const removeDevChannel = useCallback(() => {
     setDevChannel(null);
     void deleteDevChannel();
   }, []);
+
+  const bridgeHandlers = useRef({ sideload, launchDevChannel, removeDevChannel });
+  bridgeHandlers.current = { sideload, launchDevChannel, removeDevChannel };
+
+  useEffect(() => {
+    if (!deviceBridgeEnabled || status !== "ready") return;
+    const events = new EventSource(`${BRIDGE_PATH}/events`);
+    let active = true;
+    let queue = Promise.resolve();
+    events.onmessage = (message: MessageEvent<string>) => {
+      const event = JSON.parse(message.data) as BridgeEvent;
+      queue = queue
+        .then(async () => {
+          if (!active) return;
+          if (serverRuntimeEnabled && !["key", "screenshot"].includes(event.type)) return;
+          switch (event.type) {
+            case "runtime":
+              break;
+            case "install": {
+              const response = await fetch(`${BRIDGE_PATH}/package/${event.id}`);
+              if (!response.ok) throw new Error("Package unavailable");
+              const zip = await response.arrayBuffer();
+              if (active)
+                await bridgeHandlers.current.sideload(
+                  new File([zip], event.fileName),
+                  event.debug === true,
+                );
+              break;
+            }
+            case "delete":
+              send({ type: "stopChannel" });
+              changeView("home");
+              bridgeHandlers.current.removeDevChannel();
+              break;
+            case "launch":
+              bridgeHandlers.current.launchDevChannel(event.args);
+              break;
+            case "screenshot": {
+              try {
+                const canvas = screenHost?.querySelector("canvas");
+                if (!canvas) throw new Error("No channel surface");
+                const copy = document.createElement("canvas");
+                copy.width = canvas.width;
+                copy.height = canvas.height;
+                copy.getContext("2d")!.drawImage(canvas, 0, 0);
+                postBridge("response", {
+                  id: event.id,
+                  result: copy.toDataURL("image/jpeg", 0.92).split(",")[1],
+                });
+              } catch (error) {
+                postBridge("response", { id: event.id, error: String(error) });
+              }
+              break;
+            }
+            case "debuggerCommand":
+              send({ type: "debuggerCommand", command: event.command });
+              break;
+            case "key":
+              if (event.key === "Home") {
+                if (event.pressed) {
+                  send({ type: "stopChannel" });
+                  changeView("home");
+                }
+              } else if (viewRef.current === "home") {
+                if (event.pressed)
+                  setHomeKey((previous) => ({
+                    key: event.key,
+                    sequence: (previous?.sequence ?? 0) + 1,
+                  }));
+              } else if (!serverRuntimeEnabled)
+                send({ type: "key", key: event.key, pressed: event.pressed });
+              break;
+          }
+        })
+        .catch((error: unknown) => append("error", `Device bridge: ${String(error)}`));
+    };
+    return () => {
+      active = false;
+      events.close();
+      if (!serverRuntimeEnabled) postBridge("state", { runningTitle: null });
+    };
+  }, [status, send, changeView, append, screenHost]);
 
   return {
     setScreenHost,

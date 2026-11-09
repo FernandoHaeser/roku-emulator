@@ -9,6 +9,51 @@ use crate::vm::Vm;
 type BuiltinFn = fn(&mut Vm, Vec<Value>) -> Result<Value, RuntimeError>;
 
 const GLOBALS: &[(&str, BuiltinFn)] = &[
+    ("readasciifile", |vm, a| {
+        arity(&a, 1, 1)?;
+        Ok(Value::string(
+            String::from_utf8_lossy(&vm.env.read_file(string_arg(&a, 0)?).unwrap_or_default())
+                .as_ref(),
+        ))
+    }),
+    ("writeasciifile", |vm, a| {
+        arity(&a, 2, 2)?;
+        let success = vm
+            .env
+            .write_file(string_arg(&a, 0)?, string_arg(&a, 1)?.as_bytes().to_vec());
+        if !success {
+            vm.write(&format!(
+                "BRIGHTSCRIPT: ERROR: WriteAsciiFile: file open for write failed: {}\n",
+                vm.current_location()
+            ));
+        }
+        Ok(Value::Boolean(success))
+    }),
+    ("deletefile", |vm, a| {
+        arity(&a, 1, 1)?;
+        let path = crate::environment::Environment::normalize_path(string_arg(&a, 0)?);
+        Ok(Value::Boolean(path.is_some_and(|p| {
+            vm.env.writable_files.remove(&p).is_some()
+        })))
+    }),
+    ("copyfile", |vm, a| {
+        arity(&a, 2, 2)?;
+        let source = vm.env.read_file(string_arg(&a, 0)?);
+        Ok(Value::Boolean(source.is_some_and(|bytes| {
+            vm.env
+                .write_file(string_arg(&a, 1).unwrap_or_default(), bytes)
+        })))
+    }),
+    ("listdir", |vm, a| {
+        arity(&a, 1, 1)?;
+        Ok(Value::object(Object::List(
+            vm.env
+                .directory_listing(string_arg(&a, 0)?)
+                .into_iter()
+                .map(Value::string)
+                .collect(),
+        )))
+    }),
     ("abs", abs),
     ("box", |_, a| {
         arity(&a, 1, 1)?;
@@ -419,6 +464,9 @@ fn create_object(vm: &mut Vm, args: Vec<Value>) -> Result<Value, RuntimeError> {
     }
     let class_name = string_arg(&args, 0)?.to_string();
     let class = class_name.to_lowercase();
+    if let Some(result) = crate::runtime_objects::create(vm, &class, &args) {
+        return result;
+    }
     Ok(match class.as_str() {
         "roarray" => Value::object(Object::Array(Vec::new())),
         "rolist" => Value::object(Object::List(Vec::new())),
@@ -548,6 +596,22 @@ fn interfaces(class: &str) -> &'static [&'static str] {
         "roByteArray" => &["ifByteArray", "ifArray", "ifEnum"],
         "roMessagePort" => &["ifMessagePort"],
         "roDateTime" => &["ifDateTime"],
+        "roUrlTransfer" => &[
+            "ifUrlTransfer",
+            "ifHttpAgent",
+            "ifSetMessagePort",
+            "ifGetMessagePort",
+        ],
+        "roUrlEvent" => &["ifUrlEvent", "ifSourceIdentity"],
+        "roInput" => &["ifInput", "ifSetMessagePort"],
+        "roInputEvent" => &["ifInputEvent"],
+        "roFileSystem" => &["ifFileSystem"],
+        "roPath" => &["ifPath", "ifToStr"],
+        "roRegex" => &["ifRegex"],
+        "roLocalization" => &["ifLocalization"],
+        "roEVPDigest" => &["ifEVPDigest"],
+        "roHMAC" => &["ifHMAC"],
+        "roEVPCipher" => &["ifEVPCipher"],
         "roXMLElement" => &["ifXMLElement"],
         _ => &[],
     }

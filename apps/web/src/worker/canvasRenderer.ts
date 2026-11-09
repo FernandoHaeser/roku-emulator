@@ -25,7 +25,9 @@ export class CanvasRenderer {
    */
   constructor(
     private readonly canvas: OffscreenCanvas,
-    private readonly readPackageFile: (uri: string) => Uint8Array<ArrayBuffer> | null,
+    private readonly readPackageFile: (
+      uri: string,
+    ) => Uint8Array<ArrayBuffer> | null | Promise<Uint8Array<ArrayBuffer> | null>,
   ) {
     const context = canvas.getContext("2d", { alpha: false });
     if (!context) throw new Error("Canvas2D is not available in this worker");
@@ -77,7 +79,7 @@ export class CanvasRenderer {
   private async loadImage(uri: string): Promise<ImageBitmap> {
     let blob: Blob;
     if (uri.startsWith("pkg:/")) {
-      const bytes = this.readPackageFile(uri);
+      const bytes = await this.readPackageFile(uri);
       if (!bytes) throw new Error(`missing ${uri}`);
       blob = new Blob([bytes]);
     } else if (/^https?:\/\//i.test(uri)) {

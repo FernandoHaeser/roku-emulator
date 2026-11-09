@@ -1,0 +1,79 @@
+name: VS Code extension release
+
+# Push a tag `vscode-v<version>` (matching apps/vscode/package.json) from
+# master. The VSIX is attached to a GitHub release. Marketplace publication
+# runs in the `marketplace` environment: it needs the VSCE_PAT secret there and
+# should require a manual approval (Settings > Environments).
+on:
+  push:
+    tags: ["vscode-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      vsix: ${{ steps.pack.outputs.vsix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the extension version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./apps/vscode/package.json').version")
+          if [ "$TAG" != "vscode-v$version" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version"
+            exit 1
+          fi
+      - run: pnpm build
+      - id: pack
+        working-directory: apps/vscode
+        run: |
+          pnpm package
+          echo "vsix=$(ls *.vsix)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: apps/vscode/*.vsix
+          if-no-files-found: error
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VSIX: apps/vscode/${{ steps.pack.outputs.vsix }}
+        run: gh release create "$TAG" "$VSIX" --title "$TAG" --notes-file apps/vscode/CHANGELOG.md --prerelease
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    environment: marketplace
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+      - name: Publish to the Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX: ${{ needs.package.outputs.vsix }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::VSCE_PAT is not set in the marketplace environment"
+            exit 1
+          fi
+          npx --yes @vscode/vsce@3.9.2 publish --packagePath "$VSIX"

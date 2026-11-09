@@ -1,0 +1,177 @@
+{
+  "name": "roku-emulator",
+  "displayName": "Roku Emulator",
+  "description": "Run and debug Roku channels locally with an embedded emulator and the RokuCommunity BrightScript tooling.",
+  "version": "0.1.0",
+  "publisher": "FernandoHaeser",
+  "icon": "media/icon.png",
+  "preview": true,
+  "galleryBanner": {
+    "color": "#0b1020",
+    "theme": "dark"
+  },
+  "license": "Apache-2.0",
+  "private": true,
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "keywords": [
+    "roku",
+    "brightscript",
+    "emulator",
+    "scenegraph"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FernandoHaeser/roku-emulator.git",
+    "directory": "apps/vscode"
+  },
+  "homepage": "https://github.com/FernandoHaeser/roku-emulator/tree/develop/apps/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/FernandoHaeser/roku-emulator/issues"
+  },
+  "main": "./dist/extension.cjs",
+  "extensionKind": [
+    "workspace"
+  ],
+  "extensionPack": [
+    "RokuCommunity.brightscript"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "activationEvents": [
+    "workspaceContains:manifest"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "rokuEmulator.open",
+        "title": "Roku Emulator: Abrir emulador"
+      },
+      {
+        "command": "rokuEmulator.start",
+        "title": "Roku Emulator: Iniciar"
+      },
+      {
+        "command": "rokuEmulator.stop",
+        "title": "Roku Emulator: Parar"
+      },
+      {
+        "command": "rokuEmulator.restart",
+        "title": "Roku Emulator: Reiniciar"
+      },
+      {
+        "command": "rokuEmulator.configure",
+        "title": "Roku Emulator: Configurar projeto"
+      },
+      {
+        "command": "rokuEmulator.selectRuntime",
+        "title": "Roku Emulator: Selecionar runtime"
+      },
+      {
+        "command": "rokuEmulator.browser",
+        "title": "Roku Emulator: Abrir no navegador"
+      }
+    ],
+    "configuration": {
+      "title": "Roku Emulator",
+      "properties": {
+        "rokuEmulator.runtime": {
+          "type": "string",
+          "enum": [
+            "bundled",
+            "external"
+          ],
+          "default": "bundled",
+          "description": "Use the bundled runtime or an existing local emulator server."
+        },
+        "rokuEmulator.externalUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:5173/?device=1",
+          "description": "Existing local emulator URL for external runtime mode."
+        },
+        "rokuEmulator.ecpPort": {
+          "type": "number",
+          "default": 8060,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "rokuEmulator.consolePort": {
+          "type": "number",
+          "default": 8085,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "rokuEmulator.debugPort": {
+          "type": "number",
+          "default": 8081,
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "debuggers": [
+      {
+        "type": "roku-emulator",
+        "label": "Roku Emulator",
+        "languages": [
+          "brightscript",
+          "xml"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "rootDir"
+            ],
+            "properties": {
+              "rootDir": {
+                "type": "string",
+                "description": "Channel root containing manifest"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Roku Emulator",
+            "type": "roku-emulator",
+            "request": "launch",
+            "rootDir": "${workspaceFolder}"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p .",
+    "package": "vsce package --no-dependencies",
+    "test:electron": "node scripts/test-electron.mjs",
+    "test:install": "node scripts/test-install.mjs"
+  },
+  "dependencies": {
+    "@vscode/debugadapter": "1.68.0",
+    "@vscode/debugprotocol": "1.68.0",
+    "fflate": "0.8.2",
+    "jsonc-parser": "3.3.1",
+    "roku-debug": "0.24.7"
+  },
+  "devDependencies": {
+    "@roku-emu/web": "workspace:^",
+    "@types/vscode": "1.95.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0"
+  }
+}

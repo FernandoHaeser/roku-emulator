@@ -1,0 +1,3 @@
+<component name="DebugScene" extends="Scene">
+  <script type="text/brightscript" uri="pkg:/components/DebugScene.brs" />
+</component>

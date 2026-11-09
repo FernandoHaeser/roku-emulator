@@ -21,6 +21,10 @@ interface EngineExports {
   brs_run(budget: number, nowMs: number): number;
   brs_sleep_until(): number;
   brs_key(pressed: number): void;
+  brs_debugger_command(): number;
+  brs_http_complete(id: number): void;
+  brs_launch_args(): void;
+  brs_input(): void;
   brs_revision(): number;
   brs_display_list(knownRevision: number): number;
   brs_package_file(): number;
@@ -63,10 +67,48 @@ export class BrsEngine {
 
   private constructor(private readonly exports: EngineExports) {}
 
-  static async load(url: string): Promise<BrsEngine> {
+  static async load(
+    url: string,
+    debuggerHost?: { wait(output: string): string; resumed(): void },
+    httpHost?: { request(id: number, request: string): string | null; cancel(id: number): void },
+  ): Promise<BrsEngine> {
     const response = await fetch(url);
-    const { instance } = await WebAssembly.instantiateStreaming(response, {});
-    return new BrsEngine(instance.exports as unknown as EngineExports);
+    const { instance } = await WebAssembly.instantiateStreaming(response, {
+      host: {
+        debug_wait: (pointer: number, length: number, command: number, capacity: number) => {
+          if (!debuggerHost) return -1;
+          const output = new TextDecoder().decode(
+            new Uint8Array(exports.memory.buffer, pointer, length),
+          );
+          const bytes = new TextEncoder().encode(debuggerHost.wait(output));
+          const size = Math.min(bytes.length, capacity);
+          new Uint8Array(exports.memory.buffer, command, size).set(bytes.subarray(0, size));
+          return size;
+        },
+        debug_resumed: () => debuggerHost?.resumed(),
+        http_request: (
+          pointer: number,
+          length: number,
+          id: number,
+          destination: number,
+          capacity: number,
+        ) => {
+          if (!httpHost) return -1;
+          const request = new TextDecoder().decode(
+            new Uint8Array(exports.memory.buffer, pointer, length),
+          );
+          const result = httpHost.request(id, request);
+          if (result === null) return 0;
+          const bytes = new TextEncoder().encode(result);
+          if (bytes.length > capacity) return -1;
+          new Uint8Array(exports.memory.buffer, destination, bytes.length).set(bytes);
+          return bytes.length;
+        },
+        http_cancel: (id: number) => httpHost?.cancel(id),
+      },
+    });
+    const exports = instance.exports as unknown as EngineExports;
+    return new BrsEngine(exports);
   }
 
   /** Copies `bytes` into a fresh module allocation (ownership passes to Rust). */
@@ -93,7 +135,14 @@ export class BrsEngine {
   }
 
   /** Returns true on success; errors are reported through `takeOutput`. */
-  loadChannel(zip: Uint8Array, nowMs: number, epochOffsetMs: number): boolean {
+  loadChannel(
+    zip: Uint8Array,
+    nowMs: number,
+    epochOffsetMs: number,
+    args: Record<string, string> = {},
+  ): boolean {
+    this.writeScratch(JSON.stringify(args));
+    this.exports.brs_launch_args();
     const pointer = this.allocate(zip);
     return this.exports.brs_load_zip(pointer, zip.byteLength, nowMs, epochOffsetMs) === 0;
   }
@@ -119,6 +168,21 @@ export class BrsEngine {
 
   sleepUntil(): number {
     return this.exports.brs_sleep_until();
+  }
+
+  input(args: Record<string, string>): void {
+    this.writeScratch(JSON.stringify(args));
+    this.exports.brs_input();
+  }
+
+  httpComplete(id: number, response: string): void {
+    this.writeScratch(response);
+    this.exports.brs_http_complete(id);
+  }
+
+  debuggerCommand(command: string): boolean {
+    this.writeScratch(command);
+    return this.exports.brs_debugger_command() === 1;
   }
 
   key(name: string, pressed: boolean): void {

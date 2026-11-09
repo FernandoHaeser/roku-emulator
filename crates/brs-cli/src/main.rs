@@ -1,6 +1,8 @@
 //! `brs run <channel>`: run a channel (directory or zip) natively.
 //! `brs conformance <dir>`: run every recorded probe and diff against goldens.
 
+mod http;
+
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -23,6 +25,8 @@ struct CaptureHost {
     output: Rc<RefCell<String>>,
     echo: bool,
     started: Instant,
+    http_sender: std::sync::mpsc::Sender<(u32, String)>,
+    http_receiver: std::sync::mpsc::Receiver<(u32, String)>,
 }
 
 impl Host for CaptureHost {
@@ -35,6 +39,26 @@ impl Host for CaptureHost {
 
     fn now_ms(&self) -> f64 {
         self.started.elapsed().as_secs_f64() * 1000.0
+    }
+
+    fn http(&mut self, request: &str) -> String {
+        http::request(request)
+    }
+    fn http_start(&mut self, id: u32, request: &str) -> bool {
+        let sender = self.http_sender.clone();
+        let request = request.to_string();
+        std::thread::spawn(move || {
+            let _ = sender.send((id, http::request(&request)));
+        });
+        true
+    }
+    fn http_poll(&mut self) -> Vec<(u32, String)> {
+        self.http_receiver.try_iter().collect()
+    }
+    fn epoch_ms(&self) -> f64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0.0, |d| d.as_secs_f64() * 1000.0)
     }
 }
 
@@ -140,10 +164,13 @@ fn execute(
     stop_at_end: bool,
 ) -> (String, Status, Duration) {
     let output = Rc::new(RefCell::new(String::new()));
+    let (http_sender, http_receiver) = std::sync::mpsc::channel();
     let host = CaptureHost {
         output: output.clone(),
         echo,
         started: Instant::now(),
+        http_sender,
+        http_receiver,
     };
     let started = Instant::now();
     let mut next_key_at: Option<Instant> = None;
@@ -188,6 +215,9 @@ fn execute(
                 Status::Waiting => match until_key {
                     Some(wait) => std::thread::sleep(wait.min(Duration::from_millis(50))),
                     None if begun && !keys.steps.is_empty() => {
+                        std::thread::sleep(Duration::from_millis(10))
+                    }
+                    None if !vm.env.http_pending.is_empty() => {
                         std::thread::sleep(Duration::from_millis(10))
                     }
                     None => break Status::Waiting,

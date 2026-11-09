@@ -1,0 +1,38 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+}
+button:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+iframe {
+  border: 0;
+  width: 100%;
+  flex: 1;
+}

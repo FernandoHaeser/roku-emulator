@@ -2,6 +2,9 @@
 //! instructions and returns, so the host (browser worker or desktop loop)
 //! keeps control: sleeping, waiting and time slicing never block the host.
 
+mod debugger;
+use debugger::{DebugStep, Position};
+
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -21,6 +24,22 @@ pub trait Host {
     /// Wall clock (milliseconds since the Unix epoch), for roDateTime.
     fn epoch_ms(&self) -> f64 {
         0.0
+    }
+    /// An isolated browser host can suspend its Worker while preserving the
+    /// native callback stack. Other hosts return None and use slice pauses.
+    fn debug_wait(&mut self) -> Option<String> {
+        None
+    }
+    fn debug_resumed(&mut self) {}
+    fn http(&mut self, _request: &str) -> String {
+        "{\"status\":-7,\"failure\":\"HTTP host unavailable\"}".into()
+    }
+    fn http_start(&mut self, _id: u32, _request: &str) -> bool {
+        false
+    }
+    fn http_cancel(&mut self, _id: u32) {}
+    fn http_poll(&mut self) -> Vec<(u32, String)> {
+        vec![]
     }
 }
 
@@ -133,6 +152,17 @@ pub struct Vm {
     next_thread: usize,
     /// Any thread crashed: the whole channel stops, like on the device.
     crashed: bool,
+    /// OS exit lines already printed (see `report_exit`).
+    exit_reported: bool,
+    debug_thread: Option<usize>,
+    debug_location: Option<Position>,
+    debug_step: Option<DebugStep>,
+    debug_saved_status: Option<Status>,
+    debug_frame: usize,
+    debug_inspect_thread: Option<usize>,
+    debug_eval_active: bool,
+    debug_breakpoints: std::collections::HashMap<u32, debugger::Breakpoint>,
+    debug_last_position: Option<(usize, u32, u32)>,
     global_m: Value,
     host: Box<dyn Host>,
     channel: ChannelInfo,
@@ -159,6 +189,16 @@ impl Vm {
             ],
             next_thread: 0,
             crashed: false,
+            exit_reported: false,
+            debug_thread: None,
+            debug_location: None,
+            debug_step: None,
+            debug_saved_status: None,
+            debug_frame: 0,
+            debug_inspect_thread: None,
+            debug_eval_active: false,
+            debug_breakpoints: std::collections::HashMap::new(),
+            debug_last_position: None,
             global_m: Value::object(Object::AssocArray(AssocArray::new())),
             host,
             channel,
@@ -229,6 +269,32 @@ impl Vm {
         self.host.epoch_ms()
     }
 
+    /// Wall clock as the device's console prints it (local time).
+    pub fn device_timestamp(&self) -> String {
+        crate::lifecycle::device_timestamp(self.epoch_ms(), self.env.profile.utc_offset_minutes)
+    }
+
+    /// Prints the OS exit lines once: when `Main` returns, or when the host
+    /// leaves the channel (Home).
+    pub fn report_exit(&mut self) {
+        if self.exit_reported {
+            return;
+        }
+        self.exit_reported = true;
+        let timestamp = self.device_timestamp();
+        self.write(&crate::lifecycle::exit_lines(&timestamp));
+    }
+
+    pub fn host_http(&mut self, request: &str) -> String {
+        self.host.http(request)
+    }
+    pub fn host_http_start(&mut self, id: u32, request: &str) -> bool {
+        self.host.http_start(id, request)
+    }
+    pub fn host_http_cancel(&mut self, id: u32) {
+        self.host.http_cancel(id);
+    }
+
     pub fn next_random(&mut self) -> f64 {
         // xorshift64*: deterministic, good enough for Rnd().
         self.rng_state ^= self.rng_state >> 12;
@@ -270,12 +336,18 @@ impl Vm {
     pub fn run(&mut self, budget: u64) -> Status {
         let mut remaining = budget;
         loop {
+            if self.debug_thread.is_some() {
+                return Status::Stopped;
+            }
             self.service();
             if self.crashed {
                 return Status::Crashed;
             }
             match self.threads[MAIN_THREAD].status {
-                Status::Finished => return Status::Finished,
+                Status::Finished => {
+                    self.report_exit();
+                    return Status::Finished;
+                }
                 Status::Stopped => return Status::Stopped,
                 _ => {}
             }
@@ -289,6 +361,9 @@ impl Vm {
             self.load(thread);
             let used = self.execute_slice(quantum);
             self.park();
+            if self.debug_thread.is_some() {
+                return Status::Stopped;
+            }
             remaining -= used.min(remaining);
             if remaining == 0 {
                 self.service();
@@ -346,6 +421,9 @@ impl Vm {
         if self.crashed {
             return;
         }
+        for (id, response) in self.host.http_poll() {
+            crate::runtime_objects::complete_http(self, id, &response);
+        }
         crate::sg::runtime::service(self);
         let now = self.now_ms();
         for id in 0..self.threads.len() {
@@ -379,6 +457,10 @@ impl Vm {
         let program = self.program.clone();
         let mut executed = 0;
         while executed < budget {
+            if self.debug_should_step() || self.debug_at_breakpoint() {
+                self.debug_break(true);
+                break;
+            }
             executed += 1;
             let Some(frame) = self.frames.last_mut() else {
                 self.status = Status::Finished;
@@ -562,6 +644,9 @@ impl Vm {
             if self.frames.len() <= depth {
                 break Ok(self.stack.pop().unwrap_or(Value::Invalid));
             }
+            if self.debug_should_step() || self.debug_at_breakpoint() {
+                self.debug_break(true);
+            }
             let frame = self.frames.last_mut().expect("frame");
             let proto = &program.functions[frame.function as usize];
             let Some(instr) = proto.code.get(frame.ip) else {
@@ -580,7 +665,9 @@ impl Vm {
                 Status::Crashed => break Err(RuntimeError::aborted()),
                 Status::Finished | Status::Stopped => {
                     // END/STOP inside a callback ends the channel.
-                    self.threads[MAIN_THREAD].status = Status::Finished;
+                    if !self.debug_eval_active {
+                        self.threads[MAIN_THREAD].status = Status::Finished;
+                    }
                     break Err(RuntimeError::aborted());
                 }
             }
@@ -901,7 +988,7 @@ impl Vm {
                 let value = self.pop();
                 self.return_from_function(value, proto)?;
             }
-            Instr::Stop => self.status = Status::Stopped,
+            Instr::Stop => self.debug_break(false),
             Instr::End => {
                 self.frames.clear();
                 self.status = Status::Finished;

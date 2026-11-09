@@ -5,6 +5,31 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F10: VS Code extension, unpublished)
+
+- `apps/vscode`: runtime in a Node Worker, embedded emulator webview, start/
+  stop/restart/configure/select-runtime commands, `roku-emulator` debug type
+  over the binary protocol, local VSIX packaging and an isolated VS Code test.
+- Marketplace listing (README, icon, changelog, compatibility table), VSIX
+  install/upgrade/uninstall test, CI on Linux/Windows/macOS and a
+  `vscode-v*` tag release workflow with a gated Marketplace publish job.
+
+### Added (F7: deploy and console)
+
+- Local developer installer with Digest authentication, ECP queries and remote
+  keys, TCP console with CRLF output, and a Vite bridge to the browser runtime.
+- Channel lifecycle console beacons and VS Code deployment configuration guide.
+- Integration tests for authenticated upload, queued packages, ECP and console;
+  browser tests for installer → WASM → TCP output and real RokuCommunity tooling.
+- Resumable Main/Task telnet debugger: STOP, Ctrl+C, continue, step into/over/out,
+  backtrace, selected thread, local listings and read-only local/field lookup.
+  Browser keeps paused channels alive and forwards exact partial console output.
+- Integration with `roku-debug` 0.24.7 / `roku-deploy` 4.0.0-alpha.10 is tested.
+- Binary debug protocol (8081): breakpoints, threads, stack, variables, evaluate
+  and setVariable. Expression evaluation and assignment in telnet. Shared-memory
+  debug mailbox suspends synchronous SceneGraph callbacks without losing state.
+- Probe `system/app-exit`.
+
 ### Added (F2: runtime components)
 
 - `roList`, `roByteArray`, `roMessagePort` + `wait()`, `roDateTime` (pt_BR
@@ -13,6 +38,10 @@ README; the project is pre-1.0 and every release is a beta.
   `roInt`/`roFloat`/`roString`/`roBoolean`, `ParseJson`/`FormatJson`, `Box`,
   `GetInterface`, `Substitute`, `Tr`.
 - Probes: `runtime/{message-port,json,appinfo,registry,datetime,bytearray,list-misc,xml,device-info}`.
+- Network through the local proxy: `roUrlTransfer` sync/async, `roUrlEvent`,
+  headers, cookies, Digest, cancellation; `roHttpAgent`, `roFileSystem`,
+  `roPath`, `roRegex`, `roEVPDigest`, `roHMAC`, `roEVPCipher`, `roInput`
+  (port only). Probe `runtime/extended`.
 
 ### Added (F3: SceneGraph core)
 
