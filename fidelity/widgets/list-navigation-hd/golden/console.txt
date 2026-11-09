@@ -1,0 +1,76 @@
+defaults LabelList
+itemSize=[340,48]
+itemSpacing=[0,0]
+numRows=12
+numColumns=1
+itemFocused=-1
+itemUnfocused=-1
+itemSelected=-1
+vertFocusAnimationStyle="fixedfocuswrap"
+horizFocusAnimationStyle="floatingfocus"
+focusable=true
+defaults MarkupList
+itemSize=[340,48]
+itemSpacing=[0,0]
+numRows=12
+numColumns=1
+itemFocused=-1
+itemUnfocused=-1
+itemSelected=-1
+vertFocusAnimationStyle="fixedfocuswrap"
+horizFocusAnimationStyle="floatingfocus"
+focusable=true
+defaults MarkupGrid
+itemSize=[0,0]
+itemSpacing=[0,0]
+numRows=1
+numColumns=1
+itemFocused=-1
+itemUnfocused=-1
+itemSelected=-1
+vertFocusAnimationStyle="fixedfocuswrap"
+horizFocusAnimationStyle="floatingfocus"
+focusable=true
+defaults RowList
+itemSize=[0,0]
+itemSpacing=[0,0]
+numRows=1
+numColumns=1
+itemFocused=-1
+itemUnfocused=-1
+itemSelected=-1
+rowItemFocused=[]
+rowItemSelected=[]
+vertFocusAnimationStyle="fixedfocus"
+horizFocusAnimationStyle="floatingfocus"
+focusable=true
+defaults Button
+focusable=true
+text=""
+buttonSelected=null
+defaults Keyboard
+focusable=true
+text=""
+defaults Dialog
+focusable=false
+buttonSelected=0
+buttonFocused=0
+content focus=-1
+event itemFocused=0
+focused=true item= 0
+event itemFocused=0
+event itemUnfocused=0
+event itemFocused=1
+event itemUnfocused=1
+event itemFocused=2
+event itemUnfocused=2
+event itemFocused=0
+event itemUnfocused=0
+event itemFocused=2
+event itemSelected=2
+scene OK true focus= 2
+scene OK false focus= 2
+event itemSelected=2
+scene OK true focus= 2
+scene OK false focus= 2
+scene back true focus= 2

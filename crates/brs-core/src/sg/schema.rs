@@ -76,6 +76,8 @@ pub fn parent(name: &str) -> Option<&'static str> {
         "node" => return None,
         "group" | "timer" | "task" | "contentnode" | "font" | "animationbase" | "audio"
         | "channelstore" | "componentlibrary" | "soundeffect" => "Node",
+        "labellist" | "markuplist" | "markupgrid" | "postergrid" | "rowlist" | "zoomrowlist"
+        | "checklist" | "radiobuttonlist" => "ArrayGrid",
         "rectangle"
         | "label"
         | "poster"
@@ -86,12 +88,6 @@ pub fn parent(name: &str) -> Option<&'static str> {
         | "video"
         | "simplelabel"
         | "multistylelabel"
-        | "rowlist"
-        | "labellist"
-        | "markuplist"
-        | "markupgrid"
-        | "postergrid"
-        | "zoomrowlist"
         | "keyboard"
         | "minikeyboard"
         | "textedit box"
@@ -102,8 +98,6 @@ pub fn parent(name: &str) -> Option<&'static str> {
         | "overhang"
         | "infopane"
         | "button"
-        | "checklist"
-        | "radiobuttonlist"
         | "targetgroup"
         | "arraygrid"
         | "scrollinglabel"
@@ -260,7 +254,33 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("currentDesignResolution", AssocArray, invalid),
             spec("palette", Node, invalid),
         ],
-        "LayoutGroup" | "ButtonGroup" => vec![
+        "ButtonGroup" => vec![
+            spec("buttons", Array, empty_array),
+            spec("buttonFocused", Integer, zero_i),
+            FieldSpec {
+                name: "buttonSelected",
+                kind: Integer,
+                default: zero_i,
+                always_notify: true,
+            },
+            FieldSpec {
+                name: "focusButton",
+                kind: Integer,
+                default: zero_i,
+                always_notify: true,
+            },
+            spec("focusable", Boolean, yes),
+            spec("minWidth", Float, zero_f),
+            spec("maxWidth", Float, || Value::Float(32767.0)),
+            spec("buttonHeight", Float, zero_f),
+            spec("textColor", Color, white),
+            spec("focusedTextColor", Color, white),
+            spec("textFont", Font, || Value::string("font:MediumSystemFont")),
+            spec("focusedTextFont", Font, || {
+                Value::string("font:MediumBoldSystemFont")
+            }),
+        ],
+        "LayoutGroup" => vec![
             spec("layoutDirection", String, || Value::string("vert")),
             spec("horizAlignment", String, || Value::string("left")),
             spec("vertAlignment", String, || Value::string("top")),
@@ -339,26 +359,112 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("maskSize", Vector2D, origin),
             spec("maskOffset", Vector2D, origin),
         ],
-        "RowList" | "ZoomRowList" | "LabelList" | "MarkupList" | "MarkupGrid" | "PosterGrid"
-        | "CheckList" | "RadioButtonList" | "ArrayGrid" | "TargetGroup" => vec![
+        "ArrayGrid" => vec![
             spec("content", Node, invalid),
             spec("itemComponentName", String, empty),
             spec("itemSize", Vector2D, origin),
             spec("itemSpacing", Vector2D, origin),
-            spec("numRows", Integer, zero_i),
-            spec("numColumns", Integer, zero_i),
-            spec("itemFocused", Integer, zero_i),
-            spec("itemSelected", Integer, zero_i),
-            spec("jumpToItem", Integer, zero_i),
-            spec("animateToItem", Integer, zero_i),
+            spec("numRows", Integer, || Value::Integer(1)),
+            spec("numColumns", Integer, || Value::Integer(1)),
+            spec("itemFocused", Integer, || Value::Integer(-1)),
+            spec("itemUnfocused", Integer, || Value::Integer(-1)),
+            FieldSpec {
+                name: "itemSelected",
+                kind: Integer,
+                default: || Value::Integer(-1),
+                always_notify: true,
+            },
+            FieldSpec {
+                name: "jumpToItem",
+                kind: Integer,
+                default: zero_i,
+                always_notify: true,
+            },
+            FieldSpec {
+                name: "animateToItem",
+                kind: Integer,
+                default: zero_i,
+                always_notify: true,
+            },
+            spec("focusable", Boolean, yes),
+            spec("focusRow", Integer, zero_i),
+            spec("focusColumn", Integer, zero_i),
+            spec("vertFocusAnimationStyle", String, || {
+                Value::string("fixedfocuswrap")
+            }),
+            spec("horizFocusAnimationStyle", String, || {
+                Value::string("floatingfocus")
+            }),
+            spec("drawFocusFeedback", Boolean, yes),
+            spec("drawFocusFeedbackOnTop", Boolean, no),
+            spec("focusBitmapUri", Uri, empty),
+            spec("focusBitmapBlendColor", Color, white),
+            spec("focusFootprintBitmapUri", Uri, empty),
+            spec("focusFootprintBlendColor", Color, white),
+            spec("rowHeights", Array, empty_array),
+            spec("columnWidths", Array, empty_array),
+            spec("rowSpacings", Array, empty_array),
+            spec("columnSpacings", Array, empty_array),
+        ],
+        "LabelList" | "MarkupList" | "CheckList" | "RadioButtonList" => vec![
+            spec("itemSize", Vector2D, || float_array(&[510.0, 72.0])),
+            spec("numRows", Integer, || Value::Integer(12)),
+            spec("color", Color, || Value::Integer(0xFEFE_FEFFu32 as i32)),
+            spec("focusedColor", Color, || Value::Integer(0x2626_26FF)),
+            spec("font", Font, || Value::string("font:MediumSystemFont")),
+            spec("focusedFont", Font, || {
+                Value::string("font:MediumBoldSystemFont")
+            }),
+            spec("textHorizAlign", String, || Value::string("left")),
+        ],
+        "MarkupGrid" | "PosterGrid" => vec![],
+        "RowList" | "ZoomRowList" => vec![
+            spec("rowItemFocused", Array, empty_array),
+            FieldSpec {
+                name: "rowItemSelected",
+                kind: Array,
+                default: empty_array,
+                always_notify: true,
+            },
+            FieldSpec {
+                name: "jumpToRowItem",
+                kind: Array,
+                default: empty_array,
+                always_notify: true,
+            },
+            spec("vertFocusAnimationStyle", String, || {
+                Value::string("fixedfocus")
+            }),
+            spec("rowItemSize", Array, empty_array),
+            spec("rowItemSpacing", Array, empty_array),
+            spec("rowFocusAnimationStyle", Array, empty_array),
+            spec("showRowLabel", Array, empty_array),
+            spec("rowLabelOffset", Array, empty_array),
+            spec("rowLabelFont", Font, || {
+                Value::string("font:MediumSystemFont")
+            }),
+            spec("rowLabelColor", Color, white),
+            spec("rowLabelHeight", Float, || Value::Float(40.0)),
+            spec("rowHeights", Array, empty_array),
+            spec("rowSpacings", Array, empty_array),
         ],
         "Button" => vec![
+            spec("focusable", Boolean, yes),
             spec("text", String, empty),
             spec("iconUri", Uri, empty),
             spec("focusedIconUri", Uri, empty),
             spec("minWidth", Float, zero_f),
-            spec("maxWidth", Float, zero_f),
-            spec("height", Float, zero_f),
+            spec("maxWidth", Float, || Value::Float(32767.0)),
+            spec("height", Float, || Value::Float(72.0)),
+            spec("textColor", Color, || Value::Integer(0xDDDD_DDFFu32 as i32)),
+            spec("focusedTextColor", Color, || Value::Integer(0x2626_26FF)),
+            spec("textFont", Font, || Value::string("font:MediumSystemFont")),
+            spec("focusedTextFont", Font, || {
+                Value::string("font:MediumBoldSystemFont")
+            }),
+            spec("showFocusFootprint", Boolean, no),
+            spec("focusBitmapUri", Uri, empty),
+            spec("focusFootprintBitmapUri", Uri, empty),
             FieldSpec {
                 name: "buttonSelected",
                 kind: Trigger,
@@ -367,7 +473,14 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             },
         ],
         "Keyboard" | "MiniKeyboard" | "TextEditBox" => vec![
+            spec("focusable", Boolean, yes),
             spec("text", String, empty),
+            spec("textEditBox", Node, invalid),
+            spec("showTextEditBox", Boolean, yes),
+            spec("keyColor", Color, white),
+            spec("focusedKeyColor", Color, white),
+            spec("keyboardBitmapUri", Uri, empty),
+            spec("focusBitmapUri", Uri, empty),
             spec("hintText", String, empty),
             spec("maxTextLength", Integer, || Value::Integer(75)),
             spec("cursorPosition", Integer, zero_i),
@@ -387,7 +500,24 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("title", String, empty),
             spec("message", String, empty),
             spec("buttons", Array, empty_array),
+            FieldSpec {
+                name: "close",
+                kind: Boolean,
+                default: no,
+                always_notify: true,
+            },
+            FieldSpec {
+                name: "wasClosed",
+                kind: Trigger,
+                default: invalid,
+                always_notify: true,
+            },
+            spec("optionsDialog", Boolean, no),
+            spec("buttonGroup", Node, invalid),
+            spec("width", Float, || Value::Float(-1.0)),
+            spec("maxHeight", Float, || Value::Float(-1.0)),
             spec("buttonSelected", Integer, zero_i),
+            spec("buttonFocused", Integer, zero_i),
             spec("close", Boolean, no),
             spec("wasClosed", Boolean, no),
         ],

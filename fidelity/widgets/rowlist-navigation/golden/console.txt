@@ -1,0 +1,23 @@
+content=-1 []
+itemFocused=0
+focus= 0 []
+rowItemFocused=[0,0]
+itemFocused=0
+rowItemFocused=[0,1]
+scene right true [0,1]
+scene right false [0,1]
+itemUnfocused=0
+itemFocused=1
+rowItemFocused=[1,0]
+rowItemFocused=[1,1]
+itemUnfocused=1
+itemFocused=0
+rowItemFocused=[0,1]
+rowItemFocused=[0,0]
+rowItemSelected=[0,0]
+itemSelected=0
+scene OK false [0,0]
+rowItemSelected=[0,0]
+itemSelected=0
+scene OK false [0,0]
+scene back true [0,0]

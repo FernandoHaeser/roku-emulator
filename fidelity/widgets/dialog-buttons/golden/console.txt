@@ -1,0 +1,14 @@
+initial= 0  0
+children= 2
+groupfocus=false focused= 0
+group buttonFocused=1
+scene down false
+group buttonSelected=1
+dialog group=ButtonGroup count= 2
+dialog defaults= 0  0 invalid
+shown=true
+dialog buttonFocused=1
+dialog buttonSelected=1
+dialog wasClosed=null
+scene OK false
+scene back true

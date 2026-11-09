@@ -12,6 +12,7 @@ pub mod render;
 pub mod runtime;
 pub mod schema;
 pub mod text;
+pub mod widgets;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -464,6 +465,7 @@ pub struct SceneGraph {
     pub images: bitmap::Images,
     /// Font files read from the package, by `pkg:/` URI (`None` = unreadable).
     pub fonts: HashMap<String, Option<Rc<Vec<u8>>>>,
+    pub widgets: widgets::Widgets,
     /// Remote key events waiting for the render thread: (key, pressed).
     pub keys: std::collections::VecDeque<(String, bool)>,
     /// Design resolution from the manifest (`ui_resolutions`).

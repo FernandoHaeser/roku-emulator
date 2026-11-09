@@ -24,6 +24,7 @@ const KEYBOARD: Record<string, string> = {
   Right: "ArrowRight",
   OK: "Enter",
   Back: "Backspace",
+  Options: "o",
 };
 
 function findVisualProbes(dir: string): string[] {
@@ -124,6 +125,11 @@ for (const probe of findVisualProbes(fidelityRoot)) {
 
     // Golden size comes from the JPEG/PNG header via a decode in compareImages;
     // the device profile is 720p, so screenshots are 1280x720.
+    await expect(page.locator('[aria-label="Tela do dispositivo"] canvas')).toBeVisible();
+    expect(
+      await consoleLines(page),
+      "The channel must remain loaded during visual capture",
+    ).toContain("@@PROBE_BEGIN");
     const actual = { data: await captureCanvas(page, 1280, 720), extension: "png" as const };
     const result = compareImages(expected, actual, spec.visual.threshold);
 

@@ -128,7 +128,7 @@ fn has(node: &Node, type_name: &str) -> bool {
 
 /// Bounds in the node's own coordinate system (before its translation).
 pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
-    let (own, children) = with_node(object, |node| {
+    let (own, mut children) = with_node(object, |node| {
         let own = if has(node, "Label") {
             let (_, layout) = label_layout(vm, node);
             let pick = |name: &str, measured: f64| {
@@ -165,6 +165,7 @@ pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
         };
         (own, node.children.clone())
     });
+    children.extend(super::widgets::children(vm, object));
     let mut bounds = own.unwrap_or_default();
     for child in &children {
         if with_node(child, |n| n.internal || !visible(n)) {
@@ -255,6 +256,9 @@ pub fn display_list(vm: &Vm) -> Option<String> {
         opacity: 1.0,
     };
     emit_node(vm, &scene, root, &mut out, &mut first);
+    if let Some(dialog) = super::widgets::modal(vm) {
+        emit_node(vm, &dialog, root, &mut out, &mut first);
+    }
     out.push_str("]}");
     Some(out)
 }
@@ -425,6 +429,9 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
     }
     for child in &children {
         emit_node(vm, child, transform, out, first);
+    }
+    for child in super::widgets::children(vm, &node_ptr) {
+        emit_node(vm, &child, transform, out, first);
     }
     if clip.is_some() {
         push_item(out, first, "[\"C\"]");

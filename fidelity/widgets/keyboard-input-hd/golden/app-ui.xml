@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-widgets-keyboard-input-hd" />
+		<screen type="SGScreen" focused="true">
+			<KeyboardScene children="0" extends="Scene" focused="true" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#101820ff" index="0" />
+				<Keyboard children="7" name="keyboard" focused="true" focusable="true" rcid="0" translation="{100, 100}" bounds="{100, 100, 942, 302}" index="0">
+					<TextEditBox children="4" rcid="0" uiElementId="kb-text-edit" translation="{15, 0}" bounds="{15, 0, 912, 48}" index="0">
+						<Poster rcid="0" bounds="{0, 0, 912, 48}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/inputField.9.png" loadStatus="3" index="0" />
+						<Label rcid="0" translation="{24, 11}" bounds="{24, 11, 864, 26}" text="AhH" color="#fefefeff" index="0" />
+						<Poster rcid="0" visible="false" translation="{70, 11}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/cursor_textInput.webp" loadStatus="3" index="1" />
+						<RenderableNode rcid="0" visible="false" translation="{24, 37}" index="0" />
+					</TextEditBox>
+					<Poster children="1" name="keyboard background" focused="true" rcid="0" translation="{5, 54}" bounds="{0, 48, 942, 254}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/keyboard_full.webp" loadStatus="3" index="0">
+						<VKBGrid focused="true" focusable="true" rcid="0" translation="{10, 9}" bounds="{-5, -6, 942, 254}" children="50" count="49" focusItem="13" index="0">
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:set-shift-on" index="0" bounds="{0, 0, 122, 56}">
+								<Poster rcid="0" translation="{49, 16}" bounds="{49, 16, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_shift.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{49, 16}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_shift.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:A" index="1" bounds="{140, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="A" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:B" index="2" bounds="{201, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="B" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:C" index="3" bounds="{262, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="C" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:D" index="4" bounds="{323, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="D" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:E" index="5" bounds="{384, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="E" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:F" index="6" bounds="{445, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="F" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:G" index="7" bounds="{506, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="G" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:1" index="8" bounds="{587, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="1" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:2" index="9" bounds="{648, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="2" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:3" index="10" bounds="{709, 0, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="3" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:set-caps-off" index="11" bounds="{790, 0, 122, 56}">
+								<Poster rcid="0" translation="{1, 1}" bounds="{1, 1, 120, 54}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_caps_on.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{1, 1}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_caps_on.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:space" index="12" bounds="{0, 56, 122, 56}">
+								<Poster rcid="0" translation="{49, 16}" bounds="{49, 16, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_space.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{49, 16}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_space.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:H" index="13" focused="true" bounds="{140, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="H" color="#000000ff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:I" index="14" bounds="{201, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="I" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:J" index="15" bounds="{262, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="J" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:K" index="16" bounds="{323, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="K" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:L" index="17" bounds="{384, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="L" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:M" index="18" bounds="{445, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="M" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:N" index="19" bounds="{506, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="N" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:4" index="20" bounds="{587, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="4" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:5" index="21" bounds="{648, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="5" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:6" index="22" bounds="{709, 56, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="6" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:alpha-mode-on" index="23" bounds="{790, 56, 122, 56}">
+								<Poster rcid="0" translation="{1, 1}" bounds="{1, 1, 120, 53}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_abc123_on.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{1, 1}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_abc123_on.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:backSpace" index="24" bounds="{0, 112, 122, 56}">
+								<Poster rcid="0" translation="{49, 16}" bounds="{49, 16, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_delete.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{49, 16}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_delete.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:O" index="25" bounds="{140, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="O" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:P" index="26" bounds="{201, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="P" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:Q" index="27" bounds="{262, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="Q" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:R" index="28" bounds="{323, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="R" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:S" index="29" bounds="{384, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="S" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:T" index="30" bounds="{445, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="T" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:U" index="31" bounds="{506, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="U" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:7" index="32" bounds="{587, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="7" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:8" index="33" bounds="{648, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="8" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:9" index="34" bounds="{709, 112, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="9" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:set-symbol-mode" index="35" bounds="{790, 112, 122, 56}">
+								<Poster rcid="0" translation="{1, 1}" bounds="{1, 1, 120, 53}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_symbols_off.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{1, 1}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_symbols_off.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:left" index="36" bounds="{0, 168, 61, 56}">
+								<Poster rcid="0" translation="{18.5, 16}" bounds="{18.5, 16, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_moveCursorLeft.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{18.5, 16}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_moveCursorLeft.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:right" index="37" bounds="{61, 168, 61, 56}">
+								<Poster rcid="0" translation="{18.5, 16}" bounds="{18.5, 16, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_moveCursorRight.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{18.5, 16}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_moveCursorRight.webp" loadStatus="3" index="1" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:V" index="38" bounds="{140, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="V" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:W" index="39" bounds="{201, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="W" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:X" index="40" bounds="{262, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="X" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:Y" index="41" bounds="{323, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="Y" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:Z" index="42" bounds="{384, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="Z" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:-" index="43" bounds="{445, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 15}" bounds="{0, 15, 61, 26}" text="-" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:_" index="44" bounds="{506, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 15}" bounds="{0, 15, 61, 26}" text="_" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:@" index="45" bounds="{587, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 15}" bounds="{0, 15, 61, 26}" text="@" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:." index="46" bounds="{648, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 15}" bounds="{0, 15, 61, 26}" text="." color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:0" index="47" bounds="{709, 168, 61, 56}">
+								<Label rcid="0" translation="{0, 17}" bounds="{0, 17, 61, 26}" text="0" color="#fefefeff" index="0" />
+							</VKBKey>
+							<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:set-accent-mode" index="48" bounds="{790, 168, 122, 56}">
+								<Poster rcid="0" translation="{1, 1}" bounds="{1, 1, 120, 53}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_international_off.webp" loadStatus="3" index="0" />
+								<Poster rcid="0" visible="false" translation="{1, 1}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/vkb_international_off.webp" loadStatus="3" index="1" />
+							</VKBKey>
+						</VKBGrid>
+					</Poster>
+					<Poster name="softmic" focusable="true" rcid="0" visible="false" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/focus_keyboard.9.png" loadStatus="3" index="1" />
+					<Poster name="softmicUnfocused" focusable="true" rcid="0" visible="false" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/focus_footprint.9.png" loadStatus="3" index="2" />
+					<Poster name="softmicIcon" rcid="0" visible="false" uri="/RokuOS/Artwork/SceneGraph/FixedTheme/Base/HD/icon_searchMicrophone.webp" loadStatus="3" index="3" />
+					<Poster name="voiceHint" rcid="0" visible="false" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/epg_hint_right_justified.9.png" loadStatus="3" index="4" />
+					<Label name="voiceHintLabel" rcid="0" visible="false" text="Use sua voz. Pressione &quot;OK&quot; e fale cada letra." color="#fefefeff" index="0" />
+				</Keyboard>
+			</KeyboardScene>
+		</screen>
+	</topscreen>
+</app-ui>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-widgets-markupgrid-binding" />
+		<screen type="SGScreen" focused="true">
+			<GridScene children="0" extends="Scene" focused="true" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#101820ff" index="0" />
+				<MarkupGrid name="grid" focused="true" focusable="true" rcid="0" translation="{100, 100}" bounds="{85, 85, 786, 234}" children="6" count="5" focusItem="1" index="0">
+					<Cell children="2" extends="Group" focusable="true" rcid="0" index="0" bounds="{0, 0, 240, 90}">
+						<Rectangle name="bg" rcid="0" bounds="{0, 0, 240, 90}" color="#334155ff" index="0" />
+						<Label name="label" rcid="0" translation="{12, 20}" bounds="{12, 20, 83, 36}" text="Alpha" color="#ffffffff" index="0" />
+					</Cell>
+					<Cell children="2" extends="Group" focusable="true" rcid="0" index="1" focused="true" bounds="{252, 0, 240, 90}">
+						<Rectangle name="bg" rcid="0" bounds="{0, 0, 240, 90}" color="#22c55eff" index="0" />
+						<Label name="label" rcid="0" translation="{12, 20}" bounds="{12, 20, 68, 36}" text="Beta" color="#ffffffff" index="0" />
+					</Cell>
+					<Cell children="2" extends="Group" focusable="true" rcid="0" index="2" bounds="{504, 0, 240, 90}">
+						<Rectangle name="bg" rcid="0" bounds="{0, 0, 240, 90}" color="#334155ff" index="0" />
+						<Label name="label" rcid="0" translation="{12, 20}" bounds="{12, 20, 117, 36}" text="Gamma" color="#ffffffff" index="0" />
+					</Cell>
+					<Cell children="2" extends="Group" focusable="true" rcid="0" index="3" bounds="{0, 102, 240, 90}">
+						<Rectangle name="bg" rcid="0" bounds="{0, 0, 240, 90}" color="#334155ff" index="0" />
+						<Label name="label" rcid="0" translation="{12, 20}" bounds="{12, 20, 78, 36}" text="Delta" color="#ffffffff" index="0" />
+					</Cell>
+					<Cell children="2" extends="Group" focusable="true" rcid="0" index="4" bounds="{252, 102, 240, 90}">
+						<Rectangle name="bg" rcid="0" bounds="{0, 0, 240, 90}" color="#334155ff" index="0" />
+						<Label name="label" rcid="0" translation="{12, 20}" bounds="{12, 20, 105, 36}" text="Epsilon" color="#ffffffff" index="0" />
+					</Cell>
+				</MarkupGrid>
+			</GridScene>
+		</screen>
+	</topscreen>
+</app-ui>

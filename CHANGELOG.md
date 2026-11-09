@@ -5,6 +5,26 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F5: widget foundation, in progress)
+
+- Device-recorded probes for LabelList, RowList, MarkupGrid, ButtonGroup,
+  modal Dialog and Keyboard behavior; navigation/binding event comparisons
+  also run in WASM browser tests.
+- List/grid defaults, key consumption, wrap, repeated selection events,
+  per-row column memory and custom item bindings with reusable item nodes.
+- ButtonGroup child creation/focus, modal dialog interception/close events,
+  virtual-keyboard shift/caps, editing, length limit and cursor position.
+- Generated widget display-list content; native-theme artwork is approximated
+  without redistributing Roku system assets. Full widget parity remains open.
+- Oracle ECP mapping fixes for Options/Info and Replay/InstantReplay, with a
+  test against the emitted request URLs.
+- HD channels: list defaults and the keyboard follow the device's HD layout
+  (`widgets/*-hd` probes). The HD keyboard panels use measured positions
+  rather than the FHD layout scaled by 2/3; its visual budget is 1.5% because
+  substitute-font glyphs and generated icons weigh more at HD size.
+- ESLint ignores Playwright reports and test results, so `make check` passes
+  after a local e2e run.
+
 ### Added (F4: renderer fidelity)
 
 - Screenshot diff suite against device goldens with per-probe budgets; new

@@ -1,0 +1,1 @@
+<component name="KeyboardScene" extends="Scene"><script type="text/brightscript" uri="KeyboardScene.brs" /><children><Rectangle width="1920" height="1080" color="0x101820FF" /><Keyboard id="keyboard" translation="[100,100]" /></children></component>

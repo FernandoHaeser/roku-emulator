@@ -5,7 +5,11 @@ import { isConnectError, withConnectRetry } from "./retry.js";
 /** External Control Protocol client (port 8060): remote keys, launch and queries. */
 
 /** Keys whose ECP name differs from the onKeyEvent/remote name. */
-const ECP_KEY_NAMES: Partial<Record<RemoteKey, string>> = { OK: "Select" };
+const ECP_KEY_NAMES: Partial<Record<RemoteKey, string>> = {
+  OK: "Select",
+  Options: "Info",
+  Replay: "InstantReplay",
+};
 
 export class EcpError extends Error {
   override name = "EcpError";
