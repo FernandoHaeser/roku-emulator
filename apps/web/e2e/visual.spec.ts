@@ -80,6 +80,37 @@ for (const probe of findVisualProbes(fidelityRoot)) {
 
     await page.goto("/");
     await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
+    const runtime = page.workers().find((worker) => worker.url().includes("runtime.worker"));
+    expect(runtime, "Visual fidelity must run in the browser renderer worker").toBeDefined();
+    const fonts = await runtime!.evaluate(() => {
+      const scope = globalThis as unknown as { fonts: FontFaceSet };
+      const canvas = new OffscreenCanvas(100, 100);
+      const context = canvas.getContext("2d")!;
+      context.font = "350 36px RokuEmuSans";
+      const metrics = context.measureText("Roku Emulator fidelity probe");
+      return {
+        loaded: scope.fonts.check("350 36px RokuEmuSans"),
+        faces: Array.from(scope.fonts).map((face) => ({
+          family: face.family,
+          status: face.status,
+        })),
+        ascent: metrics.fontBoundingBoxAscent,
+        descent: metrics.fontBoundingBoxDescent,
+        actualAscent: metrics.actualBoundingBoxAscent,
+        width: metrics.width,
+      };
+    });
+    await test
+      .info()
+      .attach("renderer-fonts", {
+        body: JSON.stringify(fonts, null, 2),
+        contentType: "application/json",
+      });
+    expect(
+      fonts.faces.filter((face) => face.family === "RokuEmuSans" && face.status === "loaded"),
+    ).toHaveLength(2);
+    expect(fonts.loaded).toBe(true);
+
     await page.locator('input[type="file"]').setInputFiles({
       name: `${probe.replaceAll("/", "-")}.zip`,
       mimeType: "application/zip",

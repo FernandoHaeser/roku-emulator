@@ -41,3 +41,13 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @roku-emu/web exec playwright install --with-deps --only-shell chromium
       - run: pnpm --filter @roku-emu/web e2e
+      - name: Upload browser test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests-${{ github.sha }}
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
