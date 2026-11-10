@@ -9,6 +9,7 @@ pub mod bitmap;
 pub mod channel_store;
 pub mod component;
 mod font_metrics;
+pub mod layout;
 pub mod render;
 pub mod runtime;
 pub mod schema;
@@ -280,6 +281,22 @@ pub struct ComponentInstance {
     pub m: Value,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum NativePaint {
+    InfoPanel,
+}
+
+/// How a Font node created by the engine (not by the channel) is measured.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeFont {
+    /// A Label's built-in font. The device reports uri "" and size 34 (FHD) or
+    /// 22 (HD), measures it like SmallSystemFont and uses a 36 px FHD line
+    /// (fidelity/scenegraph/label-font-sizes{,-hd}).
+    LabelDefault,
+    /// Native widget font whose explicit size applies even with a system uri.
+    Sized,
+}
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub subtype: Rc<str>,
@@ -291,6 +308,14 @@ pub struct Node {
     pub parent: Option<Weak<RefCell<Object>>>,
     pub component: Option<ComponentInstance>,
     pub has_focus: bool,
+    /// Position supplied by a native list/grid container, separate from translation.
+    pub render_offset: (f64, f64),
+    pub native_paint: Option<NativePaint>,
+    /// Poster loadDisplayMode captured when `uri` was assigned; the device
+    /// ignores later changes (fidelity/scenegraph/poster-display-mode).
+    pub load_display_mode: Option<Rc<str>>,
+    /// Set on engine-created Font nodes; channel Font nodes keep `None`.
+    pub native_font: Option<NativeFont>,
     /// Interface functions callable through callFunc (lowercased).
     pub functions: Rc<Vec<String>>,
     /// Hidden internal child (Scene background) excluded from app-ui listings.
@@ -313,6 +338,10 @@ impl Node {
             parent: None,
             component: None,
             has_focus: false,
+            render_offset: (0.0, 0.0),
+            native_paint: None,
+            load_display_mode: None,
+            native_font: None,
             functions: Rc::new(Vec::new()),
             internal: false,
         }
@@ -476,6 +505,7 @@ pub struct SceneGraph {
     /// Font files read from the package, by `pkg:/` URI (`None` = unreadable).
     pub fonts: HashMap<String, Option<Rc<Vec<u8>>>>,
     pub widgets: widgets::Widgets,
+    pub layouts: layout::Layouts,
     pub spinners: spinner::Spinners,
     pub channel_stores: channel_store::ChannelStores,
     /// Remote key events waiting for the render thread: (key, pressed).

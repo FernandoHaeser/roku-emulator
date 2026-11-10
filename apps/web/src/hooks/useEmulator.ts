@@ -212,9 +212,16 @@ export function useEmulator(width: number, height: number) {
       ? { buffer: mailbox, paused: false, waiting: false, queue: [] }
       : null;
 
+    let textInputActive = false;
+    let virtualKeyboard = false;
+    const textKeys = new Set<string>();
     worker.onmessage = (event: MessageEvent<WorkerToShellMessage>) => {
       const message = event.data;
       switch (message.type) {
+        case "textInputState":
+          textInputActive = message.active;
+          virtualKeyboard = message.virtualKeyboard;
+          break;
         case "ready":
           setStatus("ready");
           setRenderer(message.renderer);
@@ -375,8 +382,6 @@ export function useEmulator(width: number, height: number) {
     };
     routeKeyRef.current = routeKey;
     const onKey = (pressed: boolean) => (event: KeyboardEvent) => {
-      // Ignore auto-repeat: the runtime generates repeats itself with device timing.
-      if (event.repeat) return;
       // Typing in a form control (console filter, file picker) is not remote input.
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
         return;
@@ -388,6 +393,38 @@ export function useEmulator(width: number, height: number) {
       ) {
         return;
       }
+      if (!pressed && textKeys.delete(event.code)) {
+        event.preventDefault();
+        return;
+      }
+      if (
+        textInputActive &&
+        viewRef.current !== "home" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.isComposing
+      ) {
+        const command = [
+          "Backspace",
+          "Delete",
+          "Home",
+          "End",
+          ...(virtualKeyboard ? [] : ["ArrowLeft", "ArrowRight"]),
+        ].includes(event.key)
+          ? event.key
+          : "";
+        const text = Array.from(event.key).length === 1 ? event.key : "";
+        if (command || text) {
+          event.preventDefault();
+          if (pressed) {
+            textKeys.add(event.code);
+            worker.postMessage({ type: "textInput", text, command } satisfies ShellToWorkerMessage);
+          }
+          return;
+        }
+      }
+      if (event.repeat) return;
       const key = mapKeyboardCode(event.code);
       if (!key) return;
       event.preventDefault();
@@ -395,11 +432,27 @@ export function useEmulator(width: number, height: number) {
     };
     const onKeyDown = onKey(true);
     const onKeyUp = onKey(false);
+    const onCompositionEnd = (event: CompositionEvent) => {
+      if (
+        textInputActive &&
+        event.data &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
+        worker.postMessage({
+          type: "textInput",
+          text: event.data,
+          command: "",
+        } satisfies ShellToWorkerMessage);
+      }
+    };
+    window.addEventListener("compositionend", onCompositionEnd);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
     return () => {
       routeKeyRef.current = () => undefined;
+      window.removeEventListener("compositionend", onCompositionEnd);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       for (const controller of httpControllers.values()) controller.abort();

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="Layout group conformance" />
+		<screen type="SGScreen" focused="true">
+			<LayoutScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#202020ff" index="0" />
+				<LayoutGroup children="2" name="outer" rcid="0" translation="{300, 300}" bounds="{240, 238.5, 197, 125}" index="0">
+					<Rectangle name="a" rcid="0" translation="{37, -61.5}" bounds="{37, -61.5, 100, 40}" color="#ff0000ff" index="0" />
+					<LayoutGroup children="2" name="inner" rcid="0" translation="{-60, 8.5}" bounds="{-60, 8.5, 60, 55}" index="0">
+						<Rectangle name="c" rcid="0" scale="{2, 1}" bounds="{0, 0, 60, 20}" color="#0000ffff" index="0" />
+						<Rectangle name="d" rcid="0" translation="{-0, 25}" bounds="{0, 25, 50, 30}" color="#ffff00ff" index="1" />
+					</LayoutGroup>
+				</LayoutGroup>
+				<LayoutGroup children="2" name="offset" rcid="0" translation="{600, 300}" bounds="{600, 300, 40, 62}" index="1">
+					<RenderableNode children="1" name="wrapped" rcid="0" translation="{20, -15}" bounds="{0, 0, 40, 20}" index="0">
+						<Rectangle rcid="0" translation="{-20, 15}" bounds="{-20, 15, 40, 20}" color="#ff00ffff" index="0" />
+					</RenderableNode>
+					<Rectangle name="e" rcid="0" translation="{-0, 27}" bounds="{0, 27, 25, 35}" color="#00ffffff" index="0" />
+				</LayoutGroup>
+				<RenderableNode children="2" name="visibility" rcid="0" bounds="{0, 0, 60, 20}" index="0">
+					<Rectangle rcid="0" visible="false" color="#ffffffff" index="0" />
+					<Rectangle rcid="0" translation="{50, 0}" bounds="{50, 0, 10, 10}" color="#ffffffff" index="1" />
+				</RenderableNode>
+				<Rectangle children="1" name="rectangleWrapper" rcid="0" translation="{900, 200}" bounds="{900, 200, 55, 30}" color="#00000000" index="1">
+					<Rectangle rcid="0" translation="{15, 20}" bounds="{15, 20, 40, 10}" color="#ff8800ff" index="0" />
+				</Rectangle>
+			</LayoutScene>
+		</screen>
+	</topscreen>
+</app-ui>

@@ -84,35 +84,15 @@ pub fn parent(name: &str) -> Option<&'static str> {
             "ArrayGrid"
         }
         "checklist" | "radiobuttonlist" => "LabelList",
-        "rectangle"
-        | "label"
-        | "poster"
-        | "scene"
-        | "layoutgroup"
-        | "maskgroup"
-        | "busyspinner"
-        | "video"
-        | "simplelabel"
-        | "multistylelabel"
-        | "keyboard"
-        | "minikeyboard"
-        | "textedit box"
-        | "texteditbox"
-        | "pinpad"
-        | "dialog"
-        | "standarddialog"
-        | "overhang"
-        | "infopane"
-        | "button"
-        | "targetgroup"
-        | "arraygrid"
-        | "scrollinglabel"
-        | "standardkeyboarddialog"
-        | "standardmessagedialog"
-        | "standardpinpaddialog"
-        | "keyboarddialog"
-        | "progressdialog"
-        | "pinpaddialog" => "Group",
+        "standardkeyboarddialog" | "standardmessagedialog" | "standardpinpaddialog" => {
+            "StandardDialog"
+        }
+        "keyboarddialog" | "progressdialog" | "pinpaddialog" => "Dialog",
+        "rectangle" | "label" | "poster" | "scene" | "layoutgroup" | "maskgroup"
+        | "busyspinner" | "video" | "simplelabel" | "multistylelabel" | "keyboard"
+        | "minikeyboard" | "textedit box" | "texteditbox" | "pinpad" | "dialog"
+        | "standarddialog" | "overhang" | "infopane" | "button" | "targetgroup" | "arraygrid"
+        | "scrollinglabel" | "dynamickeyboard" => "Group",
         "buttongroup" => "LayoutGroup",
         "animation" | "sequentialanimation" | "parallelanimation" => "AnimationBase",
         "floatfieldinterpolator" | "vector2dfieldinterpolator" | "colorfieldinterpolator" => "Node",
@@ -147,6 +127,7 @@ pub fn canonical(name: &str) -> Option<&'static str> {
         "ArrayGrid",
         "TargetGroup",
         "Keyboard",
+        "DynamicKeyboard",
         "MiniKeyboard",
         "TextEditBox",
         "PinPad",
@@ -611,6 +592,10 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("rowSpacings", Array, empty_array),
             spec("columnSpacings", Array, empty_array),
         ],
+        "MarkupGrid" => vec![
+            spec("wrapDividerHeight", Float, || Value::Float(54.0)),
+            spec("drawFocusFeedbackOnTop", Boolean, yes),
+        ],
         "LabelList" | "MarkupList" => vec![
             spec("itemSize", Vector2D, || float_array(&[510.0, 72.0])),
             spec("numRows", Integer, || Value::Integer(12)),
@@ -637,7 +622,7 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("uncheckedIconUri", Uri, empty),
             spec("focusedUncheckedIconUri", Uri, empty),
         ],
-        "MarkupGrid" | "PosterGrid" => vec![],
+        "PosterGrid" => vec![],
         "RowList" | "ZoomRowList" => vec![
             spec("rowItemFocused", Array, empty_array),
             FieldSpec {
@@ -692,7 +677,34 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
                 always_notify: true,
             },
         ],
-        "Keyboard" | "MiniKeyboard" | "TextEditBox" => vec![
+        "MiniKeyboard" => vec![
+            spec("focusable", Boolean, yes),
+            spec("text", String, empty),
+            spec("textEditBox", Node, invalid),
+            spec("showTextEditBox", Boolean, yes),
+            spec("lowerCase", Boolean, yes),
+            spec("keyColor", Color, white),
+            spec("focusedKeyColor", Color, white),
+            spec("keyboardBitmapUri", Uri, empty),
+            spec("focusBitmapUri", Uri, empty),
+        ],
+        "TextEditBox" => vec![
+            spec("focusable", Boolean, yes),
+            spec("text", String, empty),
+            spec("hintText", String, empty),
+            spec("maxTextLength", Integer, || Value::Integer(15)),
+            spec("cursorPosition", Integer, zero_i),
+            spec("clearOnDownKey", Boolean, yes),
+            spec("active", Boolean, no),
+            spec("secureMode", Boolean, no),
+            spec("textColor", Color, white),
+            spec("hintTextColor", Color, white),
+            spec("backgroundUri", Uri, empty),
+            spec("leadingEllipsis", Boolean, no),
+            spec("width", Float, || Value::Float(-1.0)),
+        ],
+        "Keyboard" | "DynamicKeyboard" => vec![
+            spec("keyboardDomain", String, || Value::string("generic")),
             spec("focusable", Boolean, yes),
             spec("text", String, empty),
             spec("textEditBox", Node, invalid),
@@ -709,9 +721,13 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("pin", String, empty),
             spec("pinLength", Integer, || Value::Integer(4)),
         ],
+        "StandardKeyboardDialog" => vec![
+            spec("text", String, empty),
+            spec("textEditBox", Node, invalid),
+            spec("keyboardDomain", String, || Value::string("generic")),
+        ],
         "Dialog"
         | "StandardDialog"
-        | "StandardKeyboardDialog"
         | "StandardMessageDialog"
         | "StandardPinPadDialog"
         | "KeyboardDialog"
@@ -740,6 +756,16 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("buttonFocused", Integer, zero_i),
             spec("close", Boolean, no),
             spec("wasClosed", Boolean, no),
+        ],
+        "InfoPane" => vec![
+            spec("width", Float, || Value::Float(780.0)),
+            spec("height", Float, || Value::Float(300.0)),
+            spec("infoText", String, empty),
+            spec("infoText2", String, empty),
+            spec("bulletText", Array, empty_array),
+            spec("textColor", Color, white),
+            spec("infoText2Color", Color, white),
+            spec("infoText2BottomAlign", Boolean, no),
         ],
         "Overhang" => vec![
             spec("title", String, empty),

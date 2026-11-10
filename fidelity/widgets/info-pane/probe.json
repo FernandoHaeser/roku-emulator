@@ -1,0 +1,12 @@
+{
+  "kind": "conformance",
+  "startDelayMs": 100,
+  "settleMs": 100,
+  "capture": {
+    "appUi": true,
+    "screenshot": true
+  },
+  "visual": {
+    "tolerance": 0.005
+  }
+}

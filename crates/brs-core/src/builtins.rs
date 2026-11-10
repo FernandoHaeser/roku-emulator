@@ -76,7 +76,7 @@ const GLOBALS: &[(&str, BuiltinFn)] = &[
     }),
     ("getinterface", |_, a| {
         arity(&a, 2, 2)?;
-        Ok(get_interface(&a[0], &a[1].unboxed()))
+        Ok(get_interface(&Value::boxed(a[0].clone()), &a[1].unboxed()))
     }),
     ("instr", instr),
     ("int", int),

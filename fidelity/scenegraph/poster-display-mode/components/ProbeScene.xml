@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Poster loadDisplayMode vs. the order in which it and uri are assigned,
+     with a 124x84 image in 300x100 boxes: the mode only applies when it is set
+     before uri. Row 1: XML attribute order. Row 2: script assignment order.
+     Row 3: mode changed after the load (ignored). -->
+<component name="ProbeScene" extends="Scene">
+  <script type="text/brightscript">
+    <![CDATA[
+    sub init()
+        modes = ["scaleToFit"]
+        x = 60
+        for each mode in modes
+            first = m.top.createChild("Poster")
+            first.translation = [x, 400]
+            first.width = 300
+            first.height = 100
+            first.loadDisplayMode = mode
+            first.uri = "pkg:/images/quad.png"
+            later = m.top.createChild("Poster")
+            later.translation = [x + 400, 400]
+            later.width = 300
+            later.height = 100
+            later.uri = "pkg:/images/quad.png"
+            later.loadDisplayMode = mode
+            x = x + 300
+        end for
+        m.changed = []
+        x = 60
+        for each mode in modes
+            poster = m.top.createChild("Poster")
+            poster.translation = [x, 700]
+            poster.width = 300
+            poster.height = 100
+            poster.uri = "pkg:/images/quad.png"
+            poster.addField("pendingMode", "string", false)
+            poster.pendingMode = mode
+            x = x + 300
+        end for
+        m.timer = m.top.findNode("timer")
+        m.timer.observeField("fire", "onTimer")
+        m.timer.control = "start"
+    end sub
+    sub onTimer()
+        for i = 0 to m.top.getChildCount() - 1
+            child = m.top.getChild(i)
+            if child.hasField("pendingMode") then child.loadDisplayMode = child.pendingMode
+        end for
+    end sub
+    ]]>
+  </script>
+  <children>
+    <Rectangle width="1920" height="1080" color="0x000000FF" />
+    <Poster translation="[60, 100]" width="300" height="100" loadDisplayMode="scaleToFit" uri="pkg:/images/quad.png" />
+    <Poster translation="[460, 100]" uri="pkg:/images/quad.png" width="300" height="100" loadDisplayMode="scaleToFit" />
+    <Timer id="timer" duration="0.5" repeat="false" />
+  </children>
+</component>

@@ -82,21 +82,38 @@ export async function digestFetch(
   url: string,
   makeInit: () => RequestInit,
   credentials: DigestCredentials,
+  options: { challengeUrl?: string; signal?: AbortSignal } = {},
 ): Promise<Response> {
-  const first = await fetch(url, makeInit());
+  let challenge: DigestChallenge | undefined;
+  if (options.challengeUrl) {
+    if (new URL(options.challengeUrl).origin !== new URL(url).origin)
+      throw new Error("Digest challenge URL must share the request origin");
+    // Discover authentication without sending an archive that the device may
+    // reject and close mid-upload (EPIPE) before fetch receives its 401.
+    const probe = await fetch(
+      options.challengeUrl,
+      options.signal ? { signal: options.signal } : {},
+    );
+    const header = probe.headers.get("www-authenticate");
+    if (probe.status === 401 && header) challenge = parseDigestChallenge(header);
+    await probe.body?.cancel();
+  }
+  const send = (challenge?: DigestChallenge) => {
+    const init = makeInit();
+    if (!challenge) return fetch(url, init);
+    const method = (init.method ?? "GET").toUpperCase();
+    const { pathname, search } = new URL(url);
+    const headers = new Headers(init.headers);
+    headers.set(
+      "authorization",
+      buildDigestAuthorization(challenge, credentials, method, `${pathname}${search}`),
+    );
+    return fetch(url, { ...init, headers });
+  };
+  const first = await send(challenge);
   if (first.status !== 401) return first;
-  await first.body?.cancel();
-
   const header = first.headers.get("www-authenticate");
   if (header === null) return first;
-  const challenge = parseDigestChallenge(header);
-  const init = makeInit();
-  const method = (init.method ?? "GET").toUpperCase();
-  const { pathname, search } = new URL(url);
-  const headers = new Headers(init.headers);
-  headers.set(
-    "authorization",
-    buildDigestAuthorization(challenge, credentials, method, `${pathname}${search}`),
-  );
-  return fetch(url, { ...init, headers });
+  await first.body?.cancel();
+  return send(parseDigestChallenge(header));
 }

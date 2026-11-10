@@ -58,6 +58,7 @@ export type ShellToWorkerMessage =
       height: number;
     }
   | { type: "key"; key: RemoteKey; pressed: boolean }
+  | { type: "textInput"; text: string; command: string }
   | { type: "debuggerCommand"; command: string }
   | { type: "httpComplete"; id: number; response: string }
   | { type: "input"; args: Record<string, string> }
@@ -96,6 +97,7 @@ export interface ChannelInfo {
 
 export type WorkerToShellMessage =
   | { type: "ready"; renderer: string }
+  | { type: "textInputState"; active: boolean; virtualKeyboard: boolean }
   | { type: "console"; stream: ConsoleStream; text: string }
   /** Exact engine output for device console clients, including partial prompts. */
   | { type: "consoleRaw"; text: string }

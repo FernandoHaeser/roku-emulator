@@ -13,6 +13,9 @@ struct Key {
     y: f64,
     width: f64,
 }
+pub(super) fn is_keyboard(node: &ObjectRef) -> bool {
+    has(node, "Keyboard") || has(node, "MiniKeyboard") || has(node, "DynamicKeyboard")
+}
 fn keys(state: &KeyboardState) -> Vec<Key> {
     let letters = match state.mode {
         1 => "!?#$%&*()+/=:;\"'[]{}<>\\|~^`",
@@ -66,11 +69,64 @@ fn keys(state: &KeyboardState) -> Vec<Key> {
     }
     result
 }
+fn layout(node: &ObjectRef, state: &KeyboardState) -> Vec<Key> {
+    if !has(node, "MiniKeyboard") {
+        let mut result = keys(state);
+        if has(node, "DynamicKeyboard") {
+            for key in &mut result {
+                key.x = if key.x >= 1190.0 {
+                    1188.0
+                } else if key.x >= 885.0 {
+                    882.0 + ((key.x - 885.0) / 91.0).round() * 90.0
+                } else if key.x >= 215.0 {
+                    216.0 + ((key.x - 215.0) / 91.0).round() * 90.0
+                } else {
+                    key.x / 91.0 * 90.0
+                };
+                key.width = if key.width > 100.0 { 180.0 } else { 90.0 };
+            }
+        }
+        return result;
+    }
+    let lower = with_node(node, |n| n.flag("lowerCase"));
+    let mut result: Vec<Key> = "abcdefghijklmnopqrstuvwxyz1234567890"
+        .chars()
+        .enumerate()
+        .map(|(index, c)| Key {
+            text: if lower {
+                c.to_string()
+            } else {
+                c.to_uppercase().to_string()
+            },
+            x: (index % 6) as f64 * 90.0,
+            y: (index / 6) as f64 * 84.0,
+            width: 87.0,
+        })
+        .collect();
+    for (index, text) in ["clear", "space", "delete"].iter().enumerate() {
+        result.push(Key {
+            text: text.to_string(),
+            x: index as f64 * 180.0,
+            y: 504.0,
+            width: 177.0,
+        });
+    }
+    result
+}
 pub(super) fn initialize(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
-    if !has(node, "Keyboard") && !has(node, "MiniKeyboard") {
+    if has(node, "TextEditBox") {
+        track(vm, node).dirty = true;
+    }
+    if !is_keyboard(node) {
         return Ok(());
     }
     let edit = create_node(vm, "TextEditBox")?.expect("TextEditBox");
+    set_field(
+        vm,
+        &edit,
+        "maxTextLength",
+        Value::Integer(if has(node, "MiniKeyboard") { 25 } else { 75 }),
+    )?;
     with_node_mut(&edit, |n| n.parent = Some(Rc::downgrade(node)));
     set_field(vm, node, "textEditBox", Value::Object(edit))?;
     track(vm, node).dirty = true;
@@ -82,7 +138,7 @@ fn edit(node: &ObjectRef) -> Option<ObjectRef> {
     })
 }
 pub(super) fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
-    if has(node, "Keyboard") || has(node, "MiniKeyboard") {
+    if is_keyboard(node) {
         track(vm, node).dirty = true;
         if field.eq_ignore_ascii_case("text") {
             if let Some(edit) = edit(node) {
@@ -97,8 +153,9 @@ pub(super) fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> 
             }
         }
     } else if has(node, "TextEditBox") {
+        track(vm, node).dirty = true;
         if let Some(parent) = with_node(node, |n| n.parent.as_ref().and_then(Weak::upgrade)) {
-            if has(&parent, "Keyboard") || has(&parent, "MiniKeyboard") {
+            if is_keyboard(&parent) {
                 if field.eq_ignore_ascii_case("text") {
                     let text = with_node(node, |n| n.text("text"));
                     set_field(vm, &parent, "text", Value::string(text))?;
@@ -110,13 +167,13 @@ pub(super) fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> 
     Ok(())
 }
 pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Result<Option<bool>> {
-    if !has(node, "Keyboard") && !has(node, "MiniKeyboard") {
+    if !is_keyboard(node) {
         return Ok(None);
     }
     if matches!(key, "up" | "down" | "left" | "right") {
         if pressed {
             let state = &mut track(vm, node).keyboard;
-            let layout = keys(state);
+            let layout = layout(node, state);
             let current = &layout[state.selected.min(layout.len() - 1)];
             let (x, y) = (current.x + current.width / 2.0, current.y + 42.0);
             let next = layout
@@ -136,7 +193,7 @@ pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Re
                 .min_by(|a, b| a.1.total_cmp(&b.1));
             if let Some((index, _)) = next {
                 state.selected = index;
-            } else if matches!(key, "up" | "down") {
+            } else if has(node, "MiniKeyboard") || matches!(key, "up" | "down") {
                 return Ok(Some(false));
             }
             track(vm, node).consumed_keys.insert(key.to_string());
@@ -145,7 +202,7 @@ pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Re
         }
         return Ok(Some(track(vm, node).consumed_keys.remove(key)));
     }
-    if key == "options" {
+    if key == "options" && !has(node, "MiniKeyboard") {
         if pressed {
             let state = &mut track(vm, node).keyboard;
             state.caps = !state.caps;
@@ -162,7 +219,7 @@ pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Re
     }
     let text = {
         let state = &track(vm, node).keyboard;
-        let layout = keys(state);
+        let layout = layout(node, state);
         layout[state.selected.min(layout.len() - 1)].text.clone()
     };
     match text.as_str() {
@@ -191,6 +248,10 @@ pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Re
                 match text.as_str() {
                     "←" => cursor = cursor.saturating_sub(1),
                     "→" => cursor = (cursor + 1).min(chars.len()),
+                    "clear" => {
+                        chars.clear();
+                        cursor = 0;
+                    }
                     "delete" => {
                         if cursor > 0 {
                             cursor -= 1;
@@ -260,6 +321,12 @@ fn cell(vm: &Vm, key: &Key) -> (f64, f64) {
 }
 
 pub(super) fn render(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
+    if has(node, "MiniKeyboard") {
+        return render_mini(vm, node, state);
+    }
+    if has(node, "DynamicKeyboard") {
+        return render_dynamic(vm, node, state);
+    }
     let value = with_node(node, |n| n.text("text"));
     let hd = is_hd(vm);
     // Device keyboard: text box at (22,0), key grid at (22,94), design px.
@@ -283,7 +350,7 @@ pub(super) fn render(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result
         (box_x + 16.0, 17.0, 1340.0, 38.0)
     };
     keyboard_label(vm, state, value, text_bounds, false)?;
-    let layout = keys(&state.keyboard);
+    let layout = layout(node, &state.keyboard);
     let mut focused_key = None;
     for (index, key) in layout.into_iter().enumerate() {
         let focused = with_node(node, |n| n.has_focus) && index == state.keyboard.selected;
@@ -381,6 +448,9 @@ fn draw_key_label(
             if size == 24 {
                 let font = create_node(vm, "Font")?.expect("Font");
                 set_field(vm, &font, "uri", Value::string("font:MediumBoldSystemFont"))?;
+                with_node_mut(&font, |n| {
+                    n.native_font = Some(super::super::NativeFont::Sized)
+                });
                 set_field(
                     vm,
                     &font,
@@ -484,4 +554,340 @@ fn keyboard_label(
         (x * scale, y * scale, w * scale, h * scale),
         bold,
     )
+}
+
+/// MiniKeyboard is a distinct six-column widget. Measurements come from the
+/// HD/FHD mini-keyboard probes, not from scaling the full keyboard template.
+fn render_mini(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
+    let scale = super::design_scale(vm);
+    let hd = is_hd(vm);
+    let (box_x, grid_x, grid_y) = if hd {
+        (15.0, 22.5, 94.5)
+    } else {
+        (14.5, 22.0, 94.0)
+    };
+    if with_node(node, |n| n.flag("showTextEditBox")) {
+        keyboard_rectangle(vm, state, box_x, 0.0, 555.0, 72.0, 0xFFFF_FF26)?;
+        keyboard_label(
+            vm,
+            state,
+            with_node(node, |n| n.text("text")),
+            (
+                box_x + 36.0,
+                if hd { 16.5 } else { 17.0 },
+                483.0,
+                if hd { 39.0 } else { 38.0 },
+            ),
+            false,
+        )?;
+    }
+    let focused = with_node(node, |n| n.has_focus);
+    // The device uses one continuous keyboard bitmap, with subtle dividers;
+    // empty black gutters between independent rectangles exaggerate the grid.
+    keyboard_rectangle(
+        vm,
+        state,
+        grid_x + 3.0,
+        grid_y + 4.5,
+        537.0,
+        585.0,
+        0x414141FF,
+    )?;
+    for row in 1..7 {
+        keyboard_rectangle(
+            vm,
+            state,
+            grid_x + 3.0,
+            grid_y + 4.5 + row as f64 * 84.0 - 1.5,
+            537.0,
+            1.5,
+            0x323232A0,
+        )?;
+    }
+    for col in 1..6 {
+        keyboard_rectangle(
+            vm,
+            state,
+            grid_x + 3.0 + col as f64 * 90.0 - 1.5,
+            grid_y + 4.5,
+            1.5,
+            504.0,
+            0x32323260,
+        )?;
+    }
+    for col in 1..3 {
+        keyboard_rectangle(
+            vm,
+            state,
+            grid_x + 3.0 + col as f64 * 180.0 - 1.5,
+            grid_y + 508.5,
+            1.5,
+            81.0,
+            0x32323260,
+        )?;
+    }
+    for (index, key) in layout(node, &state.keyboard).into_iter().enumerate() {
+        let x = grid_x + key.x;
+        let y = grid_y + key.y;
+        let selected = focused && index == state.keyboard.selected;
+        if selected {
+            keyboard_rectangle(
+                vm,
+                state,
+                x - 12.0,
+                y - 15.0,
+                key.width + 24.0,
+                105.0,
+                0x3232_32FF,
+            )?;
+            for band in 0..34 {
+                let shade = (224.0 - 73.0 * band as f64 / 33.0).round() as u32;
+                keyboard_rectangle(
+                    vm,
+                    state,
+                    x - 10.5,
+                    y - 13.5 + band as f64 * 3.0,
+                    key.width + 21.0,
+                    3.0,
+                    (shade << 24) | (shade << 16) | (shade << 8) | 255,
+                )?;
+            }
+        }
+        let label = create_node(vm, "Label")?.expect("Label");
+        let text = match key.text.as_str() {
+            "clear" => "⌦",
+            "space" => "␣",
+            "delete" => "⌫",
+            other => other,
+        };
+        set_field(vm, &label, "text", Value::string(text))?;
+        set_field(
+            vm,
+            &label,
+            "font",
+            Value::string(if selected {
+                "font:MediumBoldSystemFont"
+            } else {
+                "font:MediumSystemFont"
+            }),
+        )?;
+        set_field(
+            vm,
+            &label,
+            "translation",
+            super::super::float_array(&[
+                x * scale,
+                (y + if key.text.chars().all(|c| c.is_ascii_digit()) {
+                    25.5
+                } else {
+                    22.5
+                }) * scale,
+            ]),
+        )?;
+        set_field(
+            vm,
+            &label,
+            "width",
+            Value::Float((key.width * scale) as f32),
+        )?;
+        set_field(vm, &label, "height", Value::Float((38.0 * scale) as f32))?;
+        set_field(vm, &label, "horizAlign", Value::string("center"))?;
+        let color = if selected {
+            Value::Integer(0x0000_00FF)
+        } else {
+            with_node(node, |n| {
+                n.raw(if focused {
+                    "focusedKeyColor"
+                } else {
+                    "keyColor"
+                })
+            })
+        };
+        set_field(vm, &label, "color", color)?;
+        state.rendered.push(label);
+    }
+    Ok(())
+}
+
+pub(super) fn render_edit(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
+    // Keyboard widgets render their internal textbox with their own layout.
+    if with_node(node, |n| n.parent.as_ref().and_then(Weak::upgrade))
+        .is_some_and(|parent| is_keyboard(&parent))
+    {
+        return Ok(());
+    }
+    let scale = super::design_scale(vm);
+    let width = with_node(node, |n| n.number("width"));
+    let width = if width > 0.0 { width / scale } else { 555.0 };
+    keyboard_rectangle(vm, state, 0.0, 0.0, width, 72.0, 0xFFFFFF26)?;
+    let text = with_node(node, |n| n.text("text"));
+    let secure = with_node(node, |n| n.flag("secureMode"));
+    let shown = if secure {
+        "*".repeat(text.chars().count())
+    } else {
+        text.clone()
+    };
+    let value = if shown.is_empty() {
+        with_node(node, |n| n.text("hintText"))
+    } else {
+        shown
+    };
+    keyboard_label(
+        vm,
+        state,
+        value.clone(),
+        (36.0, 17.0, width - 72.0, 38.0),
+        false,
+    )?;
+    if let Some(label) = state.rendered.last() {
+        let color = with_node(node, |n| {
+            n.field(if text.is_empty() {
+                "hintTextColor"
+            } else {
+                "textColor"
+            })
+            .unwrap()
+            .value
+            .clone()
+        });
+        set_field(vm, label, "color", color)?;
+    }
+    if with_node(node, |n| n.flag("active") || n.has_focus) {
+        let font = super::super::render::label_font(vm, &Value::string("font:MediumSystemFont"));
+        let prefix: String = value
+            .chars()
+            .take(with_node(node, |n| n.number("cursorPosition")) as usize)
+            .collect();
+        let x = 36.0 + super::super::text::text_width(&font, &prefix, !is_hd(vm)) / scale;
+        keyboard_rectangle(vm, state, x.min(width - 36.0), 17.0, 3.0, 36.0, 0xFFFFFFFF)?;
+    }
+    Ok(())
+}
+
+fn render_dynamic(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
+    keyboard_rectangle(vm, state, 0.0, 0.0, 1368.0, 72.0, 0xFFFFFF0D)?;
+    let text = with_node(node, |n| n.text("text"));
+    let secure = with_node(node, |n| n.text("keyboardDomain") == "password")
+        || edit(node).is_some_and(|edit| with_node(&edit, |n| n.flag("secureMode")));
+    keyboard_label(
+        vm,
+        state,
+        if secure {
+            "*".repeat(text.chars().count())
+        } else {
+            text
+        },
+        (36.0, 17.0, 1296.0, 38.0),
+        false,
+    )?;
+    let mut selected = None;
+    for (index, key) in layout(node, &state.keyboard).into_iter().enumerate() {
+        let y = 100.0 + key.y;
+        keyboard_rectangle(vm, state, key.x, y, key.width - 2.0, 82.0, 0xFFFFFF26)?;
+        if with_node(node, |n| n.has_focus) && index == state.keyboard.selected {
+            selected = Some(key);
+        } else {
+            draw_key_label(vm, state, &key, key.x, y, false)?;
+        }
+    }
+    if let Some(key) = selected {
+        keyboard_rectangle(
+            vm,
+            state,
+            key.x - 4.0,
+            96.0 + key.y,
+            key.width + 8.0,
+            90.0,
+            0xEEEEEEFF,
+        )?;
+        draw_key_label(vm, state, &key, key.x, 100.0 + key.y, true)?;
+    }
+    Ok(())
+}
+
+/// Host text input is an emulator convenience; remote navigation stays separate.
+pub(super) fn text_target(vm: &Vm) -> Option<ObjectRef> {
+    if let Some(dialog) = &vm.sg.widgets.modal {
+        return vm
+            .sg
+            .widgets
+            .entries
+            .get(&id(dialog))
+            .and_then(|state| state.dialog_keyboard.as_ref())
+            .and_then(edit);
+    }
+    if let Some(focused) = super::super::runtime::focused_node(vm) {
+        if is_keyboard(&focused) {
+            return edit(&focused);
+        }
+        if has(&focused, "TextEditBox") {
+            return Some(focused);
+        }
+    }
+    fn active(node: &ObjectRef) -> Option<ObjectRef> {
+        if !with_node(node, |n| n.flag("visible")) {
+            return None;
+        }
+        if has(node, "TextEditBox") && with_node(node, |n| n.flag("active")) {
+            return Some(node.clone());
+        }
+        with_node(node, |n| n.children.clone())
+            .iter()
+            .rev()
+            .find_map(active)
+    }
+    vm.sg
+        .screens
+        .iter()
+        .rev()
+        .find(|screen| screen.shown && !screen.closed)
+        .and_then(|screen| screen.scene.as_ref())
+        .and_then(active)
+}
+pub(super) fn host_input(vm: &mut Vm, text: &str, command: &str) -> Result<bool> {
+    let Some(target) = text_target(vm) else {
+        return Ok(false);
+    };
+    let (old, cursor, max) = with_node(&target, |n| {
+        (
+            n.text("text"),
+            n.number("cursorPosition").max(0.0) as usize,
+            n.number("maxTextLength").max(0.0) as usize,
+        )
+    });
+    let mut chars: Vec<char> = old.chars().collect();
+    let mut cursor = cursor.min(chars.len());
+    match command {
+        "Backspace" => {
+            if cursor > 0 {
+                cursor -= 1;
+                chars.remove(cursor);
+            }
+        }
+        "Delete" => {
+            if cursor < chars.len() {
+                chars.remove(cursor);
+            }
+        }
+        "ArrowLeft" => cursor = cursor.saturating_sub(1),
+        "ArrowRight" => cursor = (cursor + 1).min(chars.len()),
+        "Home" => cursor = 0,
+        "End" => cursor = chars.len(),
+        "" => {
+            for character in text.chars().filter(|c| !c.is_control()) {
+                if chars.len() >= max {
+                    break;
+                }
+                chars.insert(cursor, character);
+                cursor += 1;
+            }
+        }
+        _ => return Ok(false),
+    }
+    let new: String = chars.into_iter().collect();
+    if new != old {
+        set_field(vm, &target, "text", Value::string(new))?;
+    }
+    set_field(vm, &target, "cursorPosition", Value::Integer(cursor as i32))?;
+    Ok(true)
 }

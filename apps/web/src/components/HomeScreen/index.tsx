@@ -95,8 +95,13 @@ export function HomeScreen({
   const handlers = useRef({ activate, selectOption });
   handlers.current = { activate, selectOption };
 
+  // The screen unmounts while a channel runs, but the last key event stays in
+  // the emulator state. That event belongs to the previous mount: handling it
+  // again on remount would relaunch the channel (an OK that opened it).
+  const keyAtMount = useRef(homeKey);
+
   useEffect(() => {
-    if (!homeKey) return;
+    if (!homeKey || homeKey === keyAtMount.current) return;
     const { key } = homeKey;
     if (aboutOpen) {
       if (key === "Back" || key === "OK" || key === "Home") setAboutOpen(false);

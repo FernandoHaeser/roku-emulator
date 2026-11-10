@@ -1,0 +1,1 @@
+<component name="InfoPaneScene" extends="Scene"><script type="text/brightscript" uri="InfoPaneScene.brs"/><children><Rectangle width="1920" height="1080" color="0x202020ff"/><Timer id="timer" duration="0.3" repeat="true"/></children></component>

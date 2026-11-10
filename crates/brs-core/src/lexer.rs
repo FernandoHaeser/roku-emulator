@@ -345,9 +345,14 @@ impl Lexer {
                 TokenKind::Double(digits.parse().map_err(|_| bad())?)
             }
             _ if is_float => TokenKind::Float(digits.parse().map_err(|_| bad())?),
+            // Device (fidelity/runtime/json-numbers): decimal literals with 10 or
+            // more digits are Double even when they fit 32 bits (999999999 is
+            // Integer, 1000000000 and 2147483647 are Double).
+            _ if significant_digits(&digits) >= DOUBLE_LITERAL_DIGITS => {
+                TokenKind::Double(digits.parse().map_err(|_| bad())?)
+            }
             _ => match digits.parse::<i32>() {
                 Ok(value) => TokenKind::Integer(value),
-                // Integer literals that do not fit 32 bits become Double.
                 Err(_) => TokenKind::Double(digits.parse().map_err(|_| bad())?),
             },
         };

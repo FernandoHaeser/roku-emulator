@@ -50,6 +50,7 @@ export class DevInstaller {
           return { method: "POST", body: form };
         },
         { user: this.config.devUser, password: this.config.devPassword },
+        { challengeUrl: this.baseUrl },
       ),
     );
     const body = await response.text();

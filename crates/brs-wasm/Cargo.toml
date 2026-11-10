@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 brs-core = { path = "../brs-core" }
+serde_json = "1"

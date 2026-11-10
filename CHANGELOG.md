@@ -5,6 +5,36 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Fixed (real-channel compatibility)
+
+- `LayoutGroup` positions its children (alignment, spacing, nested groups,
+  dynamic size/visibility); invisible children still count toward bounds, as
+  on the device. MarkupGrid footprint, margins and focus geometry follow the
+  `widgets/grid-footprint` probe.
+- `InfoPane` is implemented (subtype `InfoLabel`): stacked info text, bullet
+  list and footer, requested height as a minimum, and a locally drawn panel.
+- A Label's default `font` is a Font node (uri `""`, size 34 FHD / 22 HD,
+  SmallSystemFont metrics, 36 px FHD line), so `label.font.size = 40` no
+  longer fails. A Font with a system uri ignores `size`; a channel Font
+  without a uri draws nothing.
+- Poster `loadDisplayMode` applies only when set before `uri`.
+- Decimal integer literals with 10 or more digits are Double; `FormatJson`
+  writes integral Float/Double values in full.
+- StandardKeyboardDialog text binding and navigation, MiniKeyboard layout
+  (HD/FHD) and physical keyboard typing into the active text field.
+- Home no longer relaunches the dev channel: the home screen ignores the key
+  event that opened the channel, and replacing a running channel no longer
+  reports it as exited.
+- Oracle installs authenticate before uploading, so a device that rejects
+  an unauthenticated upload mid-transfer no longer fails with EPIPE.
+
+### Added (fidelity probes)
+
+- Device-recorded `scenegraph/layout-group`, `widgets/grid-footprint`,
+  `widgets/info-pane`, `widgets/mini-keyboard{,-hd}`,
+  `widgets/standard-keyboard-dialog`, `scenegraph/label-font-sizes{,-hd}`,
+  `scenegraph/poster-display-mode` and `runtime/json-numbers`.
+
 ### Added (F8: shell tools, in progress)
 
 - Clickable remote under the screen: pointer down/up are key press/release

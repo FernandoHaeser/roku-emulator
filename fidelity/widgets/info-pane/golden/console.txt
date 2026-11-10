@@ -1,0 +1,70 @@
+width=780
+height=300
+infoText=""
+infoText2=""
+bulletText=[]
+textColor=-1
+infoText2Color=-1
+infoText2BottomAlign=false
+phase= 0 type=InfoLabel infoLabel=true group=true rect=[100,200,780,89] children= 5
+label font= size= 34 spacing= 12 
+label font= size= 34 spacing= 12 
+child= 0 type=Poster rect=[0,0,780,89] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,36] visible=true
+child= 3 type=BulletText rect=[2147483648,2147483648,0,0] visible=true
+child= 4 type=Label rect=[19,0,748,36] visible=false
+phase= 1 type=InfoLabel infoLabel=true group=true rect=[100,200,780,137] children= 5
+child= 0 type=Poster rect=[0,0,780,137] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,84] visible=true
+child= 3 type=BulletText rect=[2147483648,2147483648,0,0] visible=true
+child= 4 type=Label rect=[19,0,748,36] visible=false
+phase= 2 type=InfoLabel infoLabel=true group=true rect=[100,200,780,185] children= 5
+child= 0 type=Poster rect=[0,0,780,185] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,132] visible=true
+child= 3 type=BulletText rect=[2147483648,2147483648,0,0] visible=true
+child= 4 type=Label rect=[19,0,748,36] visible=false
+phase= 3 type=InfoLabel infoLabel=true group=true rect=[100,200,780,185] children= 5
+child= 0 type=Poster rect=[0,0,780,185] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,132] visible=true
+child= 3 type=BulletText rect=[2147483648,2147483648,0,0] visible=true
+child= 4 type=Label rect=[19,0,748,36] visible=false
+phase= 4 type=InfoLabel infoLabel=true group=true rect=[100,200,780,300] children= 5
+child= 0 type=Poster rect=[0,0,780,300] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,36] visible=true
+child= 3 type=BulletText rect=[19,72,748,84] visible=true
+ item=0 type=Label rect=[29,0,719,36] text="One" size=34
+ item=1 type=Label rect=[0,0,14,36] text="\u2022" size=34
+ item=2 type=Label rect=[29,48,719,36] text="Two" size=34
+ item=3 type=Label rect=[0,48,14,36] text="\u2022" size=34
+child= 4 type=Label rect=[19,168,748,36] visible=true
+phase= 5 type=InfoLabel infoLabel=true group=true rect=[100,200,780,300] children= 5
+child= 0 type=Poster rect=[0,0,780,300] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,36] visible=true
+child= 3 type=BulletText rect=[19,72,748,84] visible=true
+ item=0 type=Label rect=[29,0,719,36] text="One" size=34
+ item=1 type=Label rect=[0,0,14,36] text="\u2022" size=34
+ item=2 type=Label rect=[29,48,719,36] text="Two" size=34
+ item=3 type=Label rect=[0,48,14,36] text="\u2022" size=34
+child= 4 type=Label rect=[19,168,748,36] visible=true
+phase= 6 type=InfoLabel infoLabel=true group=true rect=[100,200,400,300] children= 5
+child= 0 type=Poster rect=[0,0,400,300] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,368,36] visible=true
+child= 3 type=BulletText rect=[19,72,368,132] visible=true
+ item=0 type=Label rect=[29,0,339,84] text="One long bullet that wraps to another line" size=34
+ item=1 type=Label rect=[0,0,14,36] text="\u2022" size=34
+ item=2 type=Label rect=[29,96,339,36] text="Two" size=34
+ item=3 type=Label rect=[0,96,14,36] text="\u2022" size=34
+child= 4 type=Label rect=[19,235,368,36] visible=true
+phase= 7 type=InfoLabel infoLabel=true group=true rect=[100,200,780,271] children= 5
+child= 0 type=Poster rect=[0,0,780,185] visible=true
+child= 1 type=Poster rect=[0,0,0,0] visible=true
+child= 2 type=Label rect=[19,24,748,132] visible=true
+child= 3 type=BulletText rect=[2147483648,2147483648,0,0] visible=true
+child= 4 type=Label rect=[19,235,748,36] visible=false

@@ -299,9 +299,11 @@ pub fn get_field(object: &ObjectRef, name: &str) -> Value {
     })
 }
 
-fn same_value(old: &Value, new: &Value) -> bool {
+fn same_value(old: &Value, new: &Value, borrowed_node: &ObjectRef) -> bool {
     match (old, new) {
-        (Value::Object(a), Value::Object(b)) => Rc::ptr_eq(a, b) && is_node(a),
+        (Value::Object(a), Value::Object(b)) => {
+            Rc::ptr_eq(a, b) && (Rc::ptr_eq(a, borrowed_node) || is_node(a))
+        }
         (Value::Invalid, Value::Invalid) => true,
         (Value::String(a), Value::String(b)) => a == b,
         (Value::Boolean(a), Value::Boolean(b)) => a == b,
@@ -336,6 +338,19 @@ pub fn set_field(
     // restarts its stop timer per phase on the device).
     let restart = name.eq_ignore_ascii_case("control")
         && with_node(object, |n| n.ancestry.iter().any(|t| &**t == "Timer"));
+    // Convert before mutably borrowing the destination: node fields may
+    // legitimately refer to their own owner.
+    let kind = with_node(object, |n| {
+        n.field(name).map(|field| field.kind).or_else(|| {
+            n.ancestry
+                .iter()
+                .any(|t| &**t == "ContentNode")
+                .then(|| infer_kind(&value))
+        })
+    });
+    let Some(converted) = kind.and_then(|kind| kind.convert(&value)) else {
+        return Ok(());
+    };
     let change = with_node_mut(object, |n| {
         if n.field_index(name).is_none() {
             if !n.ancestry.iter().any(|t| &**t == "ContentNode") {
@@ -352,10 +367,9 @@ pub fn set_field(
             });
         }
         let field = n.field_mut(name)?;
-        let converted = field.kind.convert(&value)?;
         let changed = field.always_notify
             || field.kind == FieldKind::Trigger
-            || !same_value(&field.value, &converted);
+            || !same_value(&field.value, &converted, object);
         field.value = converted;
         changed.then(|| Change {
             field: field.name.clone(),
@@ -436,6 +450,9 @@ fn side_effects(vm: &mut Vm, object: &ObjectRef, field: &str) -> Result<(), Runt
                 .then(|| n.text("uri"))
         });
         if let Some(uri) = poster {
+            with_node_mut(object, |n| {
+                n.load_display_mode = Some(n.text("loadDisplayMode").into());
+            });
             return super::bitmap::load(vm, object, &uri);
         }
         let font = with_node(object, |n| {
@@ -532,7 +549,7 @@ fn set_raw_and_notify(
 ) -> Result<(), RuntimeError> {
     let change = with_node_mut(object, |n| {
         let field = n.field_mut(name)?;
-        if same_value(&field.value, &value) {
+        if same_value(&field.value, &value, object) {
             return None;
         }
         field.value = value;
@@ -714,6 +731,7 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
             dispatch_key(vm, &key, pressed)?;
         }
     }
+    super::layout::service(vm)?;
     Ok(())
 }
 

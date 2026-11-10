@@ -1,0 +1,16 @@
+<component name="Cell" extends="Group"><interface><field id="width" type="float"/><field id="height" type="float"/><field id="itemContent" type="node" onChange="bind"/></interface><script type="text/brightscript"><![CDATA[
+sub bind()
+ m.top.id=m.top.itemContent.id
+ cells=m.global.cells
+ found=false
+ for each cell in cells
+  if cell.isSameNode(m.top) then found=true
+ end for
+ if not found
+  cells.push(m.top)
+  m.global.cells=cells
+ end if
+ m.top.findNode("rect").width=m.top.width
+ m.top.findNode("rect").height=m.top.height
+end sub
+]]></script><children><Rectangle id="rect" color="0x336699ff"/></children></component>

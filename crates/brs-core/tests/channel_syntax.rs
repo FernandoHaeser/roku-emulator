@@ -228,3 +228,158 @@ fn registry_tools_update_only_selected_keys_without_pausing_the_channel() {
         .borrow()
         .contains("Registry values must be strings or null"));
 }
+
+#[test]
+fn get_interface_autoboxes_intrinsics_for_type_guards() {
+    let source = r#"sub Main()
+        print GetInterface("demo", "ifString") <> invalid
+        print GetInterface("demo", "ifArray") = invalid
+        print GetInterface(Box("demo"), "ifString") <> invalid
+        print GetInterface(invalid, "ifString") = invalid
+    end sub"#;
+    let channel = Channel::from_files(std::collections::BTreeMap::from([
+        ("manifest".into(), b"title=Interface test\n".to_vec()),
+        ("source/main.brs".into(), source.as_bytes().to_vec()),
+    ]))
+    .unwrap();
+    let output = Rc::new(RefCell::new(String::new()));
+    let mut vm = brs_core::launch(&channel, Box::new(Output(output.clone()))).unwrap();
+    assert_eq!(vm.run(10000), Status::Finished);
+    assert!(output.borrow().contains("\ntrue\ntrue\ntrue\ntrue\n"));
+}
+
+#[test]
+fn focusing_the_same_node_twice_does_not_borrow_its_self_reference() {
+    let source = r#"sub Main()
+        node = CreateObject("roSGNode", "Group")
+        node.setFocus(true)
+        node.setFocus(true)
+        print node.hasFocus()
+        print node.focusedChild.isSameNode(node)
+        node.addField("self", "node", false)
+        node.self = node
+        node.self = node
+        print node.self.isSameNode(node)
+    end sub"#;
+    let channel = Channel::from_files(std::collections::BTreeMap::from([
+        ("manifest".into(), b"title=Focus regression\n".to_vec()),
+        ("source/main.brs".into(), source.as_bytes().to_vec()),
+    ]))
+    .unwrap();
+    let output = Rc::new(RefCell::new(String::new()));
+    let mut vm = brs_core::launch(&channel, Box::new(Output(output.clone()))).unwrap();
+    assert_eq!(vm.run(10000), Status::Finished);
+    assert!(output.borrow().contains("\ntrue\ntrue\ntrue\n"));
+}
+
+#[test]
+fn poster_preserves_aspect_ratio_and_clips_zoom_without_changing_frame_bounds() {
+    use brs_core::{
+        sg::{render, runtime, ScreenState},
+        value::ObjectRef,
+        Value, Vm,
+    };
+    let channel = Channel::from_files(std::collections::BTreeMap::from([
+        ("manifest".into(), b"title=Poster layout\n".to_vec()),
+        ("source/main.brs".into(), b"sub Main()\nend sub".to_vec()),
+    ]))
+    .unwrap();
+    let mut vm = brs_core::launch(
+        &channel,
+        Box::new(Output(Rc::new(RefCell::new(String::new())))),
+    )
+    .unwrap();
+    // The device captures loadDisplayMode when uri is assigned
+    // (fidelity/scenegraph/poster-display-mode), so the mode goes first.
+    let poster_with_mode = |vm: &mut Vm, mode: &str| -> ObjectRef {
+        let poster = runtime::create_node(vm, "Poster").unwrap().unwrap();
+        runtime::set_field(vm, &poster, "loadDisplayMode", Value::string(mode)).unwrap();
+        runtime::set_field(vm, &poster, "uri", Value::string("pkg:/aspect.png")).unwrap();
+        for (name, value) in [
+            ("width", 200.0),
+            ("height", 100.0),
+            ("bitmapWidth", 100.0),
+            ("bitmapHeight", 100.0),
+        ] {
+            runtime::set_field(vm, &poster, name, Value::Float(value)).unwrap();
+        }
+        vm.sg.screens.clear();
+        vm.sg.screens.push(ScreenState {
+            scene: Some(poster.clone()),
+            shown: true,
+            ..Default::default()
+        });
+        poster
+    };
+    let display_list = |vm: &Vm| -> serde_json::Value {
+        serde_json::from_str(&render::display_list(vm).unwrap()).unwrap()
+    };
+
+    let poster = poster_with_mode(&mut vm, "scaleToFit");
+    let image = &display_list(&vm)["items"][0];
+    assert_eq!(image[1], 50.0);
+    assert_eq!(image[2], 0.0);
+    assert_eq!(image[3], 100.0);
+    assert_eq!(image[4], 100.0);
+    assert_eq!(render::local_bounds(&vm, &poster).width, 200.0);
+
+    // A mode assigned after the uri does not affect the loaded bitmap.
+    runtime::set_field(
+        &mut vm,
+        &poster,
+        "loadDisplayMode",
+        Value::string("scaleToZoom"),
+    )
+    .unwrap();
+    assert_eq!(display_list(&vm)["items"][0][3], 100.0);
+
+    poster_with_mode(&mut vm, "scaleToZoom");
+    let list = display_list(&vm);
+    assert_eq!(list["items"][0], serde_json::json!(["c", 0, 0, 200, 100]));
+    assert_eq!(list["items"][1][2], -50.0);
+    assert_eq!(list["items"][1][3], 200.0);
+    assert_eq!(list["items"][2], serde_json::json!(["C"]));
+}
+
+#[test]
+fn host_text_input_edits_unicode_at_the_cursor_and_obeys_the_field_limit() {
+    use brs_core::{
+        sg::{runtime, widgets},
+        Value,
+    };
+    let channel = Channel::from_files(std::collections::BTreeMap::from([
+        ("manifest".into(), b"title=Text input test\n".to_vec()),
+        ("source/main.brs".into(), b"sub Main()\nend sub".to_vec()),
+    ]))
+    .unwrap();
+    let mut vm = brs_core::launch(
+        &channel,
+        Box::new(Output(Rc::new(RefCell::new(String::new())))),
+    )
+    .unwrap();
+    let field = runtime::create_node(&mut vm, "TextEditBox")
+        .unwrap()
+        .unwrap();
+    runtime::set_field(&mut vm, &field, "maxTextLength", Value::Integer(5)).unwrap();
+    runtime::node_method(&mut vm, &field, "setfocus", vec![Value::Boolean(true)]).unwrap();
+    assert!(widgets::text_input(&mut vm, "ação!extra", "").unwrap());
+    assert_eq!(
+        runtime::get_field(&field, "text").unboxed().as_str(),
+        Some("ação!")
+    );
+    widgets::text_input(&mut vm, "", "Home").unwrap();
+    widgets::text_input(&mut vm, "", "Delete").unwrap();
+    widgets::text_input(&mut vm, "", "ArrowRight").unwrap();
+    widgets::text_input(&mut vm, "", "Backspace").unwrap();
+    widgets::text_input(&mut vm, "é", "").unwrap();
+    assert_eq!(
+        runtime::get_field(&field, "text").unboxed().as_str(),
+        Some("éão!")
+    );
+    assert_eq!(
+        runtime::get_field(&field, "cursorPosition").as_i64(),
+        Some(1)
+    );
+    runtime::node_method(&mut vm, &field, "setfocus", vec![Value::Boolean(false)]).unwrap();
+    assert!(!widgets::text_input(&mut vm, "ignored", "").unwrap());
+}

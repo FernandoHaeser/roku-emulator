@@ -18,7 +18,7 @@ const KEYBOARD: Record<string, string> = {
   Left: "ArrowLeft",
   Right: "ArrowRight",
   OK: "Enter",
-  Back: "Backspace",
+  Back: "Escape",
 };
 
 interface ProbeSpec {
