@@ -5,6 +5,26 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F8: shell tools, in progress)
+
+- Clickable remote under the screen: pointer down/up are key press/release
+  (held buttons repeat like the device), keyboard activation sends a press
+  and a release, and it shares the keyboard's routing (Home stops the
+  channel).
+- Node inspector tab: live SceneGraph tree (1 s polling while visible) with
+  type, id and focus, a filter by type or id, the selected node's fields and
+  ancestry, and its bounds outlined over the screen. It uses the engine's
+  `scene` inspection, which now also reports the design resolution.
+- Console and inspector share a tabbed side panel; the console keeps its
+  history while hidden.
+- Enter/Space on a focused shell button no longer also send OK/Play to the
+  channel.
+
+### Changed
+
+- Scene inspection types (`SceneNode`, `SceneInspection`) moved to
+  `@roku-emu/protocol`, shared by the server (ECP app-ui) and the web shell.
+
 ### Added (F6: Widevine DRM)
 
 - Device probe `video/drm`: clear DASH, Widevine DASH with a working license

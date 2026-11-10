@@ -136,6 +136,7 @@ probe that proves it. Known gaps stay as failing probes, never masked.
 | **Runtime objects**     | `roArray`, `roAssociativeArray`, `roList`, `roByteArray`, `roMessagePort` + `wait`, `roDateTime`, `roTimespan`, `roAppInfo`, `roDeviceInfo`, `roRegistry`, `roXMLElement`, boxed types, `ParseJson` / `FormatJson`. |
 | **Browser host**        | One Rust core compiled to WebAssembly, run in a Web Worker in time slices; Canvas2D renderer of the SceneGraph display list; persistent registry.                                                                   |
 | **Native host**         | The same core as a CLI (`brs run`, `brs conformance`); a desktop app comes later from the same crate.                                                                                                               |
+| **Shell tools**         | Clickable remote (same routing as the keyboard), live SceneGraph node inspector with fields, filter and on-screen highlight, console.                                                                               |
 | **Oracle**              | Node client for the real device: Digest-auth sideload, telnet console, ECP keys and queries, screenshots, text / XML / pixel diffs.                                                                                 |
 
 ## Status
@@ -152,6 +153,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | Widgets (F5)               | In progress: lists, grid bindings, buttons, modal dialogs and keyboard                             |
 | Video (F6)                 | In progress: device-recorded lifecycle (MP4, HLS, DASH, HTTP errors) and Widevine DRM errors       |
 | VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension           |
+| Shell tools (F8)           | In progress: clickable remote and node inspector; network/registry panels and hot reload pending   |
 
 **Known gaps** (tracked by failing conformance):
 

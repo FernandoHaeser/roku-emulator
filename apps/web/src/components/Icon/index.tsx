@@ -9,6 +9,17 @@ const ICON_PATHS = {
   play: "M7 5v14l11-7L7 5Z",
   trash: "M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
   close: "M6 6l12 12M18 6 6 18",
+  chevronUp: "M6 15l6-6 6 6",
+  chevronDown: "M6 9l6 6 6-6",
+  chevronLeft: "M15 6l-6 6 6 6",
+  chevronRight: "M9 6l6 6-6 6",
+  back: "M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
+  home: "M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10",
+  replay: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
+  options: "M12 4v16M5.1 8l13.8 8M18.9 8 5.1 16",
+  rewind: "M11 6 4 12l7 6V6Zm9 0-7 6 7 6V6Z",
+  playPause: "M4 5v14l8-7-8-7Zm11 0v14m5-14v14",
+  fastForward: "M13 6l7 6-7 6V6ZM4 6l7 6-7 6V6Z",
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

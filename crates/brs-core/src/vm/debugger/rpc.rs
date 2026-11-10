@@ -294,6 +294,6 @@ impl Vm {
             .filter_map(|s| s.scene.as_ref())
             .map(|root| node(self, root, 0))
             .collect::<Vec<_>>();
-        json!({"roots":roots,"threads":self.threads.iter().filter(|t|!t.frames.is_empty()).count()+usize::from(!self.frames.is_empty()),"timeMs":self.now_ms()})
+        json!({"roots":roots,"threads":self.threads.iter().filter(|t|!t.frames.is_empty()).count()+usize::from(!self.frames.is_empty()),"timeMs":self.now_ms(),"width":self.sg.design_width,"height":self.sg.design_height})
     }
 }

@@ -12,6 +12,7 @@ import type {
   VideoCommand,
   WorkerToShellMessage,
 } from "@roku-emu/protocol";
+import { SHELL_RPC_PREFIX } from "@roku-emu/protocol";
 import engineUrl from "@/wasm/brs.wasm?url";
 import { CanvasRenderer } from "./canvasRenderer";
 import { parseDisplayList, videoRects } from "./displayList";
@@ -111,8 +112,31 @@ async function initSurface(canvas: OffscreenCanvas, width: number, height: numbe
   post({ type: "console", stream: "system", text: "Runtime pronto. Abra um canal (.zip)." });
 }
 
+/** Inspection responses the engine writes on the console. */
+const RPC_LINE = /\n?@@ROKU_EMU_RPC ([^\n]*)\n/g;
+
+/**
+ * Removes responses to the shell's own inspection requests (node inspector
+ * polling) from the console stream and posts them as `inspection` messages.
+ * Responses for other clients (bridge/ECP) stay in the stream.
+ */
+function takeShellResponses(text: string): string {
+  if (!text.includes("@@ROKU_EMU_RPC ")) return text;
+  return text.replace(RPC_LINE, (line: string, json: string) => {
+    let id: unknown = "";
+    try {
+      id = (JSON.parse(json) as { id?: unknown }).id;
+    } catch {
+      return line;
+    }
+    if (typeof id !== "string" || !id.startsWith(SHELL_RPC_PREFIX)) return line;
+    post({ type: "inspection", json });
+    return "";
+  });
+}
+
 function emitOutput(instance: BrsEngine, final = false): void {
-  const text = instance.takeOutput();
+  const text = takeShellResponses(instance.takeOutput());
   if (text) post({ type: "consoleRaw", text });
   const complete = lines.push(text);
   if (final) complete.push(...lines.flush());

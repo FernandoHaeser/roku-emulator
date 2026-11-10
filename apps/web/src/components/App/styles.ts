@@ -11,4 +11,5 @@ export const styles = {
     failed: "bg-red-900/60 text-red-300",
   },
   main: "grid flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_420px]",
+  screenColumn: "flex min-w-0 flex-col gap-3 self-start",
 } as const;

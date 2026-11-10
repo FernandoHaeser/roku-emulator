@@ -47,7 +47,12 @@ home screen; those are the current architecture.
    (`video/drm`): `drmParams` license server, device error fields for a
    missing or failing license server, EME playback through Shaka where a CDM
    exists. Next: trick play, captions and audio tracks.
-7. Remaining tools (F8). After the agreed
+7. F8 shell tools: in progress on `feature/f8-shell`. Done: clickable remote
+   (pointer press/release, same routing as the keyboard, Home handled by the
+   OS) and the node inspector (live tree from the engine's `scene`
+   inspection, fields, filter, highlight over the screen). Next: network
+   panel, registry panel and hot reload.
+8. After the agreed
    implementation sequence, freeze feature work and review GitHub tasks #5–#16
    (platform integrity and CI/CD). Native desktop/F9 mocks remain later roadmap
    items. Do not start release/publication automation ahead of that review.

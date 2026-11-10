@@ -1,4 +1,4 @@
-import { BRIDGE_HEADER, BRIDGE_PATH, type BridgeEvent } from "@roku-emu/protocol";
+import { BRIDGE_HEADER, BRIDGE_PATH, SHELL_RPC_PREFIX, type BridgeEvent } from "@roku-emu/protocol";
 /**
  * React hook owning the runtime worker: home screen vs. running channel,
  * sideloading, remote key routing, registry persistence and console lines.
@@ -8,6 +8,7 @@ import type {
   ChannelStatus,
   ConsoleStream,
   RemoteKey,
+  SceneInspection,
   ShellToWorkerMessage,
   WorkerToShellMessage,
 } from "@roku-emu/protocol";
@@ -46,6 +47,7 @@ export interface HomeKeyEvent {
 
 /** Keeps the console bounded so long sessions do not grow memory forever. */
 const MAX_CONSOLE_LINES = 5_000;
+const RPC_TIMEOUT_MS = 3_000;
 
 const serverRuntimeEnabled =
   (globalThis as { __ROKU_RUNTIME_HOST__?: string }).__ROKU_RUNTIME_HOST__ === "server" ||
@@ -107,6 +109,27 @@ export function useEmulator(width: number, height: number) {
     }
   }, []);
   const viewRef = useRef<ScreenView>("home");
+  /** Routes a remote key like the device (keyboard and the on-screen remote). */
+  const routeKeyRef = useRef<(key: RemoteKey, pressed: boolean) => void>(() => undefined);
+  const nextRpcId = useRef(0);
+  const pendingRpc = useRef(
+    new Map<string, { resolve: (result: unknown) => void; reject: (error: Error) => void }>(),
+  );
+
+  /** Engine inspection response `{"id":..,"result":..}` (worker `inspection`). */
+  const resolveRpc = useCallback((json: string) => {
+    let response: { id?: string; result?: unknown; error?: string };
+    try {
+      response = JSON.parse(json) as typeof response;
+    } catch {
+      return;
+    }
+    const pending = pendingRpc.current.get(response.id ?? "");
+    if (!pending) return;
+    pendingRpc.current.delete(response.id!);
+    if (response.error) pending.reject(new Error(response.error));
+    else pending.resolve(response.result);
+  }, []);
   const pendingInspections = useRef(
     new Map<number, { resolve: (info: ChannelInfo) => void; reject: (error: Error) => void }>(),
   );
@@ -198,6 +221,9 @@ export function useEmulator(width: number, height: number) {
           break;
         case "console":
           if (!message.text.startsWith("@@ROKU_EMU_RPC ")) append(message.stream, message.text);
+          break;
+        case "inspection":
+          resolveRpc(message.json);
           break;
         case "displayList":
           if (message.json === null) display?.clear();
@@ -307,16 +333,7 @@ export function useEmulator(width: number, height: number) {
     let homeSequence = 0;
     /** Keys whose press reached the channel; only their releases are forwarded. */
     const forwardedKeys = new Set<RemoteKey>();
-    const onKey = (pressed: boolean) => (event: KeyboardEvent) => {
-      // Ignore auto-repeat: the runtime generates repeats itself with device timing.
-      if (event.repeat) return;
-      // Typing in a form control (console filter, file picker) is not remote input.
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      const key = mapKeyboardCode(event.code);
-      if (!key) return;
-      event.preventDefault();
+    const routeKey = (key: RemoteKey, pressed: boolean) => {
       if (viewRef.current === "home") {
         forwardedKeys.clear();
         if (pressed) setHomeKey({ key, sequence: homeSequence++ });
@@ -334,12 +351,33 @@ export function useEmulator(width: number, height: number) {
       else if (!forwardedKeys.delete(key)) return;
       worker.postMessage({ type: "key", key, pressed } satisfies ShellToWorkerMessage);
     };
+    routeKeyRef.current = routeKey;
+    const onKey = (pressed: boolean) => (event: KeyboardEvent) => {
+      // Ignore auto-repeat: the runtime generates repeats itself with device timing.
+      if (event.repeat) return;
+      // Typing in a form control (console filter, file picker) is not remote input.
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      // Enter/Space on a focused button activate that button, not the remote.
+      if (
+        event.target instanceof HTMLButtonElement &&
+        (event.code === "Enter" || event.code === "NumpadEnter" || event.code === "Space")
+      ) {
+        return;
+      }
+      const key = mapKeyboardCode(event.code);
+      if (!key) return;
+      event.preventDefault();
+      routeKey(key, pressed);
+    };
     const onKeyDown = onKey(true);
     const onKeyUp = onKey(false);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
     return () => {
+      routeKeyRef.current = () => undefined;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       for (const controller of httpControllers.values()) controller.abort();
@@ -351,7 +389,7 @@ export function useEmulator(width: number, height: number) {
       inspections.clear();
       canvas.remove();
     };
-  }, [screenHost, width, height, append, changeView, send, flushDebugCommand]);
+  }, [screenHost, width, height, append, changeView, send, flushDebugCommand, resolveRpc]);
 
   const clearConsole = useCallback(() => setLines([]), []);
 
@@ -509,6 +547,28 @@ export function useEmulator(width: number, height: number) {
     };
   }, [status, send, changeView, append, screenHost]);
 
+  /** On-screen remote: same routing as the keyboard. */
+  const pressRemote = useCallback((key: RemoteKey, pressed: boolean) => {
+    routeKeyRef.current(key, pressed);
+  }, []);
+
+  /**
+   * Snapshot of the shown scene through the engine's inspection request (the
+   * same one the ECP app-ui query uses). Null when no channel is running.
+   */
+  const inspectScene = useCallback(async (): Promise<SceneInspection | null> => {
+    if (viewRef.current !== "channel" || !workerRef.current) return null;
+    const id = `${SHELL_RPC_PREFIX}${nextRpcId.current++}`;
+    const result = new Promise<unknown>((resolve, reject) => {
+      pendingRpc.current.set(id, { resolve, reject });
+      setTimeout(() => {
+        if (pendingRpc.current.delete(id)) reject(new Error("scene inspection timed out"));
+      }, RPC_TIMEOUT_MS);
+    });
+    send({ type: "debuggerCommand", command: `__emu ${JSON.stringify({ id, op: "scene" })}` });
+    return (await result) as SceneInspection;
+  }, [send]);
+
   return {
     setScreenHost,
     status,
@@ -519,6 +579,8 @@ export function useEmulator(width: number, height: number) {
     view,
     devChannel,
     homeKey,
+    pressRemote,
+    inspectScene,
     sideload,
     launchDevChannel,
     removeDevChannel,
