@@ -6,8 +6,11 @@
  *
  * Progressive files (MP4, package media as blob URLs) play natively; HLS and
  * DASH go through Shaka Player with networking over the shell's HTTP proxy.
+ * Protected contents pass their license server to Shaka (EME); a browser
+ * without that CDM (e.g. open-source Chromium has no Widevine) reports
+ * `unsupported` and the engine keeps the event sequence on its own clock.
  */
-import type { VideoCommand, VideoEvent, VideoRect } from "@roku-emu/protocol";
+import type { VideoCommand, VideoDrm, VideoEvent, VideoRect } from "@roku-emu/protocol";
 import muxjs from "mux.js";
 import shaka from "shaka-player/dist/shaka-player.compiled.js";
 import { proxyScheme } from "./proxyScheme";
@@ -37,11 +40,49 @@ export function isAdaptive(url: string, format: string): boolean {
   return path.endsWith(".m3u8") || path.endsWith(".mpd");
 }
 
+/** EME key system for a Roku `drmParams.keySystem`. */
+export function emeKeySystem(keySystem: string): string | null {
+  switch (keySystem.toLowerCase()) {
+    case "widevine":
+      return "com.widevine.alpha";
+    case "playready":
+      return "com.microsoft.playready";
+    default:
+      return null;
+  }
+}
+
+interface ShakaErrorLike {
+  category?: number;
+  code?: number;
+  data?: unknown[];
+}
+
 /** HTTP status from a Shaka error (BAD_HTTP_STATUS carries it in data[1]). */
 function errorStatus(error: unknown): number {
-  const data = (error as { code?: number; data?: unknown[] }).data;
-  const status = data?.[1];
+  const status = (error as ShakaErrorLike).data?.[1];
   return typeof status === "number" ? status : -1;
+}
+
+/** Maps a Shaka load error to a player event. */
+export function shakaErrorEvent(
+  id: number,
+  error: unknown,
+): Extract<VideoEvent, { type: "error" | "unsupported" }> {
+  const { category, code, data } = error as ShakaErrorLike;
+  const Code = shaka.util.Error.Code;
+  if (
+    code === Code.REQUESTED_KEY_SYSTEM_CONFIG_UNAVAILABLE ||
+    code === Code.NO_RECOGNIZED_KEY_SYSTEMS
+  )
+    return { id, type: "unsupported" };
+  const message = String((error as Error).message ?? error);
+  if (category === shaka.util.Error.Category.DRM) {
+    // LICENSE_REQUEST_FAILED wraps the network error of the license request.
+    const status = code === Code.LICENSE_REQUEST_FAILED ? errorStatus(data?.[0]) : -1;
+    return { id, type: "error", status, message, category: "drm" };
+  }
+  return { id, type: "error", status: errorStatus(error), message };
 }
 
 class Player {
@@ -77,7 +118,13 @@ class Player {
     });
     video.addEventListener("error", () => {
       // Native playback errors carry no HTTP status.
-      if (!this.shakaPlayer) this.fail(-1, video.error?.message ?? "media error");
+      if (!this.shakaPlayer)
+        this.fail({
+          id,
+          type: "error",
+          status: -1,
+          message: video.error?.message ?? "media error",
+        });
     });
     this.element = video;
   }
@@ -86,21 +133,38 @@ class Player {
     if (!this.finished) this.emit(event);
   }
 
-  private fail(status: number, message: string): void {
-    this.send({ id: this.id, type: "error", status, message });
+  private fail(event: Extract<VideoEvent, { type: "error" }>): void {
+    this.send(event);
     this.finished = true;
   }
 
-  async load(url: string, format: string): Promise<void> {
+  /** No CDM: the engine takes over the timing; the plane stays black. */
+  private unsupported(): void {
+    this.send({ id: this.id, type: "unsupported" });
+    this.finished = true;
+    void this.shakaPlayer?.destroy();
+    this.shakaPlayer = null;
+  }
+
+  async load(url: string, format: string, drm?: VideoDrm): Promise<void> {
     const video = this.element;
-    if (isAdaptive(url, format)) {
+    if (drm || isAdaptive(url, format)) {
       setupShaka();
       this.shakaPlayer = new shaka.Player();
+      const keySystem = drm ? emeKeySystem(drm.keySystem) : null;
+      if (drm && !keySystem) {
+        this.unsupported();
+        return;
+      }
+      if (drm && keySystem)
+        this.shakaPlayer.configure({ drm: { servers: { [keySystem]: drm.licenseServerURL } } });
       try {
         await this.shakaPlayer.attach(video);
         await this.shakaPlayer.load(url);
       } catch (error) {
-        this.fail(errorStatus(error), String((error as Error).message ?? error));
+        const event = shakaErrorEvent(this.id, error);
+        if (event.type === "unsupported") this.unsupported();
+        else this.fail(event);
         return;
       }
     } else {
@@ -125,7 +189,7 @@ class Player {
   command(command: Exclude<VideoCommand, { op: "reset" }>): void {
     switch (command.op) {
       case "load":
-        void this.load(command.url, command.format);
+        void this.load(command.url, command.format, command.drm);
         break;
       case "pause":
         this.element.pause();

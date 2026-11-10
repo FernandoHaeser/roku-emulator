@@ -325,6 +325,11 @@ pub fn set_field(
     name: &str,
     value: Value,
 ) -> Result<(), RuntimeError> {
+    // A Timer restarts on every `control = "start"`, even when the field
+    // already holds it (it still reads "start" after firing; video/drm
+    // restarts its stop timer per phase on the device).
+    let restart = name.eq_ignore_ascii_case("control")
+        && with_node(object, |n| n.ancestry.iter().any(|t| &**t == "Timer"));
     let change = with_node_mut(object, |n| {
         if n.field_index(name).is_none() {
             if !n.ancestry.iter().any(|t| &**t == "ContentNode") {
@@ -355,6 +360,9 @@ pub fn set_field(
     });
     vm.sg.revision += 1;
     let Some(change) = change else {
+        if restart {
+            side_effects(vm, object, "control")?;
+        }
         return Ok(());
     };
     side_effects(vm, object, &change.field)?;

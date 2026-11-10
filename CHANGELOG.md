@@ -5,6 +5,25 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F6: Widevine DRM)
+
+- Device probe `video/drm`: clear DASH, Widevine DASH with a working license
+  server, a failing license server and a protected stream without
+  `drmParams`. `video/lifecycle` now also records `errorInfo`.
+- `ContentNode.drmParams`; DRM failures set `errorCode` -6, the device's
+  `errorMsg`/`errorStr` and `errorInfo` (HTTP failures fill `errorInfo` too).
+- Engine preflight for DASH and protected contents: MPD duration, protection
+  detection and a Widevine service certificate request to test the license
+  server, in the simulated backend and before handing the stream to the host.
+- Web shell: Shaka receives the license server (`drm.servers`); browsers
+  without the CDM report `unsupported` and the engine keeps the event
+  sequence on its own clock.
+
+### Fixed
+
+- `Timer.control = "start"` restarts a timer that already fired; the field
+  still holds `"start"`, so the write used to be ignored as unchanged.
+
 ### Added (F6: video, in progress)
 
 - Device probe `video/lifecycle`: Video defaults (146 fields), state

@@ -185,5 +185,11 @@ missing error
 errorCode -1
 errorMsg There was an error in the HTTP response.  This could mean that malformed HTTP headers or an HTTP error code was returned.
 errorStr reader pick stream error:HTTP error:Transfer error: HTTP response code said error response code:(404):404
+errorInfo category=http
+errorInfo dbgmsg=reader pick stream error:HTTP error:Transfer error: HTTP response code said error response code:(404):404
+errorInfo drmerrcode= 0
+errorInfo errcode= 2
+errorInfo ignored=false
+errorInfo source=buffer:reader
 -- done
 missing finished

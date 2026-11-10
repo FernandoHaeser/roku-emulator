@@ -10,6 +10,11 @@
 //! - HTTP errors: `errorCode` -1, `errorMsg`/`errorStr` set, then `error`
 //!   followed by `finished`.
 //!
+//! DRM (fidelity/video/drm): protected streams need `content.drmParams`
+//! (`keySystem`, `licenseServerURL`). A missing license URL or a failing
+//! license server ends in `errorCode` -6 ("Protected content license
+//! error."). Both error kinds also fill `errorInfo`.
+//!
 //! Two backends:
 //! - Simulated (default): the engine fetches only what it needs to know the
 //!   duration (MP4 `mvhd`, HLS playlists, through the host's asynchronous
@@ -17,6 +22,13 @@
 //!   by the CLI, the VS Code runtime and headless hosts.
 //! - External: a host with a real player (the web shell) receives commands
 //!   from [`take_commands`] and reports events with [`host_event`].
+//!
+//! DASH streams and contents with `drmParams` are checked by the engine in
+//! both backends before playback ("preflight"): the manifest gives the
+//! duration and tells whether the stream is protected, and a Widevine service
+//! certificate request tests the license server. A host without a matching
+//! CDM reports `unsupported`, and that player continues on the simulated
+//! clock (events without frames).
 
 use std::collections::{HashMap, VecDeque};
 use std::rc::{Rc, Weak};
@@ -37,6 +49,13 @@ const SEEK_BUFFERING_MS: f64 = 100.0;
 /// First bytes requested for a remote MP4: enough for a fast-start `moov`.
 const MP4_PROBE_BYTES: u32 = 1024 * 1024;
 
+/// Widevine service certificate request (a SignedMessage of type
+/// SERVICE_CERTIFICATE_REQUEST); license servers answer it with their
+/// certificate, so it tests a license URL without a CDM.
+const LICENSE_PROBE: &[u8] = &[0x08, 0x04];
+const WIDEVINE_SYSTEM_ID: &str = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed";
+
+const DRM_ERROR_MSG: &str = "Protected content license error.";
 const HTTP_ERROR_MSG: &str = "There was an error in the HTTP response.  This could mean that malformed HTTP headers or an HTTP error code was returned.";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,12 +80,44 @@ struct Player {
     base_ms: f64,
     /// Last position reported through the `position` field.
     notified_ms: f64,
+    /// Runs on the engine clock (simulated backend or host fallback).
+    simulated: bool,
+    /// Current content: URL, stream format and DRM parameters.
+    source: Option<Source>,
+    /// A manifest seen during preflight declares protection.
+    protected: bool,
+}
+
+#[derive(Clone)]
+struct Source {
+    url: String,
+    format: String,
+    /// `drmParams.keySystem` and `drmParams.licenseServerURL`.
+    key_system: String,
+    license_url: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Purpose {
+    /// Manifest or media head (duration and protection).
+    Metadata,
+    /// License server check.
+    License,
+}
+
+/// Why playback failed; selects errorCode, errorMsg, errorStr and errorInfo.
+enum Failure {
+    /// HTTP status (negative = transport failure) and failure text.
+    Http(i64, String),
+    /// DRM exception detail ("license url missing", "Http error 400").
+    Drm(String),
 }
 
 /// Result of a metadata request: HTTP status (negative = transport failure),
 /// body, failure text and the URL it answers.
 struct Fetched {
     player: u32,
+    purpose: Purpose,
     url: String,
     status: i64,
     body: Vec<u8>,
@@ -84,8 +135,10 @@ pub struct Videos {
     starting: Vec<u32>,
     events: VecDeque<Json>,
     fetched: VecDeque<Fetched>,
-    /// HTTP token -> (player id, URL).
-    requests: HashMap<u32, (u32, String)>,
+    /// HTTP token -> (player id, purpose, URL).
+    requests: HashMap<u32, (u32, Purpose, String)>,
+    /// Contents started in this run (`errorInfo.clipid`).
+    clips: i32,
 }
 
 impl Videos {
@@ -106,11 +159,9 @@ impl Videos {
         if !self.fetched.is_empty() || !self.events.is_empty() || !self.starting.is_empty() {
             return Some(now);
         }
-        if self.external {
-            return None;
-        }
         self.players
             .iter()
+            .filter(|p| p.simulated)
             .filter_map(|p| match p.phase {
                 Phase::Playing => Some(p.notified_ms + interval_ms),
                 Phase::Seeking(until) => Some(until),
@@ -132,7 +183,8 @@ pub fn take_commands(vm: &mut Vm) -> Vec<String> {
 
 /// Event from the host player: `{"id":1,"type":"playing"}`; types are
 /// `buffering`, `playing`, `paused`, `ended`, `duration` (`value`),
-/// `position` (`value`) and `error` (`status`, `message`).
+/// `position` (`value`), `error` (`status`, `message`, optional
+/// `category: "drm"`) and `unsupported` (no CDM for the stream's key system).
 pub fn host_event(vm: &mut Vm, event: &str) {
     if let Ok(event) = serde_json::from_str::<Json>(event) {
         vm.sg.videos.events.push_back(event);
@@ -194,6 +246,9 @@ fn player_for(vm: &mut Vm, node: &ObjectRef) -> usize {
         base_position: 0.0,
         base_ms: 0.0,
         notified_ms: 0.0,
+        simulated: !vm.sg.videos.external,
+        source: None,
+        protected: false,
     });
     vm.sg.videos.players.len() - 1
 }
@@ -227,7 +282,7 @@ pub fn control(vm: &mut Vm, node: &ObjectRef, control: &str) -> Result<()> {
     let index = player_for(vm, node);
     let now = vm.now_ms();
     let id = vm.sg.videos.players[index].id;
-    let external = vm.sg.videos.external;
+    let external = !vm.sg.videos.players[index].simulated;
     let phase = vm.sg.videos.players[index].phase;
     match control {
         "play" => play(vm, node, index),
@@ -261,52 +316,105 @@ pub fn control(vm: &mut Vm, node: &ObjectRef, control: &str) -> Result<()> {
 fn stop_player(vm: &mut Vm, index: usize) {
     let id = vm.sg.videos.players[index].id;
     vm.sg.videos.players[index].phase = Phase::Done;
-    vm.sg.videos.requests.retain(|_, (player, _)| *player != id);
-    if vm.sg.videos.external {
+    vm.sg
+        .videos
+        .requests
+        .retain(|_, (player, _, _)| *player != id);
+    if !vm.sg.videos.players[index].simulated {
         command(vm, id, "stop", json!({}));
     }
 }
 
-fn content_source(node: &ObjectRef) -> Option<(String, String)> {
+fn content_source(node: &ObjectRef) -> Option<Source> {
     let content = node_ref(&with_node(node, |n| n.raw("content")))?;
-    let (url, format) = with_node(&content, |n| (n.text("url"), n.text("streamFormat")));
-    (!url.is_empty()).then_some((url, format))
+    let (url, format, drm) = with_node(&content, |n| {
+        (n.text("url"), n.text("streamFormat"), n.raw("drmParams"))
+    });
+    let (key_system, license_url) = match &drm {
+        Value::Object(object) => match &*object.borrow() {
+            Object::AssocArray(aa) => {
+                let text = |key: &str| {
+                    aa.get(key)
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string()
+                };
+                (text("keySystem"), text("licenseServerURL"))
+            }
+            _ => Default::default(),
+        },
+        _ => Default::default(),
+    };
+    (!url.is_empty()).then_some(Source {
+        url,
+        format,
+        key_system,
+        license_url,
+    })
+}
+
+fn is_dash(url: &str, format: &str) -> bool {
+    format.eq_ignore_ascii_case("dash") || url_path(url).ends_with(".mpd")
+}
+
+fn url_path(url: &str) -> String {
+    url.split(['?', '#'])
+        .next()
+        .unwrap_or(url)
+        .to_ascii_lowercase()
 }
 
 fn play(vm: &mut Vm, node: &ObjectRef, index: usize) -> Result<()> {
-    let Some((url, format)) = content_source(node) else {
+    let Some(source) = content_source(node) else {
         return Ok(());
     };
     let id = vm.sg.videos.players[index].id;
-    vm.sg.videos.requests.retain(|_, (player, _)| *player != id);
+    vm.sg
+        .videos
+        .requests
+        .retain(|_, (player, _, _)| *player != id);
+    let external = vm.sg.videos.external;
     {
         let player = &mut vm.sg.videos.players[index];
         player.phase = Phase::Loading;
         player.duration = 0.0;
         player.base_position = 0.0;
+        player.simulated = !external;
+        player.protected = false;
+        player.source = Some(source.clone());
     }
+    vm.sg.videos.clips += 1;
     set_field(vm, node, "errorCode", Value::Integer(0))?;
     set_field(vm, node, "errorMsg", Value::string(""))?;
     set_field(vm, node, "errorStr", Value::string(""))?;
     // The device reports `buffering` after the assignment returns
     // (video/lifecycle: state still reads "none" right after `play`).
     vm.sg.videos.starting.push(id);
-    if vm.sg.videos.external {
-        command(vm, id, "load", json!({"url": url, "format": format}));
+    let preflight = is_dash(&source.url, &source.format)
+        || !source.key_system.is_empty()
+        || !source.license_url.is_empty();
+    if external && !preflight {
+        load(vm, id, &source);
         return Ok(());
     }
-    fetch(vm, id, &url, &format);
+    fetch(vm, id, &source.url, &source.format);
     Ok(())
 }
 
+/// Hands a content to the host player.
+fn load(vm: &mut Vm, id: u32, source: &Source) {
+    let mut message = json!({"url": source.url, "format": source.format});
+    if !source.license_url.is_empty() {
+        message["drm"] = json!({
+            "keySystem": source.key_system,
+            "licenseServerURL": source.license_url,
+        });
+    }
+    command(vm, id, "load", message);
+}
+
 fn is_mp4(url: &str, format: &str) -> bool {
-    format.eq_ignore_ascii_case("mp4")
-        || url
-            .split(['?', '#'])
-            .next()
-            .unwrap_or(url)
-            .to_ascii_lowercase()
-            .ends_with(".mp4")
+    format.eq_ignore_ascii_case("mp4") || url_path(url).ends_with(".mp4")
 }
 
 /// Starts a metadata request; the answer arrives in `fetched`.
@@ -315,6 +423,7 @@ fn fetch(vm: &mut Vm, player: u32, url: &str, format: &str) {
         let body = vm.env.read_file(url);
         vm.sg.videos.fetched.push_back(Fetched {
             player,
+            purpose: Purpose::Metadata,
             url: url.to_string(),
             status: if body.is_some() { 200 } else { 404 },
             body: body.unwrap_or_default(),
@@ -329,18 +438,33 @@ fn fetch(vm: &mut Vm, player: u32, url: &str, format: &str) {
     let request = json!({
         "url": url, "method": "GET", "headers": headers, "body": "",
         "peerVerify": true, "hostVerify": true, "timeout": 30000
-    })
-    .to_string();
+    });
+    send(vm, player, Purpose::Metadata, url, request);
+}
+
+/// Tests a license server with a Widevine service certificate request.
+fn check_license(vm: &mut Vm, player: u32, url: &str) {
+    let request = json!({
+        "url": url, "method": "POST",
+        "headers": {"Content-Type": "application/octet-stream"},
+        "body": STANDARD.encode(LICENSE_PROBE),
+        "peerVerify": true, "hostVerify": true, "timeout": 30000
+    });
+    send(vm, player, Purpose::License, url, request);
+}
+
+fn send(vm: &mut Vm, player: u32, purpose: Purpose, url: &str, request: Json) {
     vm.env.next_identity += 1;
     let token = vm.env.next_identity;
     vm.sg
         .videos
         .requests
-        .insert(token, (player, url.to_string()));
-    if !vm.host_http_start(token, &request) {
+        .insert(token, (player, purpose, url.to_string()));
+    if !vm.host_http_start(token, &request.to_string()) {
         vm.sg.videos.requests.remove(&token);
         vm.sg.videos.fetched.push_back(Fetched {
             player,
+            purpose,
             url: url.to_string(),
             status: -7,
             body: Vec::new(),
@@ -351,12 +475,13 @@ fn fetch(vm: &mut Vm, player: u32, url: &str, format: &str) {
 
 /// Host answer for an HTTP token; returns false when it is not a Video one.
 pub fn complete_http(vm: &mut Vm, token: u32, response: &str) -> bool {
-    let Some((player, url)) = vm.sg.videos.requests.remove(&token) else {
+    let Some((player, purpose, url)) = vm.sg.videos.requests.remove(&token) else {
         return false;
     };
     let result: Json = serde_json::from_str(response).unwrap_or(json!({"status": -7}));
     vm.sg.videos.fetched.push_back(Fetched {
         player,
+        purpose,
         url,
         status: result["status"].as_i64().unwrap_or(-7),
         body: STANDARD
@@ -383,7 +508,7 @@ pub fn service(vm: &mut Vm) -> Result<()> {
         vm.sg
             .videos
             .requests
-            .retain(|_, (player, _)| !dropped.contains(player));
+            .retain(|_, (player, _, _)| !dropped.contains(player));
         if vm.sg.videos.external {
             for id in dropped {
                 command(vm, id, "stop", json!({}));
@@ -403,24 +528,59 @@ pub fn service(vm: &mut Vm) -> Result<()> {
     while let Some(event) = vm.sg.videos.events.pop_front() {
         on_host_event(vm, &event)?;
     }
-    if !vm.sg.videos.external {
-        tick(vm)?;
-    }
+    tick(vm)?;
     Ok(())
 }
 
-fn fail(vm: &mut Vm, index: usize, node: &ObjectRef, status: i64, failure: &str) -> Result<()> {
+fn fail(vm: &mut Vm, index: usize, node: &ObjectRef, failure: Failure) -> Result<()> {
     vm.sg.videos.players[index].phase = Phase::Done;
-    let detail = if status > 0 {
-        format!(
-            "reader pick stream error:HTTP error:Transfer error: HTTP response code said error response code:({status}):{status}:extra:content_id:0:err_clip_idx:0:etype:buffer:program_id:"
-        )
-    } else {
-        format!("reader pick stream error:HTTP error:Transfer error: {failure}")
+    let clip = vm.sg.videos.clips;
+    let (code, message, detail, category, errcode, source) = match failure {
+        Failure::Http(status, text) => {
+            let reason = if status > 0 {
+                format!("HTTP response code said error response code:({status}):{status}")
+            } else {
+                text
+            };
+            (
+                -1,
+                HTTP_ERROR_MSG,
+                format!(
+                    "reader pick stream error:HTTP error:Transfer error: {reason}:extra:content_id:{clip}:err_clip_idx:0:etype:buffer:program_id:"
+                ),
+                "http",
+                2,
+                "buffer:reader",
+            )
+        }
+        Failure::Drm(reason) => (
+            -6,
+            DRM_ERROR_MSG,
+            format!(
+                "buffer:loop:unset:DRM exception: {reason}:extra:content_id:{clip}:err_clip_idx:0:etype:buffer:num_keys:0:num_lic:1:program_id:"
+            ),
+            "drm",
+            9,
+            "buffer:loop:unset",
+        ),
     };
-    set_field(vm, node, "errorCode", Value::Integer(-1))?;
-    set_field(vm, node, "errorMsg", Value::string(HTTP_ERROR_MSG))?;
+    let mut info = AssocArray::new();
+    info.set("category", Value::string(category));
+    info.set("clipid", Value::Integer(clip));
+    info.set("dbgmsg", Value::string(detail.as_str()));
+    info.set("drmerrcode", Value::Integer(0));
+    info.set("errcode", Value::Integer(errcode));
+    info.set("ignored", Value::Boolean(false));
+    info.set("source", Value::string(source));
+    set_field(vm, node, "errorCode", Value::Integer(code))?;
+    set_field(vm, node, "errorMsg", Value::string(message))?;
     set_field(vm, node, "errorStr", Value::string(detail.as_str()))?;
+    set_field(
+        vm,
+        node,
+        "errorInfo",
+        Value::object(Object::AssocArray(info)),
+    )?;
     set_state(vm, node, "error")?;
     set_state(vm, node, "finished")
 }
@@ -432,21 +592,72 @@ fn on_fetched(vm: &mut Vm, fetched: Fetched) -> Result<()> {
     if vm.sg.videos.players[index].phase != Phase::Loading {
         return Ok(());
     }
-    if !(200..300).contains(&fetched.status) {
-        return fail(vm, index, &node, fetched.status, &fetched.failure);
+    let ok = (200..300).contains(&fetched.status);
+    if fetched.purpose == Purpose::License {
+        if !ok {
+            let reason = if fetched.status > 0 {
+                format!("Http error {}", fetched.status)
+            } else {
+                fetched.failure
+            };
+            return fail(vm, index, &node, Failure::Drm(reason));
+        }
+        let duration = vm.sg.videos.players[index].duration;
+        return ready(vm, index, &node, duration);
+    }
+    if !ok {
+        return fail(
+            vm,
+            index,
+            &node,
+            Failure::Http(fetched.status, fetched.failure),
+        );
     }
     let text = String::from_utf8_lossy(&fetched.body);
-    if text.trim_start().starts_with("#EXTM3U") {
+    if is_protected(&text) {
+        vm.sg.videos.players[index].protected = true;
+    }
+    let trimmed = text.trim_start();
+    let duration = if trimmed.starts_with("#EXTM3U") {
         if let Some(variant) = hls_variant(&text) {
             let url = resolve(&fetched.url, &variant);
             fetch(vm, fetched.player, &url, "hls");
             return Ok(());
         }
-        let duration = hls_duration(&text);
-        return start(vm, index, &node, duration);
+        hls_duration(&text)
+    } else if trimmed.starts_with('<') {
+        dash_duration(&text).unwrap_or(0.0)
+    } else {
+        mp4_duration(&fetched.body).unwrap_or(0.0)
+    };
+    let player = &mut vm.sg.videos.players[index];
+    player.duration = duration;
+    if player.protected {
+        let license_url = player
+            .source
+            .as_ref()
+            .map(|s| s.license_url.clone())
+            .unwrap_or_default();
+        if license_url.is_empty() {
+            return fail(vm, index, &node, Failure::Drm("license url missing".into()));
+        }
+        check_license(vm, fetched.player, &license_url);
+        return Ok(());
     }
-    let duration = mp4_duration(&fetched.body).unwrap_or(0.0);
-    start(vm, index, &node, duration)
+    ready(vm, index, &node, duration)
+}
+
+/// Metadata (and license) checks passed: start the clock or the host player.
+fn ready(vm: &mut Vm, index: usize, node: &ObjectRef, duration: f64) -> Result<()> {
+    let player = &vm.sg.videos.players[index];
+    if player.simulated {
+        return start(vm, index, node, duration);
+    }
+    let (id, source) = (player.id, player.source.clone());
+    if let Some(source) = source {
+        load(vm, id, &source);
+    }
+    Ok(())
 }
 
 fn start(vm: &mut Vm, index: usize, node: &ObjectRef, duration: f64) -> Result<()> {
@@ -490,6 +701,9 @@ fn tick(vm: &mut Vm) -> Result<()> {
             continue;
         };
         let player = &vm.sg.videos.players[index];
+        if !player.simulated {
+            continue;
+        }
         match player.phase {
             Phase::Seeking(until) if now >= until => {
                 let player = &mut vm.sg.videos.players[index];
@@ -529,6 +743,7 @@ pub fn seek(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
     let target = with_node(node, |n| n.number("seek")).max(0.0);
     let now = vm.now_ms();
     let id = vm.sg.videos.players[index].id;
+    let external = !vm.sg.videos.players[index].simulated;
     {
         let player = &mut vm.sg.videos.players[index];
         player.base_position = if player.duration > 0.0 {
@@ -536,13 +751,13 @@ pub fn seek(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
         } else {
             target
         };
-        player.phase = if vm.sg.videos.external {
+        player.phase = if external {
             Phase::Loading
         } else {
             Phase::Seeking(now + SEEK_BUFFERING_MS)
         };
     }
-    if vm.sg.videos.external {
+    if external {
         command(vm, id, "seek", json!({"position": target}));
     }
     set_state(vm, node, "buffering")
@@ -588,7 +803,23 @@ fn on_host_event(vm: &mut Vm, event: &Json) -> Result<()> {
         "error" => {
             let status = event["status"].as_i64().unwrap_or(-7);
             let message = event["message"].as_str().unwrap_or("").to_string();
-            fail(vm, index, &node, status, &message)?;
+            let failure = if event["category"] == "drm" {
+                Failure::Drm(if status > 0 {
+                    format!("Http error {status}")
+                } else {
+                    message
+                })
+            } else {
+                Failure::Http(status, message)
+            };
+            fail(vm, index, &node, failure)?;
+        }
+        "unsupported" if phase == Phase::Loading => {
+            // No CDM for this key system: keep the device's event sequence on
+            // the engine clock (the preflight already knows the duration).
+            vm.sg.videos.players[index].simulated = true;
+            let duration = vm.sg.videos.players[index].duration;
+            start(vm, index, &node, duration)?;
         }
         _ => {}
     }
@@ -617,6 +848,48 @@ fn hls_duration(playlist: &str) -> f64 {
         .filter_map(|line| line.trim().strip_prefix("#EXTINF:"))
         .filter_map(|rest| rest.split(',').next()?.trim().parse::<f64>().ok())
         .sum()
+}
+
+/// Whether a manifest declares Widevine (or generic CENC) protection.
+fn is_protected(manifest: &str) -> bool {
+    let lower = manifest.to_ascii_lowercase();
+    lower.contains(WIDEVINE_SYSTEM_ID)
+        || lower.contains("urn:mpeg:dash:mp4protection:2011")
+        || (lower.contains("#ext-x-key") && lower.contains("keyformat=\"urn:uuid:"))
+        || lower.contains("#ext-x-session-key")
+}
+
+/// `mediaPresentationDuration` of a DASH MPD (ISO 8601 duration), seconds.
+fn dash_duration(mpd: &str) -> Option<f64> {
+    let start = mpd.find("mediaPresentationDuration=")? + "mediaPresentationDuration=".len();
+    let quote = mpd[start..].chars().next()?;
+    let value = mpd[start + 1..].split(quote).next()?;
+    iso8601_duration(value)
+}
+
+/// Seconds in an ISO 8601 duration such as `PT1H2M3.5S` or `P1DT2H`.
+fn iso8601_duration(value: &str) -> Option<f64> {
+    let rest = value.trim().strip_prefix('P')?;
+    let (mut seconds, mut number, mut in_time) = (0.0, String::new(), false);
+    for c in rest.chars() {
+        match c {
+            'T' => in_time = true,
+            '0'..='9' | '.' => number.push(c),
+            unit => {
+                let amount: f64 = number.parse().ok()?;
+                number.clear();
+                seconds += amount
+                    * match (unit, in_time) {
+                        ('D', false) => 86_400.0,
+                        ('H', true) => 3_600.0,
+                        ('M', true) => 60.0,
+                        ('S', true) => 1.0,
+                        _ => return None,
+                    };
+            }
+        }
+    }
+    number.is_empty().then_some(seconds)
 }
 
 /// Resolves a playlist reference against the playlist URL.
@@ -699,6 +972,30 @@ mod tests {
         let media = "#EXTM3U\n#EXTINF:10.0,\na.ts\n#EXTINF:4.5,\nb.ts\n#EXT-X-ENDLIST\n";
         assert_eq!(hls_variant(media), None);
         assert_eq!(hls_duration(media), 14.5);
+    }
+
+    #[test]
+    fn parses_dash_durations() {
+        assert_eq!(iso8601_duration("PT60S"), Some(60.0));
+        assert_eq!(iso8601_duration("PT1H2M3.5S"), Some(3723.5));
+        assert_eq!(iso8601_duration("P1DT1S"), Some(86_401.0));
+        assert_eq!(iso8601_duration("PT5"), None);
+        let mpd = r#"<MPD type="static" mediaPresentationDuration="PT0H1M0.00S">"#;
+        assert_eq!(dash_duration(mpd), Some(60.0));
+    }
+
+    #[test]
+    fn detects_protected_manifests() {
+        let widevine =
+            r#"<ContentProtection schemeIdUri="urn:uuid:EDEF8BA9-79D6-4ACE-A3C8-27DCD51D21ED"/>"#;
+        assert!(is_protected(widevine));
+        assert!(is_protected(
+            "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI=\"data:x\",KEYFORMAT=\"urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\"\n"
+        ));
+        assert!(!is_protected("<MPD><Period/></MPD>"));
+        assert!(!is_protected(
+            "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"k\"\n"
+        ));
     }
 
     #[test]
