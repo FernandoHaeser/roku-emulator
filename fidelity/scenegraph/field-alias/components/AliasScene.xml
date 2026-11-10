@@ -1,0 +1,1 @@
+<component name="AliasScene" extends="Scene"><script type="text/brightscript" uri="AliasScene.brs"/><children><Card id="card"/><Outer id="outer"/><Explicit id="explicit"/><Timer id="timer" duration="0.2"/></children></component>

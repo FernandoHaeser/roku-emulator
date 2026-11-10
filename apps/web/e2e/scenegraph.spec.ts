@@ -84,3 +84,46 @@ test("scenegraph/focus-keys matches the device golden and Home returns to the la
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Tela inicial")).toBeHidden();
 });
+
+test("scenegraph/field-alias matches native initialization, events and clone isolation", async ({
+  page,
+}) => {
+  const probe = "scenegraph/field-alias";
+  const golden = readFileSync(join(repoRoot, "fidelity", probe, "golden/console.txt"), "utf8");
+  await page.goto("/");
+  await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
+  await sideload(page, probe);
+  await expect.poll(async () => (await consoleLines(page)).includes("@@PROBE_END")).toBe(true);
+  expect(probeOutput(await consoleLines(page))).toBe(golden);
+});
+
+test("scenegraph/scene-background retains the theme until backgroundUri is assigned", async ({
+  page,
+}) => {
+  const probe = "scenegraph/scene-background";
+  const golden = readFileSync(join(repoRoot, "fidelity", probe, "golden/console.txt"), "utf8");
+  const backgroundPixel = () =>
+    page.evaluate(() => {
+      const source = document.querySelector<HTMLCanvasElement>(
+        '[aria-label="Tela do dispositivo"] canvas',
+      )!;
+      const copy = document.createElement("canvas");
+      copy.width = copy.height = 1;
+      const context = copy.getContext("2d")!;
+      context.drawImage(source, 0, 0, source.width, source.height, 0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data);
+    });
+  await page.goto("/");
+  await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
+  await sideload(page, probe);
+  await expect.poll(backgroundPixel).toEqual([48, 48, 64, 255]);
+  for (const key of ["ArrowRight", "ArrowDown"]) {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(200);
+    expect(await backgroundPixel()).toEqual([48, 48, 64, 255]);
+  }
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => (await consoleLines(page)).includes("@@PROBE_END")).toBe(true);
+  await expect.poll(backgroundPixel).toEqual([0, 0, 0, 255]);
+  expect(probeOutput(await consoleLines(page))).toBe(golden);
+});

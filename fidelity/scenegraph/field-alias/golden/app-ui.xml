@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="Field alias conformance" />
+		<screen type="SGScreen" focused="true">
+			<AliasScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1280, 720}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Card children="2" extends="Group" name="card" rcid="0" bounds="{0, 0, 137, 36}" index="0">
+					<Rectangle name="box" rcid="0" translation="{9, 10}" bounds="{9, 10, 30, 26}" color="#ffffffff" index="0" />
+					<Label name="title" rcid="0" bounds="{0, 0, 137, 36}" text="child only" color="#fefefeff" index="0" />
+				</Card>
+				<Outer children="1" extends="Group" name="outer" rcid="0" bounds="{0, 0, 110, 36}" index="0">
+					<Card children="2" extends="Group" name="inner" rcid="0" bounds="{0, 0, 110, 36}" index="0">
+						<Rectangle name="box" rcid="0" translation="{5, 6}" bounds="{5, 6, 52, 20}" color="#ffffffff" index="0" />
+						<Label name="title" rcid="0" bounds="{0, 0, 110, 36}" text="outside" color="#fefefeff" index="0" />
+					</Card>
+				</Outer>
+				<Explicit children="1" extends="Group" name="explicit" rcid="0" bounds="{0, 0, 134, 36}" index="0">
+					<Label name="inside" rcid="0" bounds="{0, 0, 134, 36}" text="interface" color="#fefefeff" index="0" />
+				</Explicit>
+			</AliasScene>
+		</screen>
+	</topscreen>
+</app-ui>

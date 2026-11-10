@@ -1,0 +1,1 @@
+<component name="Translated" extends="Group"><interface><field id="translation" type="vector2d" alias="target.translation"/></interface><children><Rectangle id="target" width="10" height="10" translation="[2,3]"/></children></component>

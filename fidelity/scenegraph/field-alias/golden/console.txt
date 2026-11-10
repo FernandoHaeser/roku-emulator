@@ -1,0 +1,62 @@
+init width= 40  mirror= 40  caption="child" point=[5,6]
+init width= 40  mirror= 40  caption="child" point=[5,6]
+-- parent write
+width= 80  live= 80  field=width node=Rectangle id=box
+mirror=invalid live= 80  field=mirror node=Rectangle id=box
+observed= 80  live= 80  field=width node=Card id=card
+child= 80  parent= 80  field=width node=Rectangle id=box
+read= 80 , 80 , 80 
+-- child write
+width= 45  live= 45  field=width node=Rectangle id=box
+mirror=invalid live= 45  field=mirror node=Rectangle id=box
+observed= 45  live= 45  field=width node=Card id=card
+child= 45  parent= 45  field=width node=Rectangle id=box
+read= 45 , 45 , 45 
+text=parent
+caption=nested
+point=[3,4]
+point=[7,8]
+-- repeat
+-- cascade
+width= 90  live= 90  field=width node=Rectangle id=box
+mirror=invalid live= 30  field=mirror node=Rectangle id=box
+observed= 30  live= 30  field=width node=Card id=card
+child= 30  parent= 30  field=width node=Rectangle id=box
+final= 30 , 30 , 30 
+-- port and alwaysNotify
+port= 25  field=heightAlias node=Card id=card
+port= 27  field=heightAlias node=Card id=card
+unobserved=true
+-- vector equality
+repeat point suppressed=true
+point event=[9,10] node=Card
+-- nested alias
+width= 52  live= 52  field=width node=Rectangle id=box
+mirror=invalid live= 52  field=mirror node=Rectangle id=box
+observed= 52  live= 52  field=width node=Card id=inner
+child= 52  parent= 52  field=width node=Rectangle id=box
+nested event= 52  field=innerWidth node=Outer
+nested= 52 , 52 
+nested text=outside
+explicit=interface,interface
+-- clone child
+copied child= 71 ,original= 30 
+-- clone
+BRIGHTSCRIPT: ERROR: roSGNode.Clone: No such field RenderableNode::width: pkg:/components/AliasScene.brs(69)
+deep clone invalid=true
+BRIGHTSCRIPT: ERROR: roSGNode.Clone: No such field RenderableNode::width: pkg:/components/AliasScene.brs(71)
+shallow clone invalid=true
+BRIGHTSCRIPT: ERROR: roSGNode.Clone: No such field RenderableNode::caption: pkg:/components/AliasScene.brs(72)
+explicit clone invalid=true
+BRIGHTSCRIPT: ERROR: roSGNode.Clone: No such field RenderableNode::width: pkg:/components/AliasScene.brs(73)
+outer clone invalid=true
+builtin alias initial=[0,0],child=[2,3]
+builtin alias write=[4,5],child=[2,3]
+builtin alias clone invalid=false
+builtin alias clone subtype=Translated
+builtin alias copied=[11,12],child=[2,3],original=[4,5]
+-- remove alias
+removed=true
+has caption=false
+added=true
+after remove=independent,child only

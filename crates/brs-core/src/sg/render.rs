@@ -339,7 +339,19 @@ struct Transform {
 pub fn display_list(vm: &Vm) -> Option<String> {
     let screen = vm.sg.screens.iter().rev().find(|s| s.shown && !s.closed)?;
     let scene = screen.scene.clone()?;
-    let background = with_node(&scene, |n| n.number("backgroundColor") as i64 as i32);
+    let background = with_node(&scene, |n| {
+        if n.children.iter().any(|child| {
+            with_node(child, |n| {
+                matches!(n.native_paint, Some(super::NativePaint::SceneTheme))
+            })
+        }) {
+            // Geneva's opaque default theme image covers backgroundColor until
+            // backgroundUri is explicitly assigned (scenegraph/scene-background).
+            0x3030_40FF
+        } else {
+            n.number("backgroundColor") as i64 as i32
+        }
+    });
     let mut out = format!(
         "{{\"w\":{},\"h\":{},\"bg\":{},\"items\":[",
         vm.sg.design_width, vm.sg.design_height, background

@@ -10,7 +10,7 @@ username and password fields, and masks the password. On 2026-11-10, login with
 the user-provided test account succeeded on the second result for `demo`
 (`demo.cdn.tv.br`): the authentication callback completed and the channel grid
 loaded without reported runtime errors. Credentials, tokens and private traces
-are not stored in this repository. Catalog layout still shows overlaps;
+are not stored in this repository. Catalog overlap was corrected with native LayoutGroup and MarkupGrid geometry;
 playback has not been validated by this login check.
 
 On 2026-11-10, the same remote-key sequence typed exactly `demo` in the
@@ -111,6 +111,20 @@ Device rules recorded while doing so, each with its own probe:
 - `isSubtype()` excludes the node's own type, except where a native widget
   reports a public type other than its own (InfoPane → `InfoLabel`).
 
-After the Orca restart, the configured device did not answer a bounded ECP probe
-and SSDP discovery found no Roku. Further native font/alias measurements require
-the physical device to become reachable.
+The physical device became reachable again on 2026-11-10. The new
+`scenegraph/field-alias` probe validates initialization before `init()`, explicit
+initial values, parent/child writes, nested aliases, callback identity and order,
+message-port snapshots, repeated vector values, removal and clone isolation.
+Native aliases do not redirect built-in fields. Cloning a custom alias field
+that is absent from the native class returns `invalid` with a diagnostic;
+cloning an ordinary target child does not retain its parent's alias bindings.
+This coverage does not establish complete SceneGraph compatibility;
+`ComponentLibrary` and broader invalid-alias cases remain pending.
+
+The default Scene background is now based on a separate device measurement
+(`scenegraph/scene-background`): `backgroundColor` initially reads `0x0B001BFF`,
+while an opaque Geneva theme image is visible above it. Assigning only the color
+does not remove that image. Explicitly assigning `backgroundUri = ""`, even
+though the field already reads empty, clears it and reveals the color. The
+renderer reproduces the measured solid theme color; custom background images
+and other Roku themes still require coverage.
