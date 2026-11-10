@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="probe-widgets-keyboard-input" />
+		<screen type="SGScreen" focused="true">
+			<KeyboardScene children="0" extends="Scene" focused="true" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#202020ff" index="0" />
+				<MiniKeyboard children="1" name="keyboard" focused="true" focusable="true" rcid="0" translation="{50, 250}" bounds="{50, 250, 390, 470}" index="0">
+					<LayoutGroup children="2" focused="true" rcid="0" translation="{195, 0}" bounds="{0, 0, 390, 470}" index="0">
+						<LayoutGroup children="1" rcid="0" translation="{-185, 24}" bounds="{-185, 0, 370, 48}" index="0">
+							<TextEditBox children="4" rcid="0" translation="{0, -24}" bounds="{0, -24, 370, 48}" index="0">
+								<Poster rcid="0" bounds="{0, 0, 370, 48}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/inputField.9.png" loadStatus="3" index="0" />
+								<Label rcid="0" translation="{24, 11}" bounds="{24, 11, 322, 26}" text="" color="#665d71ff" index="0" />
+								<Poster rcid="0" opacity="0" translation="{24, 11}" bounds="{24, 11, 3, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/cursor_textInput.webp" loadStatus="3" index="1" />
+								<RenderableNode rcid="0" visible="false" translation="{24, 37}" index="0" />
+							</TextEditBox>
+						</LayoutGroup>
+						<Poster children="1" name="keyboard background" focused="true" rcid="0" translation="{-194.5, 49.5}" bounds="{-195, 48, 390, 422}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/keyboard_search.webp" loadStatus="3" index="0">
+							<VKBGrid focused="true" focusable="true" rcid="0" translation="{14.5, 13.5}" bounds="{-0.5, -1.5, 390, 422}" children="40" count="39" focusItem="38" index="0">
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:a" index="0" bounds="{0, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="a" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:b" index="1" bounds="{60, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="b" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:c" index="2" bounds="{120, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="c" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:d" index="3" bounds="{180, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="d" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:e" index="4" bounds="{240, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="e" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:f" index="5" bounds="{300, 0, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="f" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:g" index="6" bounds="{0, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="g" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:h" index="7" bounds="{60, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="h" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:i" index="8" bounds="{120, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="i" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:j" index="9" bounds="{180, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="j" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:k" index="10" bounds="{240, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="k" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:l" index="11" bounds="{300, 56, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="l" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:m" index="12" bounds="{0, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="m" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:n" index="13" bounds="{60, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="n" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:o" index="14" bounds="{120, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="o" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:p" index="15" bounds="{180, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="p" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:q" index="16" bounds="{240, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="q" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:r" index="17" bounds="{300, 112, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="r" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:s" index="18" bounds="{0, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="s" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:t" index="19" bounds="{60, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="t" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:u" index="20" bounds="{120, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="u" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:v" index="21" bounds="{180, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="v" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:w" index="22" bounds="{240, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="w" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:x" index="23" bounds="{300, 168, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="x" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:y" index="24" bounds="{0, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="y" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:z" index="25" bounds="{60, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 14}" bounds="{0, 14, 58, 26}" text="z" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:1" index="26" bounds="{120, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="1" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:2" index="27" bounds="{180, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="2" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:3" index="28" bounds="{240, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="3" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:4" index="29" bounds="{300, 224, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="4" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:5" index="30" bounds="{0, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="5" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:6" index="31" bounds="{60, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="6" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:7" index="32" bounds="{120, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="7" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:8" index="33" bounds="{180, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="8" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:9" index="34" bounds="{240, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="9" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="1" focusable="true" rcid="0" uiElementId="vkey:0" index="35" bounds="{300, 280, 58, 54}">
+									<Label rcid="0" translation="{0, 16}" bounds="{0, 16, 58, 26}" text="0" color="#fefefeff" index="0" />
+								</VKBKey>
+								<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:clear" index="36" bounds="{0, 336, 118, 54}">
+									<Poster rcid="0" translation="{47, 15}" bounds="{47, 15, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_clear.webp" loadStatus="3" index="0" />
+									<Poster rcid="0" visible="false" translation="{47, 15}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_clear.webp" loadStatus="3" index="1" />
+								</VKBKey>
+								<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:space" index="37" bounds="{120, 336, 118, 54}">
+									<Poster rcid="0" translation="{47, 15}" bounds="{47, 15, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_space.webp" loadStatus="3" index="0" />
+									<Poster rcid="0" visible="false" translation="{47, 15}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_space.webp" loadStatus="3" index="1" />
+								</VKBKey>
+								<VKBKey children="2" focusable="true" rcid="0" uiElementId="vkey:backSpace" index="38" focused="true" bounds="{240, 336, 118, 54}">
+									<Poster rcid="0" visible="false" translation="{47, 15}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_delete.webp" loadStatus="3" index="0" />
+									<Poster rcid="0" translation="{47, 15}" bounds="{47, 15, 24, 24}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/icon_delete.webp" loadStatus="3" index="1" />
+								</VKBKey>
+							</VKBGrid>
+						</Poster>
+					</LayoutGroup>
+				</MiniKeyboard>
+			</KeyboardScene>
+		</screen>
+	</topscreen>
+</app-ui>

@@ -21,6 +21,8 @@ interface EngineExports {
   brs_run(budget: number, nowMs: number): number;
   brs_sleep_until(): number;
   brs_key(pressed: number): void;
+  brs_text_input_active(): number;
+  brs_text_input(): number;
   brs_debugger_command(): number;
   brs_http_complete(id: number): void;
   brs_image_requests(): number;
@@ -91,6 +93,11 @@ export class BrsEngine {
           return size;
         },
         debug_resumed: () => debuggerHost?.resumed(),
+        panic_report: (pointer: number, length: number) => {
+          console.error(
+            new TextDecoder().decode(new Uint8Array(exports.memory.buffer, pointer, length)),
+          );
+        },
         http_request: (
           pointer: number,
           length: number,
@@ -114,6 +121,14 @@ export class BrsEngine {
     });
     const exports = instance.exports as unknown as EngineExports;
     return new BrsEngine(exports);
+  }
+
+  textInputMode(): number {
+    return this.exports.brs_text_input_active();
+  }
+  textInput(text: string, command: string): boolean {
+    this.writeScratch(JSON.stringify({ text, command }));
+    return this.exports.brs_text_input() !== 0;
   }
 
   /** Copies `bytes` into a fresh module allocation (ownership passes to Rust). */

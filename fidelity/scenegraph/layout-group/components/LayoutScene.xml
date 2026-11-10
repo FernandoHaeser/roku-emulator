@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="LayoutScene" extends="Scene"><script type="text/brightscript" uri="LayoutScene.brs"/>
+<children>
+<Rectangle width="1920" height="1080" color="0x202020ff"/>
+<LayoutGroup id="outer" layoutDirection="horiz" translation="[300,300]" itemSpacings="[10,20]">
+<Rectangle id="a" width="60" height="40" color="0xff0000ff" translation="[77,88]"/>
+<Rectangle id="b" width="100" height="70" color="0x00ff00ff"/>
+<LayoutGroup id="inner" itemSpacings="[5]">
+<Rectangle id="c" width="30" height="20" color="0x0000ffff"/>
+<Rectangle id="d" width="50" height="30" color="0xffff00ff"/>
+</LayoutGroup>
+</LayoutGroup>
+<LayoutGroup id="offset" translation="[600,300]" itemSpacings="[7]">
+<Group id="wrapped"><Rectangle width="40" height="20" translation="[-20,15]" color="0xff00ffff"/></Group>
+<Rectangle id="e" width="25" height="35" color="0x00ffffff"/>
+</LayoutGroup>
+<Group id="visibility"><Rectangle width="20" height="20" visible="false"/><Rectangle translation="[50,0]" width="10" height="10"/></Group>
+<Rectangle id="rectangleWrapper" translation="[900,200]" color="0x00000000"><Rectangle translation="[15,20]" width="40" height="10" color="0xff8800ff"/></Rectangle>
+<Timer id="timer" duration="0.25" repeat="true"/>
+</children></component>

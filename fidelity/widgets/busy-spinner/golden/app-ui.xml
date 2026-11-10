@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="Selection controls probe" />
+		<screen type="SGScreen" focused="true">
+			<SpinnerScene children="0" extends="Scene" focusable="true" rcid="0" bounds="{0, 0, 1920, 1080}">
+				<Poster rcid="0" inheritParentTransform="false" inheritParentOpacity="false" bounds="{0, 0, 1280, 720}" uri="/RokuOS/Artwork/SceneGraph/GenevaTheme/Base/HD/background.png" loadStatus="3" index="0" />
+				<Rectangle rcid="0" bounds="{0, 0, 1920, 1080}" color="#000000ff" index="0" />
+				<ProbeSpinner children="1" extends="BusySpinner" name="spinner" rcid="0" translation="{300, 300}" index="0">
+					<Poster rcid="0" loadStatus="2" index="0" />
+				</ProbeSpinner>
+				<BusySpinner children="1" name="static" rcid="0" translation="{600, 300}" bounds="{600, 300, 75, 75}" index="0">
+					<Poster rcid="0" scaleRotateCenter="{37.5, 37.5}" bounds="{0, 0, 75, 75}" uri="pkg:/images/panel.png" loadStatus="3" index="0" />
+				</BusySpinner>
+			</SpinnerScene>
+		</screen>
+	</topscreen>
+</app-ui>

@@ -695,6 +695,11 @@ impl Parser {
                     self.expect(&TokenKind::RightBracket, "]")?;
                     expr = Expr::Index(Box::new(expr), indexes);
                 }
+                TokenKind::Question if self.peek_at(1) == &TokenKind::Dot => {
+                    self.advance();
+                    self.advance();
+                    expr = Expr::OptionalDot(Box::new(expr), self.name_token()?);
+                }
                 TokenKind::Dot => {
                     self.advance();
                     let name = self.name_token()?;
@@ -754,8 +759,12 @@ impl Parser {
                 return Ok(Expr::ArrayLiteral(items));
             }
             items.push(self.expression()?);
+            let newline_separator = self.check(&TokenKind::Newline);
             self.skip_line_breaks();
-            if !self.eat(&TokenKind::Comma) && !self.check(&TokenKind::RightBracket) {
+            if !self.eat(&TokenKind::Comma)
+                && !newline_separator
+                && !self.check(&TokenKind::RightBracket)
+            {
                 return self.error("Syntax Error: expected , or ] in array literal");
             }
         }
@@ -779,8 +788,12 @@ impl Parser {
             self.expect(&TokenKind::Colon, ":")?;
             self.skip_line_breaks();
             entries.push((key, self.expression()?));
+            let newline_separator = self.check(&TokenKind::Newline);
             self.skip_line_breaks();
-            if !self.eat(&TokenKind::Comma) && !self.check(&TokenKind::RightBrace) {
+            if !self.eat(&TokenKind::Comma)
+                && !newline_separator
+                && !self.check(&TokenKind::RightBrace)
+            {
                 return self.error("Syntax Error: expected , or } in associative array literal");
             }
         }
@@ -843,6 +856,25 @@ mod tests {
         };
         assert_eq!(entries[0].0, "b");
         assert_eq!(entries[1].0, "C");
+    }
+
+    #[test]
+    fn multiline_collection_literals_allow_newlines_as_separators() {
+        let statements = body("a = {\n first: [] ' comment\n second: { nested: true }\n third: [1\n2,\n3]\n}\nb = [\n{one: 1}\n{two: 2}\n]");
+        let StmtKind::Assign {
+            value: Expr::AssocArrayLiteral(entries),
+            ..
+        } = &statements[0].kind
+        else {
+            panic!()
+        };
+        assert_eq!(entries.len(), 3);
+        let Expr::ArrayLiteral(items) = &entries[2].1 else {
+            panic!()
+        };
+        assert_eq!(items.len(), 3);
+        assert!(parse_source("sub Main()\n a = { one: 1 two: 2 }\nend sub").is_err());
+        assert!(parse_source("sub Main()\n a = [1 2]\nend sub").is_err());
     }
 
     #[test]

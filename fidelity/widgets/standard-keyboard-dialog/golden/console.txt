@@ -1,0 +1,7 @@
+string interface=true
+max= 15
+text="a"
+text="ab"
+button= 0
+final="ab"
+closed

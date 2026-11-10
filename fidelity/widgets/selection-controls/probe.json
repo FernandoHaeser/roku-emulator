@@ -1,0 +1,121 @@
+{
+  "kind": "conformance",
+  "steps": [
+    {
+      "key": "Up",
+      "waitMs": 150
+    },
+    {
+      "key": "Left",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Right",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "Options",
+      "waitMs": 200
+    },
+    {
+      "key": "OK",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "OK",
+      "waitMs": 150
+    },
+    {
+      "key": "Down",
+      "waitMs": 150
+    },
+    {
+      "key": "OK",
+      "waitMs": 150
+    },
+    {
+      "key": "Back",
+      "waitMs": 150
+    }
+  ],
+  "settleMs": 300,
+  "capture": {
+    "appUi": true,
+    "screenshot": true
+  },
+  "visual": {
+    "tolerance": 0.0125
+  }
+}

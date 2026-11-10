@@ -1,0 +1,8 @@
+<component name="SelectionScene" extends="Scene">
+<script type="text/brightscript" uri="SelectionScene.brs" />
+<children>
+<Rectangle width="1920" height="1080" color="0x101820FF" />
+<Keyboard id="keyboard" translation="[50,250]" />
+<RadioButtonList id="radio" translation="[1450,250]" itemSize="[420,72]" />
+</children>
+</component>

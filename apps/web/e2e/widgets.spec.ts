@@ -11,7 +11,7 @@ const keys: Record<string, string> = {
   Left: "ArrowLeft",
   Right: "ArrowRight",
   OK: "Enter",
-  Back: "Backspace",
+  Back: "Escape",
   Options: "o",
 };
 for (const probe of readdirSync(root).sort()) {
@@ -30,7 +30,13 @@ for (const probe of readdirSync(root).sort()) {
     await expect.poll(() => output.allTextContents()).toContain("@@PROBE_BEGIN");
     await page.waitForTimeout(spec.startDelayMs);
     for (const step of spec.steps) {
-      await page.keyboard.press(keys[step.key] ?? step.key);
+      if (step.key === "Options") {
+        const options = page.getByRole("button", { name: "Opções", exact: true });
+        await options.click();
+        await options.evaluate((button) => button.blur());
+      } else {
+        await page.keyboard.press(keys[step.key] ?? step.key);
+      }
       await page.waitForTimeout(step.waitMs);
     }
     await expect.poll(() => output.allTextContents()).toContain("@@PROBE_END");

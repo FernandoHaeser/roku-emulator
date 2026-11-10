@@ -21,7 +21,7 @@ home screen; those are the current architecture.
    macOS in CI, and a tag-driven release workflow. Remaining (owner actions):
    publisher created; finish the Entra ID (OIDC) publishing setup in
    [marketplace-publishing.md](marketplace-publishing.md) and decide
-   when to publish.
+   when to publish. Publication is explicitly deferred.
 4. F4 renderer: in progress. Done: 720p surface like the device, screenshot
    diff suite (`apps/web/e2e/visual.spec.ts`, budgets in each `probe.json`),
    device edge snapping for rectangles/posters, calibrated text metrics
@@ -39,7 +39,10 @@ home screen; those are the current architecture.
    item bindings, ButtonGroup/modal Dialog events and Keyboard text/cursor
    behavior. Browser tests compare event traces and device screenshots. Widget
    animation timing, sections, specialized variants and full theme geometry
-   still require more work; this is not complete widget compatibility.
+   still require more work; this is not complete widget compatibility. The
+   real-channel compatibility work adds device-recorded BusySpinner and HD/FHD
+   RadioButtonList behavior, keyboard boundary handling and initial geometry;
+   see [compatibility validation](channel-compatibility.md).
 6. F6 video: in progress on `feature/f6-video`. Done: Video node with the
    device's 146 field defaults and state sequence (`video/lifecycle`: MP4
    from HTTP and `pkg:/`, HLS, HTTP 404 error fields), a simulated player for
@@ -48,11 +51,14 @@ home screen; those are the current architecture.
    (`video/drm`): `drmParams` license server, device error fields for a
    missing or failing license server, EME playback through Shaka where a CDM
    exists. Next: trick play, captions and audio tracks.
-7. F8 shell tools: in progress on `feature/f8-shell`. Done: clickable remote
+7. F8 shell tools: implemented. clickable remote
    (pointer press/release, same routing as the keyboard, Home handled by the
    OS) and the node inspector (live tree from the engine's `scene`
-   inspection, fields, filter, highlight over the screen). Next: network
-   panel, registry panel and hot reload.
+   inspection, fields, filter, highlight over the screen), bounded network
+   metadata, live registry inspection/editing/deletion, and VS Code hot reload
+   that packages source changes, redeploys serially and preserves registry data.
+   Browser tests cover network and registry persistence; the real VS Code test
+   covers hot reload followed by debugging. See [shell tools](shell-tools.md).
 8. After the agreed
    implementation sequence, freeze feature work and review GitHub tasks #5–#16
    (platform integrity and CI/CD). Native desktop/F9 mocks remain later roadmap

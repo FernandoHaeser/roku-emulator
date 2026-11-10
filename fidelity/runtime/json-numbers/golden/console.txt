@@ -1,0 +1,29 @@
+0 [0] print= 0 
+1.5 [1.5] print= 1.5 
+0.1 [0.1] print= 0.1 
+-2.25 [-2.25] print=-2.25 
+0.333333 [0.333333] print= 0.333333 
+19 [19] print= 19 
+123457 [123457] print= 123457 
+1234567 [1234567] print= 1.23457e+06 
+16777216 [16777216] print= 1.67772e+07 
+10000000000 [10000000000] print= 1e+10 
+2147483647 [2147483647] print= 2147483647 
+1e-07 [1e-07] print= 1e-07 
+3.399999952e+38 [3.399999952e+38] print= 3.4e+38 
+0.1 print= 0.1 
+0.333333 print= 0.33333333333333 
+2147483648 print= 2147483648 
+1e+20 print= 1e+20 
+19 print= 19 
+[2147483647,2147483666]
+Double Double Integer Double Integer
+Double Float Double Double
+ 16777215 Float Float Float Float Boolean
+ 16777216 Float Float Float Float Boolean
+ 16777217 Float Float Float Float Boolean
+-16777217 Float Float Float Float Boolean
+ 33554432 Float Float Float Float Boolean
+ 33554433 Float Float Float Float Boolean
+ 100000000 Float Float Float Float Boolean
+Double Float Float Float

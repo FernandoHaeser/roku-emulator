@@ -1,0 +1,51 @@
+{
+  "kind": "conformance",
+  "startDelayMs": 500,
+  "settleMs": 300,
+  "steps": [
+    {
+      "key": "Right",
+      "waitMs": 250
+    },
+    {
+      "key": "OK",
+      "waitMs": 250
+    },
+    {
+      "key": "Right",
+      "waitMs": 250
+    },
+    {
+      "key": "OK",
+      "waitMs": 250
+    },
+    {
+      "key": "Down",
+      "waitMs": 250
+    },
+    {
+      "key": "Down",
+      "waitMs": 250
+    },
+    {
+      "key": "Down",
+      "waitMs": 250
+    },
+    {
+      "key": "Down",
+      "waitMs": 250
+    },
+    {
+      "key": "OK",
+      "waitMs": 250
+    },
+    {
+      "key": "Back",
+      "waitMs": 250
+    }
+  ],
+  "capture": {
+    "appUi": true,
+    "screenshot": true
+  }
+}

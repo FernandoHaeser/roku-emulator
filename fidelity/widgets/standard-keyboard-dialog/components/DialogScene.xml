@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="DialogScene" extends="Scene">
+<script type="text/brightscript" uri="DialogScene.brs" />
+<children><Rectangle width="1920" height="1080" color="0x202020ff"/><TextEditBox id="field" translation="[50,250]"/></children>
+</component>

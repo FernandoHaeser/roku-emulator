@@ -79,6 +79,14 @@ test("channel HTTP sync/async, files, cookies, Digest and cancellation use the l
       "cancelled=true",
     ])
       await expect(log).toContainText(line);
+    await page.getByRole("tab", { name: "Rede", exact: true }).click();
+    const network = page.getByRole("region", { name: "Rede", exact: true });
+    await expect(network.getByRole("row").filter({ hasText: "/post" })).toContainText("201");
+    await expect(network.getByRole("row").filter({ hasText: "/digest" })).toContainText("200");
+    await expect(network).not.toContainText("test-password");
+    await expect(network).not.toContainText("payload");
+    await network.getByRole("button", { name: "Limpar rede" }).click();
+    await expect(network).toContainText("Sem requisições.");
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

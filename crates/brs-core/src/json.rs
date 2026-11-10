@@ -2,8 +2,9 @@
 //! (fidelity/runtime/json): integers that fit 32 bits are Integer, larger ones
 //! LongInteger, numbers with a fraction or exponent are Float; FormatJson sorts
 //! keys byte-wise and escapes non-ASCII as uppercase `\uXXXX`.
+//! Number formatting follows fidelity/runtime/json-numbers (see `format_number`).
 
-use crate::value::{format_double, format_float, AssocArray, Object, Value};
+use crate::value::{format_general, AssocArray, Object, Value};
 
 pub fn parse(text: &str) -> Result<Value, String> {
     let mut parser = Parser {
@@ -220,6 +221,21 @@ pub fn format(value: &Value) -> Result<String, String> {
     Ok(out)
 }
 
+/// FormatJson does not reuse PRINT's formatting for Float/Double: integral
+/// values that fit a 64-bit integer are written in full (`2147483648`, not
+/// `2.14748e+09`), larger integral values use 10 significant digits and
+/// fractional values use 6, like `%g`.
+fn format_number(value: f64) -> String {
+    const I64_LIMIT: f64 = 9_223_372_036_854_775_808.0;
+    if value.fract() == 0.0 && value.abs() < I64_LIMIT {
+        (value as i64).to_string()
+    } else if value.fract() == 0.0 {
+        format_general(value, 10)
+    } else {
+        format_general(value, 6)
+    }
+}
+
 fn write_value(out: &mut String, value: &Value, depth: usize) -> Result<(), String> {
     if depth > 256 {
         return Err("Nested object reference".into());
@@ -229,8 +245,8 @@ fn write_value(out: &mut String, value: &Value, depth: usize) -> Result<(), Stri
         Value::Boolean(b) => out.push_str(if *b { "true" } else { "false" }),
         Value::Integer(v) => out.push_str(&v.to_string()),
         Value::LongInteger(v) => out.push_str(&v.to_string()),
-        Value::Float(v) => out.push_str(&format_float(*v)),
-        Value::Double(v) => out.push_str(&format_double(*v)),
+        Value::Float(v) => out.push_str(&format_number(f64::from(*v))),
+        Value::Double(v) => out.push_str(&format_number(*v)),
         Value::String(text) => write_string(out, text),
         Value::Object(object) => match &*object.borrow() {
             Object::Boxed(inner) => write_value(out, inner, depth + 1)?,

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="DialogScene" extends="Scene">
+<script type="text/brightscript" uri="DialogScene.brs"/>
+<children>
+<TextEditBox id="username" translation="[50,100]" maxTextLength="30"/>
+<TextEditBox id="password" translation="[50,250]" secureMode="true" maxTextLength="30"/>
+</children>
+</component>

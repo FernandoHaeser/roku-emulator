@@ -23,7 +23,7 @@ const KEYBOARD: Record<string, string> = {
   Left: "ArrowLeft",
   Right: "ArrowRight",
   OK: "Enter",
-  Back: "Backspace",
+  Back: "Escape",
   Options: "o",
 };
 
@@ -118,9 +118,18 @@ for (const probe of findVisualProbes(fidelityRoot)) {
     await expect.poll(async () => (await consoleLines(page)).includes("@@PROBE_BEGIN")).toBe(true);
     await page.waitForTimeout(spec.startDelayMs);
     for (const step of spec.steps) {
-      await page.keyboard.press(KEYBOARD[step.key] ?? step.key);
+      if (step.key === "Options") {
+        const options = page.getByRole("button", { name: "Opções", exact: true });
+        await options.click();
+        await options.evaluate((button) => button.blur());
+      } else {
+        await page.keyboard.press(KEYBOARD[step.key] ?? step.key);
+      }
       await page.waitForTimeout(step.waitMs);
     }
+    // Match the recorder: capture the completed probe, including timer-driven
+    // layout updates, rather than an arbitrary frame after its BEGIN marker.
+    await expect.poll(async () => (await consoleLines(page)).includes("@@PROBE_END")).toBe(true);
     await page.waitForTimeout(spec.settleMs);
 
     // Golden size comes from the JPEG/PNG header via a decode in compareImages;

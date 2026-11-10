@@ -62,6 +62,39 @@ impl Vm {
         let op = request["op"].as_str().unwrap_or("");
         match op {
             "scene" => return Ok(self.debug_scene()),
+            "registry" => {
+                return serde_json::from_str(&self.env.registry_json()).map_err(|e| e.to_string())
+            }
+            "registrySet" => {
+                let section = request["section"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or("Missing registry section")?;
+                let key = request["key"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or("Missing registry key")?;
+                match &request["value"] {
+                    Json::String(value) => {
+                        self.env
+                            .registry
+                            .entry(section.to_string())
+                            .or_default()
+                            .insert(key.to_string(), value.clone());
+                    }
+                    Json::Null if request.get("value").is_some() => {
+                        if let Some(entries) = self.env.registry.get_mut(section) {
+                            entries.remove(key);
+                        }
+                        if self.env.registry.get(section).is_some_and(|e| e.is_empty()) {
+                            self.env.registry.remove(section);
+                        }
+                    }
+                    _ => return Err("Registry values must be strings or null".into()),
+                }
+                self.env.registry_dirty = true;
+                return serde_json::from_str(&self.env.registry_json()).map_err(|e| e.to_string());
+            }
             "file" => {
                 use base64::Engine;
                 return Ok(self

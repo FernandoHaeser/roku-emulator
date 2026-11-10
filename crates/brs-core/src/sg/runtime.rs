@@ -234,12 +234,18 @@ fn set_field_from_text(
 
 /// `CreateObject("roSGNode", type)`: full creation, init included.
 pub fn create_node(vm: &mut Vm, type_name: &str) -> Result<Option<ObjectRef>, RuntimeError> {
+    if type_name.eq_ignore_ascii_case("Roku_Analytics:AnalyticsNode") {
+        vm.write(
+            "EMULATOR: Roku Analytics uses a local no-op mock; no telemetry is transmitted.\n",
+        );
+    }
     let Some(object) = allocate_node(vm, type_name) else {
         return Ok(None);
     };
-    populate_node(vm, &object)?;
     super::widgets::initialize(vm, &object)?;
     super::video::initialize(vm, &object)?;
+    super::spinner::initialize(vm, &object)?;
+    populate_node(vm, &object)?;
     Ok(Some(object))
 }
 
@@ -293,9 +299,11 @@ pub fn get_field(object: &ObjectRef, name: &str) -> Value {
     })
 }
 
-fn same_value(old: &Value, new: &Value) -> bool {
+fn same_value(old: &Value, new: &Value, borrowed_node: &ObjectRef) -> bool {
     match (old, new) {
-        (Value::Object(a), Value::Object(b)) => Rc::ptr_eq(a, b) && is_node(a),
+        (Value::Object(a), Value::Object(b)) => {
+            Rc::ptr_eq(a, b) && (Rc::ptr_eq(a, borrowed_node) || is_node(a))
+        }
         (Value::Invalid, Value::Invalid) => true,
         (Value::String(a), Value::String(b)) => a == b,
         (Value::Boolean(a), Value::Boolean(b)) => a == b,
@@ -330,6 +338,19 @@ pub fn set_field(
     // restarts its stop timer per phase on the device).
     let restart = name.eq_ignore_ascii_case("control")
         && with_node(object, |n| n.ancestry.iter().any(|t| &**t == "Timer"));
+    // Convert before mutably borrowing the destination: node fields may
+    // legitimately refer to their own owner.
+    let kind = with_node(object, |n| {
+        n.field(name).map(|field| field.kind).or_else(|| {
+            n.ancestry
+                .iter()
+                .any(|t| &**t == "ContentNode")
+                .then(|| infer_kind(&value))
+        })
+    });
+    let Some(converted) = kind.and_then(|kind| kind.convert(&value)) else {
+        return Ok(());
+    };
     let change = with_node_mut(object, |n| {
         if n.field_index(name).is_none() {
             if !n.ancestry.iter().any(|t| &**t == "ContentNode") {
@@ -346,10 +367,9 @@ pub fn set_field(
             });
         }
         let field = n.field_mut(name)?;
-        let converted = field.kind.convert(&value)?;
         let changed = field.always_notify
             || field.kind == FieldKind::Trigger
-            || !same_value(&field.value, &converted);
+            || !same_value(&field.value, &converted, object);
         field.value = converted;
         changed.then(|| Change {
             field: field.name.clone(),
@@ -367,6 +387,8 @@ pub fn set_field(
     };
     side_effects(vm, object, &change.field)?;
     super::widgets::changed(vm, object, &change.field)?;
+    super::channel_store::changed(vm, object, &change.field);
+    super::spinner::changed(vm, object, &change.field)?;
     notify(vm, object, change)
 }
 
@@ -428,6 +450,9 @@ fn side_effects(vm: &mut Vm, object: &ObjectRef, field: &str) -> Result<(), Runt
                 .then(|| n.text("uri"))
         });
         if let Some(uri) = poster {
+            with_node_mut(object, |n| {
+                n.load_display_mode = Some(n.text("loadDisplayMode").into());
+            });
             return super::bitmap::load(vm, object, &uri);
         }
         let font = with_node(object, |n| {
@@ -524,7 +549,7 @@ fn set_raw_and_notify(
 ) -> Result<(), RuntimeError> {
     let change = with_node_mut(object, |n| {
         let field = n.field_mut(name)?;
-        if same_value(&field.value, &value) {
+        if same_value(&field.value, &value, object) {
             return None;
         }
         field.value = value;
@@ -699,11 +724,14 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
         super::bitmap::apply_results(vm)?;
     }
     super::video::service(vm)?;
+    super::channel_store::service(vm)?;
+    super::spinner::service(vm)?;
     if vm.sg.pending_scenes.is_empty() {
         while let Some((key, pressed)) = vm.sg.keys.pop_front() {
             dispatch_key(vm, &key, pressed)?;
         }
     }
+    super::layout::service(vm)?;
     Ok(())
 }
 
@@ -760,6 +788,28 @@ pub fn node_method(
 ) -> Result<Value, RuntimeError> {
     let children = || with_node(object, |n| n.children.clone());
     Ok(match name {
+        "signalbeacon" => {
+            let name = arg_str(&args, 0);
+            if matches!(
+                name.as_str(),
+                "AppLaunchComplete"
+                    | "AppDialogInitiate"
+                    | "AppDialogComplete"
+                    | "EPGLaunchInitiate"
+                    | "EPGLaunchComplete"
+                    | "AppSuspendInitiate"
+                    | "AppSuspendComplete"
+                    | "AppResumeInitiate"
+                    | "AppResumeComplete"
+            ) {
+                let line = crate::lifecycle::log_line(
+                    &vm.device_timestamp(),
+                    &crate::lifecycle::beacon("signal", &name, "TimeBase(NotApplicable)"),
+                );
+                vm.write(&line);
+            }
+            Value::Invalid
+        }
         "subtype" => Value::string(with_node(object, |n| n.subtype.to_string())),
         "issubtype" => bool_value(with_node(object, |n| n.is_subtype(&arg_str(&args, 0)))),
         "parentsubtype" => {
@@ -1046,6 +1096,8 @@ pub fn node_method(
             focused_node(vm).is_some_and(|f| ancestors(&f).iter().any(|a| Rc::ptr_eq(a, object))),
         ),
         "boundingrect" | "localboundingrect" | "scenboundingrect" | "sceneboundingrect" => {
+            // Native widget geometry must exist even during a component's init.
+            super::widgets::service(vm)?;
             let rect = match name {
                 "localboundingrect" => super::render::local_bounds(vm, object),
                 "sceneboundingrect" | "scenboundingrect" => super::render::scene_bounds(vm, object),

@@ -1,0 +1,18 @@
+keyboard bounds= 1416 , 452 
+radio parent=LabelList
+checked=-1 auto=true
+scene up true
+scene up false
+scene down true
+scene down false
+scene options false
+checked= 0
+selected= 0 checked= 0
+scene OK false
+checked= 1
+selected= 1 checked= 1
+scene OK false
+selected= 2 checked= 1
+scene OK true
+scene OK false
+scene back true

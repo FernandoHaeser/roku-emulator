@@ -24,6 +24,7 @@ use brs_core::{AssocArray, Channel, Host, Object, Status, Value, Vm};
 extern "C" {
     fn debug_wait(output: *const u8, output_len: usize, command: *mut u8, capacity: usize) -> i32;
     fn debug_resumed();
+    fn panic_report(pointer: *const u8, length: usize);
     fn http_request(
         request: *const u8,
         length: usize,
@@ -218,6 +219,12 @@ pub unsafe extern "C" fn brs_load_zip(
     now_ms: f64,
     epoch_offset_ms: f64,
 ) -> i32 {
+    #[cfg(target_arch = "wasm32")]
+    std::panic::set_hook(Box::new(|info| {
+        let message = info.to_string();
+        // SAFETY: the host reads the message synchronously before it is dropped.
+        unsafe { panic_report(message.as_ptr(), message.len()) };
+    }));
     // SAFETY: forwarded caller contract.
     let zip = unsafe { take_buffer(ptr, len) };
     STATE.with(|state| {
@@ -597,4 +604,31 @@ pub extern "C" fn brs_image_complete() {
             brs_core::sg::bitmap::complete(vm, uri, size);
         }
     });
+}
+
+#[no_mangle]
+pub extern "C" fn brs_text_input_active() -> i32 {
+    STATE.with(|state| {
+        state
+            .borrow()
+            .vm
+            .as_ref()
+            .map_or(0, brs_core::sg::widgets::text_input_mode)
+    })
+}
+#[no_mangle]
+pub extern "C" fn brs_text_input() -> i32 {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let request: serde_json::Value =
+            serde_json::from_str(&scratch_text(&state)).unwrap_or_default();
+        state.vm.as_mut().is_some_and(|vm| {
+            brs_core::sg::widgets::text_input(
+                vm,
+                request["text"].as_str().unwrap_or_default(),
+                request["command"].as_str().unwrap_or_default(),
+            )
+            .unwrap_or(false)
+        }) as i32
+    })
 }

@@ -77,39 +77,22 @@ fn empty_array() -> Value {
 pub fn parent(name: &str) -> Option<&'static str> {
     Some(match name.to_ascii_lowercase().as_str() {
         "node" => return None,
+        "roku_analytics:analyticsnode" => "Node",
         "group" | "timer" | "task" | "contentnode" | "font" | "animationbase" | "audio"
         | "channelstore" | "componentlibrary" | "soundeffect" => "Node",
-        "labellist" | "markuplist" | "markupgrid" | "postergrid" | "rowlist" | "zoomrowlist"
-        | "checklist" | "radiobuttonlist" => "ArrayGrid",
-        "rectangle"
-        | "label"
-        | "poster"
-        | "scene"
-        | "layoutgroup"
-        | "maskgroup"
-        | "busyspinner"
-        | "video"
-        | "simplelabel"
-        | "multistylelabel"
-        | "keyboard"
-        | "minikeyboard"
-        | "textedit box"
-        | "texteditbox"
-        | "pinpad"
-        | "dialog"
-        | "standarddialog"
-        | "overhang"
-        | "infopane"
-        | "button"
-        | "targetgroup"
-        | "arraygrid"
-        | "scrollinglabel"
-        | "standardkeyboarddialog"
-        | "standardmessagedialog"
-        | "standardpinpaddialog"
-        | "keyboarddialog"
-        | "progressdialog"
-        | "pinpaddialog" => "Group",
+        "labellist" | "markuplist" | "markupgrid" | "postergrid" | "rowlist" | "zoomrowlist" => {
+            "ArrayGrid"
+        }
+        "checklist" | "radiobuttonlist" => "LabelList",
+        "standardkeyboarddialog" | "standardmessagedialog" | "standardpinpaddialog" => {
+            "StandardDialog"
+        }
+        "keyboarddialog" | "progressdialog" | "pinpaddialog" => "Dialog",
+        "rectangle" | "label" | "poster" | "scene" | "layoutgroup" | "maskgroup"
+        | "busyspinner" | "video" | "simplelabel" | "multistylelabel" | "keyboard"
+        | "minikeyboard" | "textedit box" | "texteditbox" | "pinpad" | "dialog"
+        | "standarddialog" | "overhang" | "infopane" | "button" | "targetgroup" | "arraygrid"
+        | "scrollinglabel" | "dynamickeyboard" => "Group",
         "buttongroup" => "LayoutGroup",
         "animation" | "sequentialanimation" | "parallelanimation" => "AnimationBase",
         "floatfieldinterpolator" | "vector2dfieldinterpolator" | "colorfieldinterpolator" => "Node",
@@ -144,6 +127,7 @@ pub fn canonical(name: &str) -> Option<&'static str> {
         "ArrayGrid",
         "TargetGroup",
         "Keyboard",
+        "DynamicKeyboard",
         "MiniKeyboard",
         "TextEditBox",
         "PinPad",
@@ -172,6 +156,7 @@ pub fn canonical(name: &str) -> Option<&'static str> {
         "Vector2DFieldInterpolator",
         "ColorFieldInterpolator",
         "ChannelStore",
+        "Roku_Analytics:AnalyticsNode",
         "ComponentLibrary",
         "SoundEffect",
     ];
@@ -502,10 +487,55 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
                 spec("reverse", Boolean, no),
             ]
         }
+        "Roku_Analytics:AnalyticsNode" => vec![
+            spec("debug", Boolean, no),
+            spec("init", AssocArray, invalid),
+            spec("trackEvent", AssocArray, invalid),
+            spec("initVideoPlayer", AssocArray, invalid),
+            spec("setContentMetadata", AssocArray, invalid),
+            spec("finishedVideoPlayback", AssocArray, invalid),
+        ],
+        "ChannelStore" => {
+            let mut fields = vec![
+                spec("command", String, empty),
+                spec("requestedUserData", String, || Value::string("all")),
+                spec("channelCredData", String, empty),
+                spec("nonce", String, empty),
+                spec("deltaOrder", AssocArray, invalid),
+            ];
+            for name in [
+                "channelCred",
+                "storeChannelCredDataStatus",
+                "userData",
+                "userRegionData",
+                "catalog",
+                "storeCatalog",
+                "purchases",
+                "order",
+                "orderStatus",
+                "requestedUserDataInfo",
+                "requestPartnerOrder",
+                "confirmPartnerOrder",
+                "requestPartnerOrderStatus",
+                "confirmPartnerOrderStatus",
+                "deviceAttestationToken",
+            ] {
+                fields.push(spec(name, Node, invalid));
+            }
+            for field in &mut fields {
+                // Repeating a command is a new request; cancellation must also notify.
+                if field.name == "command" || matches!(field.name, "userData" | "userRegionData") {
+                    field.always_notify = true;
+                }
+            }
+            fields
+        }
         "BusySpinner" => vec![
+            spec("poster", Node, invalid),
             spec("uri", Uri, empty),
-            spec("spinInterval", Float, || Value::Float(2.0)),
-            spec("control", String, || Value::string("start")),
+            spec("clockwise", Boolean, yes),
+            spec("spinInterval", Time, || Value::Double(2.0)),
+            spec("control", String, || Value::string("none")),
         ],
         "MaskGroup" => vec![
             spec("maskUri", Uri, empty),
@@ -548,6 +578,9 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("horizFocusAnimationStyle", String, || {
                 Value::string("floatingfocus")
             }),
+            spec("wrapDividerBitmapUri", Uri, empty),
+            spec("wrapDividerWidth", Float, zero_f),
+            spec("wrapDividerHeight", Float, zero_f),
             spec("drawFocusFeedback", Boolean, yes),
             spec("drawFocusFeedbackOnTop", Boolean, no),
             spec("focusBitmapUri", Uri, empty),
@@ -559,7 +592,11 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("rowSpacings", Array, empty_array),
             spec("columnSpacings", Array, empty_array),
         ],
-        "LabelList" | "MarkupList" | "CheckList" | "RadioButtonList" => vec![
+        "MarkupGrid" => vec![
+            spec("wrapDividerHeight", Float, || Value::Float(54.0)),
+            spec("drawFocusFeedbackOnTop", Boolean, yes),
+        ],
+        "LabelList" | "MarkupList" => vec![
             spec("itemSize", Vector2D, || float_array(&[510.0, 72.0])),
             spec("numRows", Integer, || Value::Integer(12)),
             spec("color", Color, || Value::Integer(0xFEFE_FEFFu32 as i32)),
@@ -570,7 +607,22 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             }),
             spec("textHorizAlign", String, || Value::string("left")),
         ],
-        "MarkupGrid" | "PosterGrid" => vec![],
+        "RadioButtonList" => vec![
+            spec("focusedColor", Color, || Value::Integer(0x0000_00FF)),
+            spec("checkedItem", Integer, || Value::Integer(-1)),
+            spec("checkOnSelect", Boolean, yes),
+            spec("checkedIconUri", Uri, empty),
+            spec("focusedCheckedIconUri", Uri, empty),
+        ],
+        "CheckList" => vec![
+            spec("checkedState", Array, empty_array),
+            spec("checkOnSelect", Boolean, yes),
+            spec("checkedIconUri", Uri, empty),
+            spec("focusedCheckedIconUri", Uri, empty),
+            spec("uncheckedIconUri", Uri, empty),
+            spec("focusedUncheckedIconUri", Uri, empty),
+        ],
+        "PosterGrid" => vec![],
         "RowList" | "ZoomRowList" => vec![
             spec("rowItemFocused", Array, empty_array),
             FieldSpec {
@@ -625,7 +677,34 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
                 always_notify: true,
             },
         ],
-        "Keyboard" | "MiniKeyboard" | "TextEditBox" => vec![
+        "MiniKeyboard" => vec![
+            spec("focusable", Boolean, yes),
+            spec("text", String, empty),
+            spec("textEditBox", Node, invalid),
+            spec("showTextEditBox", Boolean, yes),
+            spec("lowerCase", Boolean, yes),
+            spec("keyColor", Color, white),
+            spec("focusedKeyColor", Color, white),
+            spec("keyboardBitmapUri", Uri, empty),
+            spec("focusBitmapUri", Uri, empty),
+        ],
+        "TextEditBox" => vec![
+            spec("focusable", Boolean, yes),
+            spec("text", String, empty),
+            spec("hintText", String, empty),
+            spec("maxTextLength", Integer, || Value::Integer(15)),
+            spec("cursorPosition", Integer, zero_i),
+            spec("clearOnDownKey", Boolean, yes),
+            spec("active", Boolean, no),
+            spec("secureMode", Boolean, no),
+            spec("textColor", Color, white),
+            spec("hintTextColor", Color, white),
+            spec("backgroundUri", Uri, empty),
+            spec("leadingEllipsis", Boolean, no),
+            spec("width", Float, || Value::Float(-1.0)),
+        ],
+        "Keyboard" | "DynamicKeyboard" => vec![
+            spec("keyboardDomain", String, || Value::string("generic")),
             spec("focusable", Boolean, yes),
             spec("text", String, empty),
             spec("textEditBox", Node, invalid),
@@ -642,9 +721,13 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("pin", String, empty),
             spec("pinLength", Integer, || Value::Integer(4)),
         ],
+        "StandardKeyboardDialog" => vec![
+            spec("text", String, empty),
+            spec("textEditBox", Node, invalid),
+            spec("keyboardDomain", String, || Value::string("generic")),
+        ],
         "Dialog"
         | "StandardDialog"
-        | "StandardKeyboardDialog"
         | "StandardMessageDialog"
         | "StandardPinPadDialog"
         | "KeyboardDialog"
@@ -673,6 +756,16 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("buttonFocused", Integer, zero_i),
             spec("close", Boolean, no),
             spec("wasClosed", Boolean, no),
+        ],
+        "InfoPane" => vec![
+            spec("width", Float, || Value::Float(780.0)),
+            spec("height", Float, || Value::Float(300.0)),
+            spec("infoText", String, empty),
+            spec("infoText2", String, empty),
+            spec("bulletText", Array, empty_array),
+            spec("textColor", Color, white),
+            spec("infoText2Color", Color, white),
+            spec("infoText2BottomAlign", Boolean, no),
         ],
         "Overhang" => vec![
             spec("title", String, empty),

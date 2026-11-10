@@ -4,6 +4,8 @@ import { ConsolePanel } from "@/components/ConsolePanel";
 import { DeviceScreen } from "@/components/DeviceScreen";
 import { HomeScreen } from "@/components/HomeScreen";
 import { NodeInspector, type NodeHighlight } from "@/components/NodeInspector";
+import { RegistryPanel } from "@/components/RegistryPanel";
+import { NetworkPanel } from "@/components/NetworkPanel";
 import { Remote } from "@/components/Remote";
 import { SidePanel } from "@/components/SidePanel";
 import { SURFACE } from "@/config/surface";
@@ -68,6 +70,24 @@ export function App() {
               id: "console",
               label: "Console",
               render: () => <ConsolePanel lines={emulator.lines} onClear={emulator.clearConsole} />,
+            },
+            {
+              id: "registry",
+              label: "Registro",
+              render: (active) => (
+                <RegistryPanel
+                  active={active && emulator.view === "channel"}
+                  inspect={emulator.inspectRegistry}
+                  update={emulator.setRegistryEntry}
+                />
+              ),
+            },
+            {
+              id: "network",
+              label: "Rede",
+              render: () => (
+                <NetworkPanel entries={emulator.network} onClear={emulator.clearNetwork} />
+              ),
             },
             {
               id: "nodes",

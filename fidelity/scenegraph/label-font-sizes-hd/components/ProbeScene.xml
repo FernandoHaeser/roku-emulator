@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Text metrics for Font nodes with an explicit size (not a calibrated system
+     font): auto-sized Labels report the device advance width and line height. -->
+<component name="ProbeScene" extends="Scene">
+  <script type="text/brightscript">
+    <![CDATA[
+    sub init()
+        uris = ["", "font:MediumSystemFont", "font:MediumBoldSystemFont", "font:SmallSystemFont"]
+        sizes = [18, 20, 22, 24, 26, 27, 28, 30, 32, 33, 34, 35, 36, 38, 40, 42, 45, 48, 50, 55, 60]
+        texts = ["Roku Emulator fidelity probe", "Unable to connect.", "WWWWW", "iiiii"]
+        for each uri in uris
+            for each size in sizes
+                font = CreateObject("roSGNode", "Font")
+                if uri <> "" then font.uri = uri
+                font.size = size
+                line = "uri=" + uri + " size=" + size.toStr()
+                for each text in texts
+                    label = m.top.CreateChild("Label")
+                    label.font = font
+                    label.text = text
+                    bounds = label.boundingRect()
+                    line = line + " | " + bounds.width.toStr() + "x" + bounds.height.toStr()
+                    m.top.removeChild(label)
+                end for
+                print line
+            end for
+        end for
+        ' Size assigned before the uri, and fonts declared in XML.
+        for each size in [20, 34, 50]
+            font = CreateObject("roSGNode", "Font")
+            font.size = size
+            font.uri = "font:MediumSystemFont"
+            label = m.top.CreateChild("Label")
+            label.font = font
+            label.text = texts[0]
+            bounds = label.boundingRect()
+            print "size-first size=" + size.toStr() + " | " + bounds.width.toStr() + "x" + bounds.height.toStr()
+            m.top.removeChild(label)
+        end for
+        for each id in ["xmlSystem", "xmlEmpty", "xmlDefault"]
+            label = m.top.findNode(id)
+            bounds = label.boundingRect()
+            print id + " uri=" + label.font.uri + " size=" + label.font.size.toStr() + " | " + bounds.width.toStr() + "x" + bounds.height.toStr()
+        end for
+        print "@@PROBE_END"
+    end sub
+    ]]>
+  </script>
+  <children>
+    <Rectangle width="1280" height="720" color="0x000000FF" />
+    <Label id="xmlSystem" text="Roku Emulator fidelity probe">
+      <Font role="font" uri="font:MediumSystemFont" size="20" />
+    </Label>
+    <Label id="xmlEmpty" text="Roku Emulator fidelity probe">
+      <Font role="font" size="20" />
+    </Label>
+    <Label id="xmlDefault" text="Roku Emulator fidelity probe" />
+  </children>
+</component>

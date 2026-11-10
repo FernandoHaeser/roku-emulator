@@ -1,4 +1,12 @@
-import { BRIDGE_HEADER, BRIDGE_PATH, SHELL_RPC_PREFIX, type BridgeEvent } from "@roku-emu/protocol";
+import {
+  networkStart,
+  networkFinish,
+  type NetworkEntry,
+  BRIDGE_HEADER,
+  BRIDGE_PATH,
+  SHELL_RPC_PREFIX,
+  type BridgeEvent,
+} from "@roku-emu/protocol";
 /**
  * React hook owning the runtime worker: home screen vs. running channel,
  * sideloading, remote key routing, registry persistence and console lines.
@@ -84,6 +92,7 @@ export function useEmulator(width: number, height: number) {
   const [screenHost, setScreenHost] = useState<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<EmulatorStatus>("starting");
   const [renderer, setRenderer] = useState("");
+  const [network, setNetwork] = useState<NetworkEntry[]>([]);
   const [lines, setLines] = useState<ConsoleLine[]>([]);
   const [channel, setChannel] = useState<{ name: string; status: ChannelStatus }>({
     name: "",
@@ -203,9 +212,16 @@ export function useEmulator(width: number, height: number) {
       ? { buffer: mailbox, paused: false, waiting: false, queue: [] }
       : null;
 
+    let textInputActive = false;
+    let virtualKeyboard = false;
+    const textKeys = new Set<string>();
     worker.onmessage = (event: MessageEvent<WorkerToShellMessage>) => {
       const message = event.data;
       switch (message.type) {
+        case "textInputState":
+          textInputActive = message.active;
+          virtualKeyboard = message.virtualKeyboard;
+          break;
         case "ready":
           setStatus("ready");
           setRenderer(message.renderer);
@@ -258,8 +274,19 @@ export function useEmulator(width: number, height: number) {
           inspections.get(message.requestId)?.reject(new Error(message.message));
           inspections.delete(message.requestId);
           break;
+        case "network":
+          setNetwork((previous) => {
+            const existing = previous.some((e) => e.id === message.entry.id);
+            if (!existing && message.entry.status !== null) return previous;
+            return existing
+              ? previous.map((e) => (e.id === message.entry.id ? message.entry : e))
+              : [...previous, message.entry].slice(-200);
+          });
+          break;
         case "httpRequest": {
           const controller = new AbortController();
+          const entry = networkStart(message.id, message.request, performance.now());
+          setNetwork((previous) => [...previous, entry].slice(-200));
           httpControllers.set(message.id, controller);
           void fetch(`${BRIDGE_PATH}/http`, {
             method: "POST",
@@ -279,6 +306,8 @@ export function useEmulator(width: number, height: number) {
             )
             .then((response) => {
               httpControllers.delete(message.id);
+              const completed = networkFinish(entry, response, performance.now());
+              setNetwork((previous) => previous.map((e) => (e.id === entry.id ? completed : e)));
               if (message.buffer) writeDebugCommand(message.buffer, response);
               else
                 worker.postMessage({
@@ -353,8 +382,6 @@ export function useEmulator(width: number, height: number) {
     };
     routeKeyRef.current = routeKey;
     const onKey = (pressed: boolean) => (event: KeyboardEvent) => {
-      // Ignore auto-repeat: the runtime generates repeats itself with device timing.
-      if (event.repeat) return;
       // Typing in a form control (console filter, file picker) is not remote input.
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
         return;
@@ -366,6 +393,38 @@ export function useEmulator(width: number, height: number) {
       ) {
         return;
       }
+      if (!pressed && textKeys.delete(event.code)) {
+        event.preventDefault();
+        return;
+      }
+      if (
+        textInputActive &&
+        viewRef.current !== "home" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.isComposing
+      ) {
+        const command = [
+          "Backspace",
+          "Delete",
+          "Home",
+          "End",
+          ...(virtualKeyboard ? [] : ["ArrowLeft", "ArrowRight"]),
+        ].includes(event.key)
+          ? event.key
+          : "";
+        const text = Array.from(event.key).length === 1 ? event.key : "";
+        if (command || text) {
+          event.preventDefault();
+          if (pressed) {
+            textKeys.add(event.code);
+            worker.postMessage({ type: "textInput", text, command } satisfies ShellToWorkerMessage);
+          }
+          return;
+        }
+      }
+      if (event.repeat) return;
       const key = mapKeyboardCode(event.code);
       if (!key) return;
       event.preventDefault();
@@ -373,11 +432,27 @@ export function useEmulator(width: number, height: number) {
     };
     const onKeyDown = onKey(true);
     const onKeyUp = onKey(false);
+    const onCompositionEnd = (event: CompositionEvent) => {
+      if (
+        textInputActive &&
+        event.data &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
+        worker.postMessage({
+          type: "textInput",
+          text: event.data,
+          command: "",
+        } satisfies ShellToWorkerMessage);
+      }
+    };
+    window.addEventListener("compositionend", onCompositionEnd);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
 
     return () => {
       routeKeyRef.current = () => undefined;
+      window.removeEventListener("compositionend", onCompositionEnd);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       for (const controller of httpControllers.values()) controller.abort();
@@ -556,18 +631,39 @@ export function useEmulator(width: number, height: number) {
    * Snapshot of the shown scene through the engine's inspection request (the
    * same one the ECP app-ui query uses). Null when no channel is running.
    */
+  const runtimeRpc = useCallback(
+    async (op: string, args: Record<string, unknown> = {}): Promise<unknown> => {
+      if (viewRef.current !== "channel" || !workerRef.current)
+        throw new Error("Nenhum canal em execução.");
+      const id = `${SHELL_RPC_PREFIX}${nextRpcId.current++}`;
+      const result = new Promise<unknown>((resolve, reject) => {
+        pendingRpc.current.set(id, { resolve, reject });
+        setTimeout(() => {
+          if (pendingRpc.current.delete(id)) reject(new Error("A inspeção do runtime expirou."));
+        }, RPC_TIMEOUT_MS);
+      });
+      send({ type: "debuggerCommand", command: `__emu ${JSON.stringify({ id, op, ...args })}` });
+      return await result;
+    },
+    [send],
+  );
   const inspectScene = useCallback(async (): Promise<SceneInspection | null> => {
-    if (viewRef.current !== "channel" || !workerRef.current) return null;
-    const id = `${SHELL_RPC_PREFIX}${nextRpcId.current++}`;
-    const result = new Promise<unknown>((resolve, reject) => {
-      pendingRpc.current.set(id, { resolve, reject });
-      setTimeout(() => {
-        if (pendingRpc.current.delete(id)) reject(new Error("scene inspection timed out"));
-      }, RPC_TIMEOUT_MS);
-    });
-    send({ type: "debuggerCommand", command: `__emu ${JSON.stringify({ id, op: "scene" })}` });
-    return (await result) as SceneInspection;
-  }, [send]);
+    if (viewRef.current !== "channel") return null;
+    return (await runtimeRpc("scene")) as SceneInspection;
+  }, [runtimeRpc]);
+  const inspectRegistry = useCallback(
+    async () => (await runtimeRpc("registry")) as Record<string, Record<string, string>>,
+    [runtimeRpc],
+  );
+  const setRegistryEntry = useCallback(
+    async (section: string, key: string, value: string | null) => {
+      return (await runtimeRpc("registrySet", { section, key, value })) as Record<
+        string,
+        Record<string, string>
+      >;
+    },
+    [runtimeRpc],
+  );
 
   return {
     setScreenHost,
@@ -581,6 +677,10 @@ export function useEmulator(width: number, height: number) {
     homeKey,
     pressRemote,
     inspectScene,
+    inspectRegistry,
+    setRegistryEntry,
+    network,
+    clearNetwork: () => setNetwork([]),
     sideload,
     launchDevChannel,
     removeDevChannel,

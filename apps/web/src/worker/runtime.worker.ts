@@ -167,6 +167,11 @@ function toChannelStatus(code: EngineStatusCode): ChannelStatus {
 
 /** Pushes the SceneGraph frame and registry changes produced by the last slice. */
 function publishState(instance: BrsEngine): void {
+  post({
+    type: "textInputState",
+    active: instance.textInputMode() !== 0,
+    virtualKeyboard: instance.textInputMode() === 2,
+  });
   for (const uri of instance.imageRequests()) {
     const id = nextHttpId++;
     httpRequests.set(id, { coreId: 0, generation, imageUri: uri });
@@ -258,7 +263,13 @@ function runSlice(instance: BrsEngine, runGeneration: number): void {
   }
 }
 
-function stopChannel(): void {
+/**
+ * Unloads the active channel. `reportExit` is false when a new launch replaces
+ * it: reporting "idle" there would send the shell back to the home screen
+ * while the new channel starts.
+ */
+function stopChannel(reportExit = true): void {
+  post({ type: "textInputState", active: false, virtualKeyboard: false });
   for (const id of httpRequests.keys()) post({ type: "httpCancel", id });
   httpRequests.clear();
   generation += 1;
@@ -269,7 +280,7 @@ function stopChannel(): void {
     emitOutput(active, true);
     active = null;
     // "idle": the user left the channel (Home), as opposed to a STOP statement.
-    reportStatus("idle");
+    if (reportExit) reportStatus("idle");
   }
   renderer?.clear();
   if (headless) post({ type: "displayList", json: null });
@@ -285,7 +296,7 @@ async function launchChannel(
   stopOnEntry = false,
   launchArgs: Record<string, string> = {},
 ): Promise<void> {
-  stopChannel();
+  stopChannel(false);
   const runGeneration = generation;
   channelName = name;
   channelId = id;
@@ -413,11 +424,16 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
       if (active) {
         const resumed = active.debuggerCommand(message.command);
         emitOutput(active, true);
+        const registry = active.takeRegistry();
+        if (registry !== null) post({ type: "registry", channelId, json: registry });
         if (resumed) {
           reportStatus("running");
           schedule(active, generation, 0);
         }
       }
+      break;
+    case "textInput":
+      if (active?.textInput(message.text, message.command)) schedule(active, generation, 0);
       break;
     case "key":
       sendKey(message.key, message.pressed);

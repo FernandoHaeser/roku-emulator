@@ -1,0 +1,35 @@
+ready  186 x 126  <Component: roAssociativeArray> =
+{
+    height: 100
+    width: 300
+    x: 60
+    y: 100
+}
+ready  186 x 126  <Component: roAssociativeArray> =
+{
+    height: 100
+    width: 300
+    x: 460
+    y: 100
+}
+ready  186 x 126  <Component: roAssociativeArray> =
+{
+    height: 100
+    width: 300
+    x: 60
+    y: 400
+}
+ready  186 x 126  <Component: roAssociativeArray> =
+{
+    height: 100
+    width: 300
+    x: 460
+    y: 400
+}
+ready  186 x 126  <Component: roAssociativeArray> =
+{
+    height: 100
+    width: 300
+    x: 60
+    y: 700
+}

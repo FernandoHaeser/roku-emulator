@@ -75,6 +75,7 @@ pub enum Expr {
     Call(Box<Expr>, Vec<Expr>),
     Index(Box<Expr>, Vec<Expr>),
     Dot(Box<Expr>, String),
+    OptionalDot(Box<Expr>, String),
     ArrayLiteral(Vec<Expr>),
     AssocArrayLiteral(Vec<(String, Expr)>),
     Function(Rc<FunctionDecl>),

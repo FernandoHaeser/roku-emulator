@@ -2,7 +2,9 @@
 use super::runtime::{create_node, set_field};
 use super::{node_ref, with_node, with_node_mut, Object, ObjectRef, Value};
 use crate::{error::RuntimeError, Vm};
+mod info_pane;
 mod keyboard;
+mod standard_dialog;
 use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
 
@@ -17,6 +19,7 @@ type Result<T> = std::result::Result<T, RuntimeError>;
 pub struct Widgets {
     entries: HashMap<usize, State>,
     modal: Option<ObjectRef>,
+    servicing: bool,
 }
 struct State {
     node: Weak<std::cell::RefCell<Object>>,
@@ -27,6 +30,9 @@ struct State {
     consumed_keys: HashSet<String>,
     bindings: Vec<Binding>,
     keyboard: keyboard::KeyboardState,
+    dialog_keyboard: Option<ObjectRef>,
+    dialog_buttons: bool,
+    retained_grid_content: Option<ObjectRef>,
 }
 fn id(node: &ObjectRef) -> usize {
     Rc::as_ptr(node) as usize
@@ -46,9 +52,20 @@ fn is_rows(node: &ObjectRef) -> bool {
                 .any(|t| t.eq_ignore_ascii_case("ZoomRowList"))
     })
 }
-fn content(node: &ObjectRef) -> Vec<ObjectRef> {
+fn content(vm: &Vm, node: &ObjectRef) -> Vec<ObjectRef> {
     let root = with_node(node, |n| {
         n.field("content").and_then(|f| node_ref(&f.value))
+    });
+    let root = root.or_else(|| {
+        if has(node, "MarkupGrid") {
+            vm.sg
+                .widgets
+                .entries
+                .get(&id(node))
+                .and_then(|state| state.retained_grid_content.clone())
+        } else {
+            None
+        }
     });
     root.map(|r| with_node(&r, |n| n.children.clone()))
         .unwrap_or_default()
@@ -70,10 +87,22 @@ fn track<'a>(vm: &'a mut Vm, node: &ObjectRef) -> &'a mut State {
             consumed_keys: HashSet::new(),
             bindings: vec![],
             keyboard: keyboard::KeyboardState::default(),
+            dialog_keyboard: None,
+            dialog_buttons: false,
+            retained_grid_content: None,
         })
 }
 pub fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
+    if has(node, "MarkupGrid") && field.eq_ignore_ascii_case("content") {
+        if let Some(content) = with_node(node, |n| {
+            n.field("content").and_then(|field| node_ref(&field.value))
+        }) {
+            track(vm, node).retained_grid_content = Some(content);
+        }
+    }
     controls_changed(vm, node, field)?;
+    standard_dialog::changed(vm, node, field)?;
+    info_pane::changed(vm, node, field);
     keyboard::changed(vm, node, field)?;
     if with_node(node, |n| {
         n.ancestry
@@ -84,7 +113,7 @@ pub fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
             state.dirty = true;
         }
     }
-    if !is_list(node) && !has(node, "Button") && !has(node, "Dialog") {
+    if !is_list(node) && !has(node, "Button") && !is_dialog(node) {
         return Ok(());
     }
     if matches!(
@@ -106,6 +135,27 @@ pub fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
             | "message"
             | "buttons"
             | "buttonfocused"
+            | "checkeditem"
+            | "checkedstate"
+            | "checkediconuri"
+            | "focusedcheckediconuri"
+            | "wrapdividerheight"
+            | "wrapdividerwidth"
+            | "wrapdividerbitmapuri"
+            | "drawfocusfeedback"
+            | "drawfocusfeedbackontop"
+            | "focusbitmapuri"
+            | "focusbitmapblendcolor"
+            | "focusfootprintbitmapuri"
+            | "focusfootprintblendcolor"
+            | "vertfocusanimationstyle"
+            | "horizfocusanimationstyle"
+            | "focusrow"
+            | "focuscolumn"
+            | "rowheights"
+            | "columnwidths"
+            | "rowspacings"
+            | "columnspacings"
     ) {
         track(vm, node).dirty = true;
     }
@@ -142,7 +192,7 @@ fn emit(vm: &mut Vm, node: &ObjectRef, field: &str, value: Value) -> Result<()> 
     set_field(vm, node, field, value)
 }
 fn move_to(vm: &mut Vm, node: &ObjectRef, row: i32, col: i32) -> Result<()> {
-    let items = content(node);
+    let items = content(vm, node);
     if row < 0 || row as usize >= items.len() {
         return Ok(());
     }
@@ -173,6 +223,9 @@ fn move_to(vm: &mut Vm, node: &ObjectRef, row: i32, col: i32) -> Result<()> {
     Ok(())
 }
 pub fn focus(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
+    if has(node, "Keyboard") || has(node, "MiniKeyboard") || has(node, "TextEditBox") {
+        track(vm, node).dirty = true;
+    }
     if has(node, "Button") {
         track(vm, node).dirty = true;
         if let Some(parent) = with_node(node, |n| n.parent.as_ref().and_then(Weak::upgrade)) {
@@ -189,7 +242,7 @@ pub fn focus(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
         return Ok(());
     }
     track(vm, node).initial_layout = true;
-    if !content(node).is_empty() && number(node, "itemFocused") < 0 {
+    if !content(vm, node).is_empty() && number(node, "itemFocused") < 0 {
         if is_rows(node) {
             emit(vm, node, "itemFocused", Value::Integer(0))?;
         } else {
@@ -208,20 +261,25 @@ pub fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Result<bo
     if !is_list(node) {
         return Ok(false);
     }
-    let items = content(node);
+    let items = content(vm, node);
     if items.is_empty() {
         return Ok(false);
     }
     let current = number(node, "itemFocused").max(0);
     if key == "OK" {
+        let radio_check =
+            has(node, "RadioButtonList") && with_node(node, |n| n.flag("checkOnSelect"));
         if pressed {
             if is_rows(node) {
                 let pair = with_node(node, |n| n.field("rowItemFocused").unwrap().value.clone());
                 emit(vm, node, "rowItemSelected", pair)?;
             }
+            if radio_check {
+                set_field(vm, node, "checkedItem", Value::Integer(current))?;
+            }
             emit(vm, node, "itemSelected", Value::Integer(current))?;
         }
-        return Ok(is_rows(node) && pressed);
+        return Ok((is_rows(node) || radio_check) && pressed);
     }
     if is_rows(node) {
         if !pressed {
@@ -320,10 +378,20 @@ pub fn children(vm: &Vm, node: &ObjectRef) -> Vec<ObjectRef> {
         .unwrap_or_default()
 }
 pub fn service(vm: &mut Vm) -> Result<()> {
+    if vm.sg.widgets.servicing {
+        return Ok(());
+    }
+    vm.sg.widgets.servicing = true;
+    let result = service_inner(vm);
+    vm.sg.widgets.servicing = false;
+    result
+}
+fn service_inner(vm: &mut Vm) -> Result<()> {
     // Bindings can enqueue native child widgets. Drain a bounded number of
     // layout passes so a channel blocked on wait() still has its first frame.
     for _ in 0..4 {
         service_once(vm)?;
+        super::layout::service(vm)?;
         if !vm
             .sg
             .widgets
@@ -360,7 +428,7 @@ fn service_once(vm: &mut Vm) -> Result<()> {
                     .any(|t| t.eq_ignore_ascii_case("LabelList"))
             });
             if is_label {
-                let items = content(&node);
+                let items = content(vm, &node);
                 let focus = number(&node, "itemFocused").max(0) as usize;
                 let (size, spacing, has_focus) = with_node(&node, |n| {
                     (n.vector("itemSize"), n.vector("itemSpacing"), n.has_focus)
@@ -393,22 +461,78 @@ fn service_once(vm: &mut Vm) -> Result<()> {
                     )?;
                     state.rendered.push(background);
                 }
-                for offset in 0..items.len().min(256) {
+                for offset in 0..items
+                    .len()
+                    .min(number(&node, "numRows").max(1) as usize)
+                    .min(256)
+                {
                     let index = (focus + offset) % items.len();
                     let item = &items[index];
                     let label = create_node(vm, "Label")?.expect("Label");
                     let title = with_node(item, |n| n.text("title"));
                     let focused = has_focus && offset == 0;
+                    let scale = design_scale(vm);
+                    let radio = has(&node, "RadioButtonList");
+                    let text_x = if radio { 54.0 * scale } else { 0.0 };
+                    let mut y = offset as f64 * (size.1 + spacing.1);
+                    // The native fixed-focus radio list separates its last and
+                    // first entries when the visible rows wrap (selection-controls).
+                    if radio && focus + offset >= items.len() {
+                        let divider = with_node(&node, |n| n.number("wrapDividerHeight"));
+                        let divider = if divider > 0.0 { divider } else { 36.0 * scale };
+                        if index == 0 {
+                            add_rectangle(
+                                vm,
+                                &mut state,
+                                0.0,
+                                y + divider / 2.0,
+                                size.0,
+                                1.5 * scale,
+                                0x9999_99FFu32,
+                            )?;
+                        }
+                        y += divider;
+                    }
+                    if radio && number(&node, "checkedItem") == index as i32 {
+                        let uri = with_node(&node, |n| {
+                            n.text(if focused {
+                                "focusedCheckedIconUri"
+                            } else {
+                                "checkedIconUri"
+                            })
+                        });
+                        let icon =
+                            create_node(vm, if uri.is_empty() { "Label" } else { "Poster" })?
+                                .expect("selection icon");
+                        set_field(vm, &icon, "width", Value::Float((36.0 * scale) as f32))?;
+                        set_field(vm, &icon, "height", Value::Float((36.0 * scale) as f32))?;
+                        set_field(
+                            vm,
+                            &icon,
+                            "translation",
+                            super::float_array(&[0.0, y + (size.1 - 36.0 * scale) / 2.0]),
+                        )?;
+                        if uri.is_empty() {
+                            set_field(vm, &icon, "text", Value::string("✓"))?;
+                            let color = with_node(&node, |n| {
+                                n.raw(if focused { "focusedColor" } else { "color" })
+                            });
+                            set_field(vm, &icon, "color", color)?;
+                        } else {
+                            set_field(vm, &icon, "uri", Value::string(uri))?;
+                        }
+                        state.rendered.push(icon);
+                    }
                     set_field(vm, &label, "text", Value::string(title))?;
-                    set_field(vm, &label, "width", Value::Float(size.0 as f32))?;
-                    set_field(vm, &label, "height", Value::Float(size.1 as f32))?;
-                    set_field(vm, &label, "vertAlign", Value::string("center"))?;
                     set_field(
                         vm,
                         &label,
-                        "translation",
-                        super::float_array(&[0.0, offset as f64 * (size.1 + spacing.1)]),
+                        "width",
+                        Value::Float((size.0 - text_x).max(0.0) as f32),
                     )?;
+                    set_field(vm, &label, "height", Value::Float(size.1 as f32))?;
+                    set_field(vm, &label, "vertAlign", Value::string("center"))?;
+                    set_field(vm, &label, "translation", super::float_array(&[text_x, y]))?;
                     for (target, source) in [
                         ("font", if focused { "focusedFont" } else { "font" }),
                         ("color", if focused { "focusedColor" } else { "color" }),
@@ -429,11 +553,17 @@ fn service_once(vm: &mut Vm) -> Result<()> {
             if has(&node, "Button") {
                 build_button(vm, &node, &mut state)?;
             }
-            if has(&node, "Dialog") {
+            if is_dialog(&node) {
                 build_dialog(vm, &node, &mut state)?;
             }
-            if has(&node, "Keyboard") || has(&node, "MiniKeyboard") {
+            if keyboard::is_keyboard(&node) {
                 keyboard::render(vm, &node, &mut state)?;
+            }
+            if has(&node, "TextEditBox") {
+                keyboard::render_edit(vm, &node, &mut state)?;
+            }
+            if has(&node, "InfoPane") {
+                info_pane::render(vm, &node)?;
             }
             state.dirty = false;
         }
@@ -468,7 +598,7 @@ fn dimension(node: &ObjectRef, field: &str, index: usize, fallback: (f64, f64)) 
     fallback
 }
 fn build_cells(vm: &mut Vm, widget: &ObjectRef, state: &mut State) -> Result<()> {
-    let source = content(widget);
+    let source = content(vm, widget);
     let (component, size, spacing, focused, has_focus, rows, columns) = with_node(widget, |n| {
         (
             n.text("itemComponentName"),
@@ -505,12 +635,23 @@ fn build_cells(vm: &mut Vm, widget: &ObjectRef, state: &mut State) -> Result<()>
             }
         }
     } else {
+        let markup = has(widget, "MarkupGrid");
+        let fixed_wrap = markup
+            && with_node(widget, |n| {
+                n.text("vertFocusAnimationStyle")
+                    .eq_ignore_ascii_case("fixedfocuswrap")
+            });
+        let total_rows = source.len().div_ceil(columns).max(1);
         let first_row = (focused / columns).saturating_sub(rows - 1);
         for (index, item) in source
             .into_iter()
             .enumerate()
-            .skip(first_row * columns)
-            .take(rows.saturating_mul(columns).min(256))
+            .skip(if markup { 0 } else { first_row * columns })
+            .take(if has(widget, "MarkupGrid") {
+                usize::MAX
+            } else {
+                rows.saturating_mul(columns).min(256)
+            })
         {
             positions.push((
                 index / columns,
@@ -518,13 +659,29 @@ fn build_cells(vm: &mut Vm, widget: &ObjectRef, state: &mut State) -> Result<()>
                 item,
                 (
                     (index % columns) as f64 * (size.0 + spacing.0),
-                    (index / columns - first_row) as f64 * (size.1 + spacing.1),
+                    if fixed_wrap {
+                        let row = index / columns;
+                        let focus_row = focused / columns;
+                        ((row + total_rows - focus_row) % total_rows) as f64 * (size.1 + spacing.1)
+                            + if row < focus_row {
+                                with_node(widget, |n| n.number("wrapDividerHeight"))
+                            } else {
+                                0.0
+                            }
+                    } else {
+                        (index as f64 / columns as f64).floor() * (size.1 + spacing.1)
+                            - first_row as f64 * (size.1 + spacing.1)
+                    },
                 ),
                 size,
                 index == focused,
             ));
         }
     }
+    let focus_geometry = positions
+        .iter()
+        .find(|entry| entry.5)
+        .map(|entry| (entry.3, entry.4));
     for (row, index, item, position, item_size, is_focused) in positions {
         let kind = if component.is_empty() {
             "Poster"
@@ -543,12 +700,16 @@ fn build_cells(vm: &mut Vm, widget: &ObjectRef, state: &mut State) -> Result<()>
             node
         };
         with_node_mut(&cell, |n| n.parent = Some(Rc::downgrade(widget)));
-        set_field(
-            vm,
-            &cell,
-            "translation",
-            super::float_array(&[position.0, position.1]),
-        )?;
+        if has(widget, "MarkupGrid") {
+            with_node_mut(&cell, |n| n.render_offset = position);
+        } else {
+            set_field(
+                vm,
+                &cell,
+                "translation",
+                super::float_array(&[position.0, position.1]),
+            )?;
+        }
         // Roku binds dimensions and indices before content callbacks.
         set_field(vm, &cell, "width", Value::Float(item_size.0 as f32))?;
         set_field(vm, &cell, "height", Value::Float(item_size.1 as f32))?;
@@ -598,9 +759,23 @@ fn build_cells(vm: &mut Vm, widget: &ObjectRef, state: &mut State) -> Result<()>
             component: kind.to_string(),
         });
     }
+    if has(widget, "MarkupGrid") && has_focus && with_node(widget, |n| n.flag("drawFocusFeedback"))
+    {
+        if let Some((position, size)) = focus_geometry {
+            let start = state.rendered.len();
+            draw_grid_focus(vm, widget, state, position, size)?;
+            if !with_node(widget, |n| n.flag("drawFocusFeedbackOnTop")) {
+                let feedback = state.rendered.split_off(start);
+                state.rendered.splice(0..0, feedback);
+            }
+        }
+    }
     Ok(())
 }
 
+fn is_dialog(node: &ObjectRef) -> bool {
+    has(node, "Dialog") || has(node, "StandardDialog")
+}
 fn has(node: &ObjectRef, class: &str) -> bool {
     with_node(node, |n| {
         n.ancestry.iter().any(|t| t.eq_ignore_ascii_case(class))
@@ -614,7 +789,12 @@ pub fn focus_target(node: &ObjectRef) -> ObjectRef {
     node.clone()
 }
 pub fn blur(vm: &mut Vm, node: &ObjectRef) {
-    if is_list(node) || has(node, "Button") {
+    if is_list(node)
+        || has(node, "Button")
+        || has(node, "Keyboard")
+        || has(node, "MiniKeyboard")
+        || has(node, "TextEditBox")
+    {
         track(vm, node).dirty = true;
     }
 }
@@ -638,7 +818,7 @@ fn controls_changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
         }
         vm.sg.widgets.modal = dialog;
     }
-    if has(node, "Dialog")
+    if is_dialog(node)
         && field.eq_ignore_ascii_case("close")
         && vm
             .sg
@@ -650,7 +830,7 @@ fn controls_changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
         vm.sg.widgets.modal = None;
         emit(vm, node, "wasClosed", Value::Invalid)?;
     }
-    if has(node, "Dialog") {
+    if is_dialog(node) {
         let group = with_node(node, |n| {
             n.field("buttonGroup").and_then(|f| node_ref(&f.value))
         });
@@ -761,6 +941,9 @@ pub fn modal_key(vm: &mut Vm, key: &str, pressed: bool) -> Result<bool> {
     let Some(dialog) = vm.sg.widgets.modal.clone() else {
         return Ok(false);
     };
+    if standard_dialog::key(vm, &dialog, key, pressed)? {
+        return Ok(true);
+    }
     if pressed {
         if key == "back" || (key == "options" && with_node(&dialog, |n| n.flag("optionsDialog"))) {
             set_field(vm, &dialog, "close", Value::Boolean(true))?;
@@ -875,6 +1058,9 @@ fn add_label(
     Ok(())
 }
 fn build_dialog(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
+    if has(node, "StandardKeyboardDialog") {
+        return standard_dialog::render(vm, node, state);
+    }
     let (title, message, desired, selected) = with_node(node, |n| {
         (
             n.text("title"),
@@ -937,7 +1123,35 @@ fn build_dialog(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> 
 }
 
 pub fn initialize(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
+    super::layout::initialize(vm, node);
     let scale = design_scale(vm);
+    if has(node, "Label") && with_node(node, |n| n.field("font").is_some()) {
+        // Device: label.font is a Font node (uri "", size 34 FHD / 22 HD), so
+        // `label.font.size = 40` style code works on a fresh Label.
+        let font = create_node(vm, "Font")?.expect("Font");
+        let size = if vm.sg.design_height >= 1080.0 || vm.sg.design_height == 0.0 {
+            34
+        } else {
+            22
+        };
+        set_field(vm, &font, "size", Value::Integer(size))?;
+        with_node_mut(&font, |n| {
+            n.native_font = Some(super::NativeFont::LabelDefault)
+        });
+        with_node_mut(node, |n| {
+            if let Some(field) = n.field_mut("font") {
+                field.value = Value::Object(font);
+            }
+        });
+    }
+    if has(node, "MarkupGrid") && scale != 1.0 {
+        set_field(
+            vm,
+            node,
+            "wrapDividerHeight",
+            Value::Float((54.0 * scale) as f32),
+        )?;
+    }
     if (has(node, "LabelList") || has(node, "MarkupList")) && scale != 1.0 {
         set_field(
             vm,
@@ -950,12 +1164,14 @@ pub fn initialize(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
         set_field(vm, node, "height", Value::Float((72.0 * scale) as f32))?;
     }
 
-    if has(node, "Dialog") {
+    if is_dialog(node) {
         let group = create_node(vm, "ButtonGroup")?.expect("ButtonGroup");
         with_node_mut(&group, |n| n.parent = Some(Rc::downgrade(node)));
         set_field(vm, node, "buttonGroup", Value::Object(group))?;
     }
-    keyboard::initialize(vm, node)
+    info_pane::initialize(vm, node)?;
+    keyboard::initialize(vm, node)?;
+    standard_dialog::initialize(vm, node)
 }
 
 fn design_scale(vm: &Vm) -> f64 {
@@ -964,4 +1180,126 @@ fn design_scale(vm: &Vm) -> f64 {
     } else {
         1.0
     }
+}
+
+pub fn text_input_active(vm: &Vm) -> bool {
+    keyboard::text_target(vm).is_some()
+}
+pub fn text_input(vm: &mut Vm, text: &str, command: &str) -> Result<bool> {
+    keyboard::host_input(vm, text, command)
+}
+
+pub fn text_input_mode(vm: &Vm) -> i32 {
+    if !text_input_active(vm) {
+        return 0;
+    }
+    if vm.sg.widgets.modal.is_some()
+        || super::runtime::focused_node(vm).is_some_and(|node| keyboard::is_keyboard(&node))
+    {
+        2
+    } else {
+        1
+    }
+}
+
+/// Native grid footprint includes focus padding and the trailing item spacing,
+/// even with focus drawing disabled. It is independent of cell translations.
+pub fn grid_bounds(vm: &Vm, node: &ObjectRef) -> Option<super::render::Rect> {
+    if !has(node, "MarkupGrid") {
+        return None;
+    }
+    let count = content(vm, node).len();
+    if count == 0 {
+        return Some(super::render::Rect::default());
+    }
+    let (size, spacing, columns, rows, wrap, divider) = with_node(node, |n| {
+        (
+            n.vector("itemSize"),
+            n.vector("itemSpacing"),
+            n.number("numColumns").max(1.0) as usize,
+            n.number("numRows").max(1.0) as usize,
+            n.text("vertFocusAnimationStyle")
+                .eq_ignore_ascii_case("fixedfocuswrap"),
+            n.number("wrapDividerHeight"),
+        )
+    });
+    let margin = 15.0 * design_scale(vm);
+    let rows = rows.min(count.div_ceil(columns));
+    Some(super::render::Rect {
+        x: -margin,
+        y: -margin,
+        width: columns as f64 * (size.0 + if columns > 1 { spacing.0 } else { 0.0 }) + 2.0 * margin,
+        height: rows as f64 * (size.1 + spacing.1)
+            + 2.0 * margin
+            + if wrap { divider } else { 0.0 },
+    })
+}
+
+fn draw_grid_focus(
+    vm: &mut Vm,
+    widget: &ObjectRef,
+    state: &mut State,
+    position: (f64, f64),
+    size: (f64, f64),
+) -> Result<()> {
+    let uri = with_node(widget, |n| n.text("focusBitmapUri"));
+    let scale = design_scale(vm);
+    if !uri.is_empty() {
+        let poster = create_node(vm, "Poster")?.expect("Poster");
+        set_field(
+            vm,
+            &poster,
+            "translation",
+            super::float_array(&[position.0 - 15.0 * scale, position.1 - 15.0 * scale]),
+        )?;
+        set_field(
+            vm,
+            &poster,
+            "width",
+            Value::Float((size.0 + 30.0 * scale) as f32),
+        )?;
+        set_field(
+            vm,
+            &poster,
+            "height",
+            Value::Float((size.1 + 30.0 * scale) as f32),
+        )?;
+        let blend = with_node(widget, |n| {
+            n.field("focusBitmapBlendColor").unwrap().value.clone()
+        });
+        set_field(vm, &poster, "blendColor", blend)?;
+        set_field(vm, &poster, "uri", Value::string(uri))?;
+        state.rendered.push(poster);
+        return Ok(());
+    }
+    // Procedural substitute for the native rounded focus outline. The ROM
+    // image is not bundled; its design-space geometry comes from the probe.
+    let color = with_node(widget, |n| n.number("focusBitmapBlendColor") as i64 as u32);
+    let channel = |shift: u32| (((color >> shift) & 255u32) * 230u32 / 255u32) << shift;
+    let color = channel(24) | channel(16) | channel(8) | (color & 255);
+    let (x, y) = (position.0, position.1);
+    let (w, h) = size;
+    let edge = 7.5 * scale;
+    for (rx, ry, rw, rh) in [
+        (x, y - edge, w, edge),
+        (x, y + h, w, edge),
+        (x - edge, y, edge, h),
+        (x + w, y, edge, h),
+    ] {
+        add_rectangle(vm, state, rx, ry, rw, rh, color)?;
+    }
+    // Rounded outer corners, made from narrow horizontal bands.
+    for i in 0..5 {
+        let cy = (i as f64 + 0.5) * 1.5 * scale;
+        let width = (edge * edge - (edge - cy).powi(2)).max(0.0).sqrt();
+        for (rx, ry) in [
+            (x - width, y - edge + i as f64 * 1.5 * scale),
+            (x + w, y - edge + i as f64 * 1.5 * scale),
+            (x - width, y + h + (4 - i) as f64 * 1.5 * scale),
+            (x + w, y + h + (4 - i) as f64 * 1.5 * scale),
+        ] {
+            add_rectangle(vm, state, rx, ry, width, 1.5 * scale, color)?;
+        }
+    }
+    Ok(())
 }

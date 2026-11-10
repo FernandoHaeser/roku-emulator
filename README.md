@@ -9,7 +9,7 @@
 **BrightScript and SceneGraph, compiled to WebAssembly, diffed byte by byte against Roku hardware.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/FernandoHaeser/roku-emulator/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/FernandoHaeser/roku-emulator/actions/workflows/ci.yml)
-[![Device conformance](https://img.shields.io/badge/device_conformance-41%2F43_probes-22d3ee?style=flat-square)](#how-fidelity-works)
+[![Device conformance](https://img.shields.io/badge/device_conformance-44%2F46_probes-22d3ee?style=flat-square)](#how-fidelity-works)
 [![Rust](https://img.shields.io/badge/core-Rust-b7410e?style=flat-square&logo=rust&logoColor=white)](crates/brs-core)
 [![WebAssembly](https://img.shields.io/badge/runs_in-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](crates/brs-wasm)
 [![React](https://img.shields.io/badge/shell-React_+_TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)](apps/web)
@@ -153,7 +153,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | Widgets (F5)               | In progress: lists, grid bindings, buttons, modal dialogs and keyboard                             |
 | Video (F6)                 | In progress: device-recorded lifecycle (MP4, HLS, DASH, HTTP errors) and Widevine DRM errors       |
 | VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension           |
-| Shell tools (F8)           | In progress: clickable remote and node inspector; network/registry panels and hot reload pending   |
+| Shell tools (F8)           | Clickable remote, node inspector, network/registry panels and VS Code hot reload                   |
 
 **Known gaps** (tracked by failing conformance):
 
@@ -189,7 +189,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | F5 · Widgets            | Device-probed list/grid events and bindings, buttons, modal dialogs and keyboard                | In progress |
 | F6 · Video              | `Video` node over Shaka Player, Widevine via EME                                                | In progress |
 | F7 · Tooling            | Dev installer, ECP, console, telnet and binary debug protocol                                   | Done        |
-| F8 · Shell              | Clickable remote, node inspector, network and registry panels, hot reload                       | Partial     |
+| F8 · Shell              | Clickable remote, node inspector, network/registry panels, VS Code hot reload                   | Implemented |
 | F9 · Closed libraries   | Configurable mocks for ads, analytics and channel store                                         | Planned     |
 | F10 · VS Code extension | Own extension: embedded emulator, project setup, debugger; CI on 3 OSes, release workflow ready | Unpublished |
 

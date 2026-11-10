@@ -1,0 +1,23 @@
+bounds= 584 , 704 
+lower=true
+max= 25
+scene up true
+scene up false
+scene left true
+scene left false
+text="a" cursor= 1
+scene OK false
+text="ab" cursor= 2
+scene OK false
+text="abh" cursor= 3
+scene OK false
+scene options true
+scene options false
+text="" cursor= 0
+scene OK false
+text=" " cursor= 1
+scene OK false
+text="" cursor= 0
+scene OK false
+scene back true
+final=""

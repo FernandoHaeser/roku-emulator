@@ -110,6 +110,7 @@ name = "brs-wasm"
 version = "0.1.0"
 dependencies = [
  "brs-core",
+ "serde_json",
 ]
 
 [[package]]

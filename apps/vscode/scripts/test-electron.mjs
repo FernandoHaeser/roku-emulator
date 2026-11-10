@@ -21,6 +21,14 @@ await writeFile(
   join(workspace, ".vscode/launch.json"),
   '{\n // preserve\n "version":"0.2.0", "configurations":[{"name":"Physical Roku"}]\n}\n',
 );
+await writeFile(
+  join(workspace, ".vscode/settings.json"),
+  JSON.stringify({
+    "rokuEmulator.ecpPort": 28060,
+    "rokuEmulator.consolePort": 28085,
+    "rokuEmulator.debugPort": 28081,
+  }),
+);
 const extensions = join(root, ".vscode-test/extensions");
 await mkdir(extensions, { recursive: true });
 const vscodeExecutable = await resolveVSCode();

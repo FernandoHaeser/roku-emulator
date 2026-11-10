@@ -207,6 +207,14 @@ impl Vm {
             Expr::Unary(op, value) => {
                 ops::unary(*op, &self.eval_expression(value, locals)?).map_err(|e| e.to_string())?
             }
+            Expr::OptionalDot(object, name) => {
+                let object = self.eval_expression(object, locals)?;
+                if object.is_invalid() {
+                    Value::Invalid
+                } else {
+                    get_field(&object, name).map_err(|e| e.to_string())?
+                }
+            }
             Expr::Dot(object, name) => get_field(&self.eval_expression(object, locals)?, name)
                 .map_err(|e| e.to_string())?,
             Expr::Index(object, indexes) => {

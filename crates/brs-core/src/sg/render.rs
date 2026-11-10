@@ -22,12 +22,6 @@ pub struct Rect {
 
 impl Rect {
     fn union(self, other: Rect) -> Rect {
-        if self.width <= 0.0 && self.height <= 0.0 {
-            return other;
-        }
-        if other.width <= 0.0 && other.height <= 0.0 {
-            return self;
-        }
         let x = self.x.min(other.x);
         let y = self.y.min(other.y);
         let right = (self.x + self.width).max(other.x + other.width);
@@ -42,9 +36,39 @@ impl Rect {
 }
 
 /// Font of a Label's `font` field: a `font:` system URI or a Font node.
+/// Where a Label's `font` value comes from, as far as measuring is concerned.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FontSource {
+    /// A `font:<Name>` string, or a Font node with a uri.
+    Named,
+    /// The Label's built-in default font node.
+    LabelDefault,
+    /// Engine font node that keeps its explicit size.
+    NativeSized,
+    /// A channel-created Font node without a uri: the device draws nothing and
+    /// boundingRect() is 0x0 (fidelity/scenegraph/label-font-sizes).
+    Missing,
+}
+
+fn font_source(font: &Value) -> FontSource {
+    let Value::Object(object) = font else {
+        return FontSource::Named;
+    };
+    let Object::Node(node) = &*object.borrow() else {
+        return FontSource::Named;
+    };
+    match node.native_font {
+        Some(super::NativeFont::LabelDefault) => FontSource::LabelDefault,
+        Some(super::NativeFont::Sized) => FontSource::NativeSized,
+        None if node.text("uri").is_empty() => FontSource::Missing,
+        None => FontSource::Named,
+    }
+}
+
 pub fn label_font(vm: &Vm, font: &Value) -> FontSpec {
     let fhd = is_fhd(vm);
     let output_scale = super::bitmap::design_per_output(vm);
+    let source = font_source(font);
     let (name, explicit) = match font {
         Value::String(name) => (name.to_string(), None),
         Value::Object(object) => match &*object.borrow() {
@@ -52,6 +76,11 @@ pub fn label_font(vm: &Vm, font: &Value) -> FontSpec {
             _ => (String::new(), None),
         },
         _ => (String::new(), None),
+    };
+    let name = if source == FontSource::LabelDefault {
+        "font:SmallSystemFont".to_string()
+    } else {
+        name
     };
     let package = vm
         .sg
@@ -64,8 +93,12 @@ pub fn label_font(vm: &Vm, font: &Value) -> FontSpec {
             data,
         });
     let bold = package.is_none() && name.to_lowercase().contains("bold");
-    // A Font node with its own size is not a calibrated system font.
-    if let Some(size) = explicit.filter(|s| *s > 0.0) {
+    // The device ignores `size` on a Font node with a system uri, whatever the
+    // assignment order; only package fonts (and native widget fonts) scale.
+    let sized = package.is_some()
+        || source == FontSource::NativeSized
+        || (source == FontSource::Named && text::system_font(&name).is_none());
+    if let Some(size) = explicit.filter(|s| sized && *s > 0.0) {
         return FontSpec {
             id: None,
             size,
@@ -93,7 +126,7 @@ pub fn label_font(vm: &Vm, font: &Value) -> FontSpec {
 /// Lines and metrics of a Label (design px, before any transform).
 pub fn label_layout(vm: &Vm, node: &Node) -> (FontSpec, text::Layout) {
     let font = label_font(vm, &node.raw("font"));
-    let layout = text::layout(
+    let mut layout = text::layout(
         &font,
         &node.text("text"),
         is_fhd(vm),
@@ -102,6 +135,15 @@ pub fn label_layout(vm: &Vm, node: &Node) -> (FontSpec, text::Layout) {
         node.number("maxLines").max(0.0) as usize,
         node.number("lineSpacing"),
     );
+    match font_source(&node.raw("font")) {
+        FontSource::Missing => {
+            layout.lines.clear();
+            layout.line_height = 0.0;
+            layout.line_spacing = 0.0;
+        }
+        FontSource::LabelDefault if is_fhd(vm) => layout.line_height = 36.0,
+        _ => {}
+    }
     (font, layout)
 }
 
@@ -128,6 +170,24 @@ fn has(node: &Node, type_name: &str) -> bool {
 
 /// Bounds in the node's own coordinate system (before its translation).
 pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
+    if let Some(bounds) = super::widgets::grid_bounds(vm, object) {
+        return bounds;
+    }
+    if let Some(bounds) = vm.sg.layouts.bounds(object) {
+        return bounds;
+    }
+    if with_node(object, |n| {
+        &*n.subtype == "BulletText" && n.children.is_empty()
+    }) {
+        // Device-recorded (widgets/info-pane): an empty BulletText reports an
+        // unset origin of i32::MAX rather than a zero rectangle.
+        return Rect {
+            x: i32::MAX as f64,
+            y: i32::MAX as f64,
+            width: 0.0,
+            height: 0.0,
+        };
+    }
     let (own, mut children) = with_node(object, |node| {
         let own = if has(node, "Label") {
             let (_, layout) = label_layout(vm, node);
@@ -144,6 +204,32 @@ pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
                 y: 0.0,
                 width: pick("width", layout.width()),
                 height: pick("height", layout.height()),
+            })
+        } else if has(node, "MiniKeyboard") {
+            let (width, height) = if is_fhd(vm) {
+                (584.0, 704.0)
+            } else {
+                (390.0, 470.0)
+            };
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height,
+            })
+        } else if has(node, "Keyboard") {
+            // Default native footprint measured by widgets/selection-controls
+            // in both design resolutions, including the widget's padding.
+            let (width, height) = if is_fhd(vm) {
+                (1416.0, 452.0)
+            } else {
+                (942.0, 302.0)
+            };
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height,
             })
         } else if has(node, "Poster") {
             let (width, height) = poster_size(node);
@@ -166,14 +252,24 @@ pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
         (own, node.children.clone())
     });
     children.extend(super::widgets::children(vm, object));
-    let mut bounds = own.unwrap_or_default();
+    let mut bounds = own;
     for child in &children {
-        if with_node(child, |n| n.internal || !visible(n)) {
+        if with_node(child, |n| n.internal) {
             continue;
         }
-        bounds = bounds.union(parent_bounds(vm, child));
+        let child = parent_bounds(vm, child);
+        if child.width <= 0.0 && child.height <= 0.0 {
+            continue;
+        }
+        bounds = Some(if let Some(bounds) = bounds {
+            // Renderable nodes retain their own origin even when width and
+            // height are zero. A plain Group has no such intrinsic rectangle.
+            bounds.union(child)
+        } else {
+            child
+        });
     }
-    bounds
+    bounds.unwrap_or_default()
 }
 
 fn visible(node: &Node) -> bool {
@@ -287,6 +383,7 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
             return None;
         }
         let (tx, ty) = node.vector("translation");
+        let (tx, ty) = (tx + node.render_offset.0, ty + node.render_offset.1);
         let (sx, sy) = if node.field("scale").is_some() {
             node.vector("scale")
         } else {
@@ -346,18 +443,53 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
             }
         } else if has(node, "Poster") {
             let uri = node.text("uri");
-            if !uri.is_empty() {
+            if matches!(node.native_paint, Some(super::NativePaint::InfoPanel)) {
                 let (pw, ph) = poster_size(node);
+                info_panel_items(
+                    vm,
+                    &mut items,
+                    (transform.x, transform.y),
+                    (pw * transform.sx, ph * transform.sy),
+                    (transform.sx, transform.sy),
+                    transform.opacity,
+                );
+            } else if !uri.is_empty() {
+                let (pw, ph) = poster_size(node);
+                let (bw, bh) = (node.number("bitmapWidth"), node.number("bitmapHeight"));
+                let mode = node.load_display_mode.as_deref().unwrap_or("");
+                let (mut iw, mut ih) = (pw, ph);
+                let zoom = mode.eq_ignore_ascii_case("scaleToZoom");
+                if bw > 0.0 && bh > 0.0 && (zoom || mode.eq_ignore_ascii_case("scaleToFit")) {
+                    let scale = if zoom {
+                        (pw / bw).max(ph / bh)
+                    } else {
+                        (pw / bw).min(ph / bh)
+                    };
+                    iw = bw * scale;
+                    ih = bh * scale;
+                }
+                if zoom {
+                    items.push(format!(
+                        "[\"c\",{},{},{},{}]",
+                        transform.x,
+                        transform.y,
+                        pw * transform.sx,
+                        ph * transform.sy
+                    ));
+                }
                 items.push(format!(
                     "[\"i\",{},{},{},{},{},{},{}]",
-                    transform.x,
-                    transform.y,
-                    pw * transform.sx,
-                    ph * transform.sy,
+                    transform.x + (pw - iw) * transform.sx / 2.0,
+                    transform.y + (ph - ih) * transform.sy / 2.0,
+                    iw * transform.sx,
+                    ih * transform.sy,
                     json_string(&uri),
                     transform.opacity,
                     node.number("blendColor") as i64 as i32
                 ));
+                if zoom {
+                    items.push("[\"C\"]".to_owned());
+                }
             }
         } else if has(node, "Label") {
             let (font, layout) = label_layout(vm, node);
@@ -454,4 +586,85 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
     if rotate.is_some() {
         push_item(out, first, "[\"Q\"]");
     }
+}
+
+/// Locally drawn stand-in for the device's infoPanel.9.png (no ROM assets).
+/// Geometry measured on the H302X screenshot of widgets/info-pane, in FHD
+/// units: the visible panel is inset from the Poster bounds (6.5 left, 7 top,
+/// 8.5 right/bottom, leaving room for the drop shadow), has a 7.5 corner
+/// radius, a 1.5 border of 0x4B4B4B over a 0x2B2B2B fill and a faint shadow.
+fn info_panel_items(
+    vm: &Vm,
+    items: &mut Vec<String>,
+    (x, y): (f64, f64),
+    (w, h): (f64, f64),
+    (sx, sy): (f64, f64),
+    opacity: f64,
+) {
+    let design = if vm.sg.design_height > 0.0 {
+        vm.sg.design_height / 1080.0
+    } else {
+        1.0
+    };
+    let (ux, uy) = (design * sx, design * sy);
+    let step = super::bitmap::design_per_output(vm) * sy;
+    let (left, top) = (x + 6.5 * ux, y + 7.0 * uy);
+    let (width, height) = (w - 15.0 * ux, h - 15.5 * uy);
+    if width <= 0.0 || height <= 0.0 {
+        return;
+    }
+    let radius = 7.5 * uy;
+    let border = 1.5 * ux;
+    let shadow = 1.5 * ux;
+    for (inset, color) in [
+        (-shadow, 0x0000_0033u32),
+        (0.0, 0x4B4B_4BFF),
+        (border, 0x2B2B_2BFF),
+    ] {
+        push_rounded_rect(
+            items,
+            (left + inset, top + inset),
+            (width - 2.0 * inset, height - 2.0 * inset),
+            (radius - inset).max(0.0),
+            step,
+            color,
+            opacity,
+        );
+    }
+}
+
+/// Fills a rounded rectangle with one strip per output row in the corners;
+/// hosts fill "r" items on whole output pixels without antialiasing.
+fn push_rounded_rect(
+    items: &mut Vec<String>,
+    (x, y): (f64, f64),
+    (w, h): (f64, f64),
+    radius: f64,
+    step: f64,
+    color: u32,
+    opacity: f64,
+) {
+    let mut push = |rx: f64, ry: f64, rw: f64, rh: f64| {
+        if rw > 0.0 && rh > 0.0 {
+            items.push(format!(
+                "[\"r\",{rx},{ry},{rw},{rh},{},{opacity}]",
+                color as i32
+            ));
+        }
+    };
+    let radius = radius.min(w / 2.0).min(h / 2.0);
+    let rows = if step > 0.0 {
+        (radius / step).ceil() as usize
+    } else {
+        0
+    };
+    let band = rows as f64 * step;
+    for row in 0..rows {
+        let offset = row as f64 * step;
+        let dy = radius - (offset + step / 2.0);
+        let dx = radius - (radius * radius - dy * dy).max(0.0).sqrt();
+        push(x + dx, y + offset, w - 2.0 * dx, step);
+        push(x + dx, y + h - offset - step, w - 2.0 * dx, step);
+    }
+    push(x, y + band, w, h - 2.0 * band);
 }

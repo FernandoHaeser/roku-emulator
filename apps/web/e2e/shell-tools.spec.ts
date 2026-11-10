@@ -91,3 +91,42 @@ test("clickable remote and node inspector on scenegraph/focus-keys", async ({ pa
   await remote.getByRole("button", { name: "Início", exact: true }).click();
   await expect(page.getByLabel("Tela inicial")).toBeVisible();
 });
+
+test("registry tools edit, persist and delete entries of a running channel", async ({ page }) => {
+  const zip = Buffer.from(packChannel(join(repoRoot, "fidelity/scenegraph/focus-keys")));
+  const load = async () => {
+    await page.goto("/");
+    await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles({ name: "registry.zip", mimeType: "application/zip", buffer: zip });
+    await expect(page.getByLabel("Tela inicial")).toBeHidden();
+    await page.getByRole("tab", { name: "Registro", exact: true }).click();
+  };
+  await load();
+  const registry = page.getByRole("region", { name: "Registro", exact: true });
+  await registry.getByLabel("Seção", { exact: true }).fill("e2e");
+  await registry.getByLabel("Chave", { exact: true }).fill("demo");
+  await registry.getByLabel("Valor", { exact: true }).fill("private-test-value");
+  await registry.getByRole("button", { name: "Salvar no registro" }).click();
+  await expect(registry.getByLabel("Valor de e2e/demo", { exact: true })).toHaveValue(
+    "private-test-value",
+  );
+  await expect(registry.getByLabel("Valor de e2e/demo", { exact: true })).toHaveAttribute(
+    "type",
+    "password",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.values(localStorage).some((value) => value.includes("private-test-value")),
+      ),
+    )
+    .toBe(true);
+  await load();
+  await expect(registry.getByLabel("Valor de e2e/demo", { exact: true })).toHaveValue(
+    "private-test-value",
+  );
+  await registry.getByRole("button", { name: "Excluir e2e/demo", exact: true }).click();
+  await expect(registry.getByLabel("Valor de e2e/demo", { exact: true })).toHaveCount(0);
+});

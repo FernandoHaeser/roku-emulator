@@ -1,4 +1,6 @@
-import { EmulatorDebugSession } from "./debugAdapter";
+import { HotReload } from "./hotReload";
+import { digestFetch } from "../../../packages/oracle/src/digest";
+import { EmulatorDebugSession, packageWorkspace } from "./debugAdapter";
 import * as vscode from "vscode";
 import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -41,7 +43,13 @@ export async function activate(context: vscode.ExtensionContext) {
     consolePort: settings().get("consolePort", 8085),
     debugPort: settings().get("debugPort", 8081),
   });
+  let watching: vscode.Disposable | undefined;
+  const stopWatching = () => {
+    watching?.dispose();
+    watching = undefined;
+  };
   const stop = async () => {
+    stopWatching();
     panel?.dispose();
     panel = undefined;
     ready = false;
@@ -69,7 +77,16 @@ export async function activate(context: vscode.ExtensionContext) {
       const profile = JSON.parse(
         await readFile(context.asAbsolutePath("runtime/profile.json"), "utf8"),
       ) as Record<string, string>;
-      const running = await startDeviceServer({ ...DEFAULT_CONFIG, ...ports() }, profile);
+      const configuredPorts = ports();
+      const running = await startDeviceServer(
+        {
+          ...DEFAULT_CONFIG,
+          ...configuredPorts,
+          installerPort: configuredPorts.ecpPort,
+          sceneConsolePort: 0,
+        },
+        profile,
+      );
       try {
         const host = await startWebHost(context.asAbsolutePath("runtime/web"), running);
         device = running;
@@ -225,6 +242,98 @@ export async function activate(context: vscode.ExtensionContext) {
         ),
     }),
   );
+  const toggleWatch = async () => {
+    if (watching) {
+      stopWatching();
+      output.appendLine("Hot reload desativado.");
+      return;
+    }
+    if (vscode.debug.activeDebugSession?.type === "roku-emulator")
+      throw new Error("Encerre a sessão de depuração antes de ativar o hot reload.");
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) throw new Error("Abra a pasta do canal Roku primeiro.");
+    const folder =
+      folders.length === 1
+        ? folders[0]
+        : (
+            await vscode.window.showQuickPick(
+              folders.map((folder) => ({ label: folder.name, folder })),
+            )
+          )?.folder;
+    if (!folder) return;
+    await vscode.workspace.fs.stat(vscode.Uri.joinPath(folder.uri, "manifest"));
+    await open();
+    if (vscode.debug.activeDebugSession?.type === "roku-emulator")
+      throw new Error("Encerre a sessão de depuração antes de ativar o hot reload.");
+    const reload = new HotReload(
+      async (signal) => {
+        const zip = await packageWorkspace(folder.uri.fsPath);
+        if (signal.aborted) return;
+        const password =
+          settings().get<string>("runtime", "bundled") === "external"
+            ? ((await context.secrets.get("externalPassword")) ?? "rokudev")
+            : "rokudev";
+        const installed = await digestFetch(
+          `http://127.0.0.1:${ports().ecpPort}/plugin_install`,
+          () => {
+            const body = new FormData();
+            body.set("mysubmit", "Install");
+            body.set("archive", new Blob([zip]), "channel.zip");
+            return { method: "POST", body, signal };
+          },
+          { user: "rokudev", password },
+        );
+        if (!installed.ok || !(await installed.text()).includes("Install Success."))
+          throw new Error("Falha na instalação do canal.");
+        output.appendLine("Hot reload: canal atualizado; registro preservado.");
+      },
+      (error) => output.appendLine(`Hot reload: ${String(error)}`),
+    );
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(folder, "**/*"),
+    );
+    const changed = (uri: vscode.Uri) => {
+      const parts = vscode.workspace.asRelativePath(uri, false).split(/[\\/]/);
+      if (
+        parts.some(
+          (p) =>
+            [
+              ".git",
+              ".vscode",
+              "node_modules",
+              "out",
+              "dist",
+              "coverage",
+              "golden",
+              ".DS_Store",
+            ].includes(p) ||
+            p.startsWith(".env") ||
+            p.endsWith(".vsix"),
+        )
+      )
+        return;
+      reload.notify();
+    };
+    watching = vscode.Disposable.from(
+      reload,
+      watcher,
+      watcher.onDidChange(changed),
+      watcher.onDidCreate(changed),
+      watcher.onDidDelete(changed),
+    );
+    reload.notify();
+    output.appendLine(
+      `Hot reload ativado para ${folder.name}. Execute o comando novamente para desativar.`,
+    );
+  };
+  context.subscriptions.push(
+    vscode.debug.onDidStartDebugSession((session) => {
+      if (session.type === "roku-emulator" && watching) {
+        stopWatching();
+        output.appendLine("Hot reload desativado para iniciar a depuração.");
+      }
+    }),
+  );
   const commands: Record<string, () => unknown> = {
     open,
     start,
@@ -234,6 +343,7 @@ export async function activate(context: vscode.ExtensionContext) {
       await open();
     },
     configure,
+    watch: toggleWatch,
     browser: async () => vscode.env.openExternal(vscode.Uri.parse(await start())),
     password: async () =>
       settings().get<string>("runtime", "bundled") === "external"
@@ -264,7 +374,15 @@ export async function activate(context: vscode.ExtensionContext) {
       await stop();
       await settings().update("runtime", value.value, vscode.ConfigurationTarget.Global);
     },
-    _status: () => ({ running: !!url, url, ready, isolated, serverRuntime, ports: ports() }),
+    _status: () => ({
+      running: !!url,
+      watching: !!watching,
+      url,
+      ready,
+      isolated,
+      serverRuntime,
+      ports: ports(),
+    }),
   };
   for (const [name, handler] of Object.entries(commands))
     context.subscriptions.push(

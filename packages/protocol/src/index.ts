@@ -8,6 +8,8 @@ import type { RemoteKey } from "./keys";
 export * from "./bridge";
 export * from "./keys";
 export * from "./scene";
+export * from "./network";
+import type { NetworkEntry } from "./network";
 
 /** Id prefix of the shell's own inspection requests (`__emu` commands). */
 export const SHELL_RPC_PREFIX = "shell-";
@@ -56,6 +58,7 @@ export type ShellToWorkerMessage =
       height: number;
     }
   | { type: "key"; key: RemoteKey; pressed: boolean }
+  | { type: "textInput"; text: string; command: string }
   | { type: "debuggerCommand"; command: string }
   | { type: "httpComplete"; id: number; response: string }
   | { type: "input"; args: Record<string, string> }
@@ -94,6 +97,7 @@ export interface ChannelInfo {
 
 export type WorkerToShellMessage =
   | { type: "ready"; renderer: string }
+  | { type: "textInputState"; active: boolean; virtualKeyboard: boolean }
   | { type: "console"; stream: ConsoleStream; text: string }
   /** Exact engine output for device console clients, including partial prompts. */
   | { type: "consoleRaw"; text: string }
@@ -111,4 +115,5 @@ export type WorkerToShellMessage =
   | { type: "videoLayout"; width: number; height: number; rects: VideoRect[] }
   /** Response to an inspection request of the shell (id prefix SHELL_RPC_PREFIX). */
   | { type: "inspection"; json: string }
+  | { type: "network"; entry: NetworkEntry }
   | { type: "fatal"; message: string };
