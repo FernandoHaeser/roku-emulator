@@ -631,27 +631,7 @@ fn render_mini(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
         let y = grid_y + key.y;
         let selected = focused && index == state.keyboard.selected;
         if selected {
-            keyboard_rectangle(
-                vm,
-                state,
-                x - 13.5,
-                y - 13.5,
-                key.width + 25.5,
-                108.0,
-                0x3232_32FF,
-            )?;
-            for band in 0..35 {
-                let shade = (224.0 - 73.0 * band as f64 / 34.0).round() as u32;
-                keyboard_rectangle(
-                    vm,
-                    state,
-                    x - 12.0,
-                    y - 12.0 + band as f64 * 3.0,
-                    key.width + 22.5,
-                    3.0,
-                    (shade << 24) | (shade << 16) | (shade << 8) | 255,
-                )?;
-            }
+            mini_focus(vm, state, x - 13.5, y - 13.5, key.width + 25.5)?;
         }
         let icon_color = if selected {
             0x000000FFu32
@@ -679,11 +659,8 @@ fn render_mini(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
             vm,
             &label,
             "font",
-            Value::string(if selected {
-                "font:MediumBoldSystemFont"
-            } else {
-                "font:MediumSystemFont"
-            }),
+            // Mini keyboard captures draw every key label bold, focused or not.
+            Value::string("font:MediumBoldSystemFont"),
         )?;
         set_field(
             vm,
@@ -907,6 +884,71 @@ pub(super) fn host_input(vm: &mut Vm, text: &str, command: &str) -> Result<bool>
 }
 
 /// Geometry for the native key symbols, independent of the host's font fallback.
+/// Focus box of a MiniKeyboard key, from the HD/FHD captures: 1 px black
+/// border, rounded corners (about 5 px) and a vertical gradient (224 -> 151)
+/// in 2 px bands. Built from spans so the corners show whatever is behind.
+fn mini_focus(vm: &mut Vm, state: &mut State, left: f64, top: f64, width: f64) -> Result<()> {
+    const PX: f64 = 1.5; // one output pixel in FHD units
+    const ROWS: usize = 72;
+    const BORDER: u32 = 0x0000_00FF;
+    let shade = |row: usize| {
+        let band = (row.saturating_sub(1) / 2).min(34) as f64;
+        let value = (224.0 - 73.0 * band / 34.0).round() as u32;
+        (value << 24) | (value << 16) | (value << 8) | 255
+    };
+    let right = left + width;
+    let y = |row: usize| top + row as f64 * PX;
+    // Top/bottom edge rows: (border start, fill start) in output pixels.
+    for (edge, border, fill) in [
+        (0usize, 5.0, None),
+        (1, 2.0, Some(4.0)),
+        (2, 1.0, Some(2.0)),
+    ] {
+        for row in [edge, ROWS - 1 - edge] {
+            match fill {
+                None => keyboard_rectangle(
+                    vm,
+                    state,
+                    left + border * PX,
+                    y(row),
+                    width - 2.0 * border * PX,
+                    PX,
+                    BORDER,
+                )?,
+                Some(fill) => {
+                    let span = (fill - border) * PX;
+                    keyboard_rectangle(vm, state, left + border * PX, y(row), span, PX, BORDER)?;
+                    keyboard_rectangle(vm, state, right - fill * PX, y(row), span, PX, BORDER)?;
+                    keyboard_rectangle(
+                        vm,
+                        state,
+                        left + fill * PX,
+                        y(row),
+                        width - 2.0 * fill * PX,
+                        PX,
+                        shade(row),
+                    )?;
+                }
+            }
+        }
+    }
+    let side = (ROWS - 6) as f64 * PX;
+    keyboard_rectangle(vm, state, left, y(3), PX, side, BORDER)?;
+    keyboard_rectangle(vm, state, right - PX, y(3), PX, side, BORDER)?;
+    for row in 3..ROWS - 3 {
+        keyboard_rectangle(
+            vm,
+            state,
+            left + PX,
+            y(row),
+            width - 2.0 * PX,
+            PX,
+            shade(row),
+        )?;
+    }
+    Ok(())
+}
+
 fn mini_icon(
     vm: &mut Vm,
     state: &mut State,
@@ -918,18 +960,21 @@ fn mini_icon(
     let cx = x + key.width / 2.0;
     let cy = y + 40.5;
     let mut strokes = Vec::new();
+    // Geometry measured on the HD/FHD mini-keyboard captures, in FHD units
+    // (output pixels x 1.5) around the key center: 2 px strokes, a 3 px
+    // chevron and a 3 px cross, like the device artwork.
     match key.text.as_str() {
-        "clear" => {
-            strokes.extend([
-                (-4.5, -15.0, 9.0, 3.0),
-                (-12.0, -10.5, 24.0, 3.0),
-                (-9.0, -6.0, 2.0, 21.0),
-                (7.0, -6.0, 2.0, 21.0),
-                (-9.0, 13.0, 18.0, 2.0),
-                (-3.5, -4.5, 1.5, 15.0),
-                (2.0, -4.5, 1.5, 15.0),
-            ]);
-        }
+        "clear" => strokes.extend([
+            (-6.0, -16.5, 10.5, 3.0),  // handle
+            (-7.5, -15.0, 3.0, 4.5),   // handle, left post
+            (3.0, -15.0, 3.0, 4.5),    // handle, right post
+            (-13.5, -10.5, 25.5, 3.0), // lid
+            (-12.0, -4.5, 3.0, 19.5),  // body, left side
+            (7.5, -4.5, 3.0, 19.5),    // body, right side
+            (-12.0, 12.0, 22.5, 3.0),  // body, bottom
+            (-4.5, -4.5, 3.0, 13.5),   // inner bar
+            (1.5, -4.5, 3.0, 13.5),    // inner bar
+        ]),
         "space" => strokes.extend([
             (-15.0, 0.0, 30.0, 3.0),
             (-15.0, -3.0, 3.0, 6.0),
@@ -937,22 +982,31 @@ fn mini_icon(
         ]),
         "delete" => {
             strokes.extend([
-                (-7.5, -9.0, 22.5, 2.0),
-                (-7.5, 7.0, 22.5, 2.0),
-                (13.0, -9.0, 2.0, 18.0),
+                (-7.5, -10.5, 24.0, 3.0), // top
+                (-7.5, 9.0, 24.0, 3.0),   // bottom
+                (13.5, -10.5, 3.0, 22.5), // right side
             ]);
-            for i in 0..6 {
-                let offset = i as f64 * 1.5;
-                strokes.push((-9.0 - offset, -9.0 + offset, 3.0, 1.5));
-                strokes.push((-9.0 - offset, 7.5 - offset, 3.0, 1.5));
-                strokes.push((-1.5 + offset, -4.5 + offset, 2.0, 1.5));
-                strokes.push((-1.5 + offset, 3.0 - offset, 2.0, 1.5));
+            // Left chevron: one 3 px segment per output row.
+            for (row, column) in [-6, -7, -8, -9, -9, -9, -9, -8, -8, -7, -6]
+                .into_iter()
+                .enumerate()
+            {
+                let dy = (row as f64 - 5.0) * 1.5;
+                strokes.push((column as f64 * 1.5, dy, 4.5, 1.5));
+            }
+            // Cross: two 3 px diagonals over seven output rows.
+            for k in 0..7 {
+                let dy = (k as f64 - 3.0) * 1.5;
+                strokes.push(((k as f64 - 1.0) * 1.5, dy, 4.5, 1.5));
+                strokes.push(((4.0 - k as f64) * 1.5, dy, 4.5, 1.5));
             }
         }
         _ => return Ok(false),
     }
+    // The delete artwork sits one output pixel left of the key center.
+    let shift = if key.text == "delete" { -1.5 } else { 0.0 };
     for (dx, dy, w, h) in strokes {
-        keyboard_rectangle(vm, state, cx + dx, cy + dy, w, h, color)?;
+        keyboard_rectangle(vm, state, cx + dx + shift, cy + dy, w, h, color)?;
     }
     Ok(true)
 }
