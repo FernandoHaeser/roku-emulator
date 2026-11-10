@@ -56,10 +56,15 @@ loopback. Keep the BrightScript extension for language services.
 - CI (`.github/workflows/vscode.yml`) runs both on Linux, Windows and macOS.
 - Release: bump `apps/vscode/package.json` and its `CHANGELOG.md`, merge to
   `master`, then push the tag `vscode-v<version>`. The workflow attaches the
-  VSIX to a GitHub pre-release; the `publish` job waits for the `marketplace`
-  environment, which must hold the `VSCE_PAT` secret of the
-  `FernandoHaeser` publisher (create the publisher and token at
-  marketplace.visualstudio.com/manage first).
+  VSIX to a GitHub pre-release; the `publish` job waits for approval in the
+  `marketplace` environment and publishes a Marketplace pre-release (see
+  [marketplace-publishing.md](marketplace-publishing.md)).
+
+## Marketplace publishing
+
+Microsoft Entra ID through GitHub OIDC; no stored token. One-time setup, the
+release procedure and troubleshooting:
+[marketplace-publishing.md](marketplace-publishing.md).
 
 ## Supported debugger operations
 

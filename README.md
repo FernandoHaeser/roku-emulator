@@ -354,6 +354,7 @@ pending.
 | [docs/architecture.md](docs/architecture.md)                     | Engine pipeline, VM and threads, SceneGraph, display list, wasm ABI, worker loop, home screen |
 | [docs/brightscript-semantics.md](docs/brightscript-semantics.md) | Behaviors confirmed on the device, each with the probe that proves it                         |
 | [docs/fidelity-workflow.md](docs/fidelity-workflow.md)           | Add a probe, record it on the device, make the emulator match                                 |
+| [docs/marketplace-publishing.md](docs/marketplace-publishing.md) | Publish the VS Code extension: Entra ID (OIDC) setup, releases, troubleshooting               |
 | [docs/git-workflow.md](docs/git-workflow.md)                     | Gitflow: `develop` (default), `release` (pre-prod), `master` (prod), PRs and releases         |
 | [CHANGELOG.md](CHANGELOG.md)                                     | Changes per phase                                                                             |
 

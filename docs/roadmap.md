@@ -19,8 +19,9 @@ home screen; those are the current architecture.
    Marketplace listing (README, icon, changelog, compatibility), VSIX
    install/upgrade/uninstall and debug-session tests on Linux, Windows and
    macOS in CI, and a tag-driven release workflow. Remaining (owner actions):
-   create the Marketplace publisher, add `VSCE_PAT` to the `marketplace`
-   environment and decide when to publish.
+   publisher created; finish the Entra ID (OIDC) publishing setup in
+   [marketplace-publishing.md](marketplace-publishing.md) and decide
+   when to publish.
 4. F4 renderer: in progress. Done: 720p surface like the device, screenshot
    diff suite (`apps/web/e2e/visual.spec.ts`, budgets in each `probe.json`),
    device edge snapping for rectangles/posters, calibrated text metrics

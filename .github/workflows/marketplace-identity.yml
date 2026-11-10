@@ -1,0 +1,30 @@
+name: Marketplace identity
+
+# One-off helper for the publishing setup (docs/marketplace-publishing.md): signs in to
+# Microsoft Entra ID exactly like the release workflow and prints the Azure
+# DevOps identity id of the app, which is added as a member of the
+# Marketplace publisher. The id is not a secret.
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      id-token: write
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Azure DevOps identity of the app
+        run: |
+          # 499b84ac-... is the Azure DevOps resource (Marketplace included).
+          az rest --method get \
+            --url "https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.3" \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --query "{id: id, displayName: displayName}" --output json
