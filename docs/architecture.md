@@ -188,7 +188,15 @@ and filtering remain approximate until the remaining F4 comparisons pass.
 - `useEmulator` owns the worker and routes keys: on the home screen they drive
   the launcher; in a channel they go to the worker, except **Home**, which the
   OS handles (stop channel, show home). Only releases of keys whose press
-  reached the channel are forwarded.
+  reached the channel are forwarded. The keyboard and the clickable `Remote`
+  use the same routing (`pressRemote`).
+- The node inspector asks the engine for a scene snapshot with the debugger
+  command `__emu {"id":"shell-N","op":"scene"}` (the request ECP app-ui uses).
+  The engine answers on the console with `@@ROKU_EMU_RPC {...}`; the worker
+  removes answers whose id starts with `shell-` from the console stream and
+  posts them as `inspection` messages, so polling never reaches the console,
+  telnet or the bridge. Bounds are design coordinates; the response carries
+  `width`/`height` for the highlight.
 - `HomeScreen` is an original launcher (not the Roku OS UI, which is
   proprietary) with the device's interaction model: tile grid driven by the
   remote (`gridNavigation.ts`), OK opens, Options (`*`, key O) opens the tile

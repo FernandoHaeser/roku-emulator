@@ -1,16 +1,6 @@
-export interface SceneNode {
-  type: string;
-  ancestry: string[];
-  focused: boolean;
-  fields: Record<string, unknown>;
-  bounds: number[];
-  children: SceneNode[];
-}
-export interface SceneInspection {
-  roots: SceneNode[];
-  threads: number;
-  timeMs: number;
-}
+import type { SceneInspection, SceneNode } from "@roku-emu/protocol";
+
+export type { SceneInspection, SceneNode };
 const escape = (text: unknown) =>
   String(text ?? "").replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
 export function appUiXml(scene: SceneInspection, title: string): string {

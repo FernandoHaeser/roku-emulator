@@ -7,8 +7,11 @@ import type { RemoteKey } from "./keys";
 
 export * from "./bridge";
 export * from "./keys";
+export * from "./scene";
 
-/** Command for the shell's video player (crates/brs-core/src/sg/video.rs). */
+/** Id prefix of the shell's own inspection requests (`__emu` commands). */
+export const SHELL_RPC_PREFIX = "shell-";
+
 /** `content.drmParams` of a protected stream. */
 export interface VideoDrm {
   /** Roku key system name ("widevine", "playready"). */
@@ -16,6 +19,7 @@ export interface VideoDrm {
   licenseServerURL: string;
 }
 
+/** Command for the shell's video player (crates/brs-core/src/sg/video.rs). */
 export type VideoCommand =
   | { id: number; op: "load"; url: string; format: string; drm?: VideoDrm }
   | { id: number; op: "pause" | "resume" | "stop" }
@@ -105,4 +109,6 @@ export type WorkerToShellMessage =
   | { type: "videoCommand"; command: VideoCommand }
   /** Video planes of the current frame (design resolution `width` x `height`). */
   | { type: "videoLayout"; width: number; height: number; rects: VideoRect[] }
+  /** Response to an inspection request of the shell (id prefix SHELL_RPC_PREFIX). */
+  | { type: "inspection"; json: string }
   | { type: "fatal"; message: string };
