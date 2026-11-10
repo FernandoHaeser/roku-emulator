@@ -8,6 +8,29 @@ import type { RemoteKey } from "./keys";
 export * from "./bridge";
 export * from "./keys";
 
+/** Command for the shell's video player (crates/brs-core/src/sg/video.rs). */
+export type VideoCommand =
+  | { id: number; op: "load"; url: string; format: string }
+  | { id: number; op: "pause" | "resume" | "stop" }
+  | { id: number; op: "seek"; position: number }
+  /** Channel exited: destroy every player. */
+  | { op: "reset" };
+
+/** Player event reported back to the engine. */
+export type VideoEvent =
+  | { id: number; type: "buffering" | "playing" | "paused" | "ended" }
+  | { id: number; type: "duration" | "position"; value: number }
+  | { id: number; type: "error"; status: number; message: string };
+
+/** Video plane of a player, in the channel's design resolution. */
+export interface VideoRect {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export type ShellToWorkerMessage =
   | {
       type: "init";
@@ -38,7 +61,8 @@ export type ShellToWorkerMessage =
       launchArgs?: Record<string, string> | undefined;
     }
   /** Exits the running channel (remote Home key). */
-  | { type: "stopChannel" };
+  | { type: "stopChannel" }
+  | { type: "videoEvent"; event: VideoEvent };
 
 export type ConsoleStream = "stdout" | "system";
 
@@ -68,4 +92,7 @@ export type WorkerToShellMessage =
   | { type: "channelInfoError"; requestId: number; message: string }
   /** The running channel changed its registry; the shell persists it. */
   | { type: "registry"; channelId: string; json: string }
+  | { type: "videoCommand"; command: VideoCommand }
+  /** Video planes of the current frame (design resolution `width` x `height`). */
+  | { type: "videoLayout"; width: number; height: number; rects: VideoRect[] }
   | { type: "fatal"; message: string };

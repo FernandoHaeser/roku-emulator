@@ -239,6 +239,7 @@ pub fn create_node(vm: &mut Vm, type_name: &str) -> Result<Option<ObjectRef>, Ru
     };
     populate_node(vm, &object)?;
     super::widgets::initialize(vm, &object)?;
+    super::video::initialize(vm, &object)?;
     Ok(Some(object))
 }
 
@@ -442,6 +443,15 @@ fn side_effects(vm: &mut Vm, object: &ObjectRef, field: &str) -> Result<(), Runt
             n.ancestry.iter().any(|t| t.ends_with("FieldInterpolator")),
         )
     });
+    if with_node(object, |n| n.ancestry.iter().any(|t| &**t == "Video")) {
+        if field.eq_ignore_ascii_case("control") {
+            let control = with_node(object, |n| n.text("control").to_lowercase());
+            return super::video::control(vm, object, &control);
+        }
+        if field.eq_ignore_ascii_case("seek") {
+            return super::video::seek(vm, object);
+        }
+    }
     if is_interpolator && field.eq_ignore_ascii_case("fraction") {
         return super::animation::interpolate(vm, object);
     }
@@ -680,6 +690,7 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
     if vm.sg.images.has_results() {
         super::bitmap::apply_results(vm)?;
     }
+    super::video::service(vm)?;
     if vm.sg.pending_scenes.is_empty() {
         while let Some((key, pressed)) = vm.sg.keys.pop_front() {
             dispatch_key(vm, &key, pressed)?;

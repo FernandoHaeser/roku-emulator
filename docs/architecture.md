@@ -101,11 +101,14 @@ coordinates (`ui_resolutions`: FHD 1920x1080, else 1280x720):
   ["r",x,y,w,h,rgba,opacity],
   ["i",x,y,w,h,uri,opacity,blendRgba],
   ["t",x,y,w,h,text,size,bold,rgba,opacity,horizAlign,vertAlign,wrap,maxLines],
-  ["c",x,y,w,h], ["C"]
+  ["c",x,y,w,h], ["C"],
+  ["v",x,y,w,h,playerId]
 ]}
 ```
 
 `c`/`C` push and pop a clip (`clippingRect`). Colors are signed `0xRRGGBBAA`.
+`v` is a Video plane (`w`/`h` 0 = full screen): the canvas clears it so the
+host's video element below shows through.
 
 On an unhandled error, `crash` writes the same dump as the device: source window
 around the failing line, `Source Digest(s)` (first 8 hex digits of the package
@@ -144,6 +147,9 @@ Plain C ABI, no wasm-bindgen. Exports (`crates/brs-wasm/src/lib.rs`):
 | `brs_registry_load()` / `brs_registry_take()` | Restore the registry from JSON (scratch) / take it when dirty (`-1` unchanged).                                  |
 | `brs_scratch(len)`, `brs_blob_ptr/len()`      | Exchange buffers: JS -> wasm strings, wasm -> JS payloads. Valid until the next call.                            |
 | `brs_take_output()`, `brs_output_len()`       | Pending console output.                                                                                          |
+| `brs_video_external(on)`                      | Video nodes emit commands to the host instead of the simulated player.                                           |
+| `brs_video_commands() -> i32`                 | Pending video commands as a JSON array in the blob; `-2` none.                                                   |
+| `brs_video_event()`                           | Player event from the host (JSON in scratch): buffering, playing, paused, ended, duration, position, error.      |
 
 The status codes are mirrored in `apps/web/src/worker/engine.ts`
 (`EngineStatus`); change both together.
@@ -194,6 +200,27 @@ and filtering remain approximate until the remaining F4 comparisons pass.
 
 Messages are typed in `packages/protocol` (`ShellToWorkerMessage`,
 `WorkerToShellMessage`).
+
+### Video (F6)
+
+`sg/video.rs` keeps one player per Video node. The device reports `buffering`
+after `control = "play"` returns, so play requests are queued and started on
+the next service pass; `stop` fires `stopped` synchronously. Two backends:
+
+- **Simulated** (CLI, VS Code, headless tests): fetches the media head through
+  the host HTTP interface (or reads `pkg:/`), takes the duration from the MP4
+  `mvhd` box or the HLS segment durations, and advances position on the engine
+  clock. HTTP failures set errorCode/errorMsg/errorStr like the device, then
+  `error` and `finished`.
+- **External** (web shell): commands go out as `videoCommand` messages
+  (`pkg:` URLs become blob URLs in the worker); `VideoHost`
+  (`apps/web/src/video`) plays them in `<video>` elements placed from the
+  display list's `v` planes (`videoLayout`) and posts `videoEvent` back.
+  HLS/DASH go through Shaka Player with a scheme plugin over the bridge HTTP
+  proxy; MPEG-TS segments are transmuxed by mux.js. Autoplay rejection retries
+  muted, since a TV has no user gesture.
+
+Players of garbage-collected Video nodes are dropped (and stopped on the host).
 
 ## Oracle (`packages/oracle`)
 

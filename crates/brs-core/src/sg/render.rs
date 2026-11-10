@@ -238,7 +238,8 @@ struct Transform {
 /// `{"w":1920,"h":1080,"bg":<rgba>,"items":[...]}` where items are
 /// `["r",x,y,w,h,rgba,opacity]`, `["i",x,y,w,h,uri,opacity,blendRgba]`,
 /// `["t",x,y,w,h,[[line,width]...],size,bold,rgba,opacity,halign,valign,lineHeight,lineSpacing,fontUri,ascent]`,
-/// `["c",x,y,w,h]` (push clip) and `["C"]` (pop clip).
+/// `["v",x,y,w,h,playerId]` (video plane), `["c",x,y,w,h]` (push clip) and
+/// `["C"]` (pop clip).
 pub fn display_list(vm: &Vm) -> Option<String> {
     let screen = vm.sg.screens.iter().rev().find(|s| s.shown && !s.closed)?;
     let scene = screen.scene.clone()?;
@@ -329,6 +330,20 @@ fn emit_node(vm: &Vm, object: &ObjectRef, parent: Transform, out: &mut String, f
                 node.number("color") as i64 as i32,
                 transform.opacity
             ));
+        } else if has(node, "Video") {
+            // Video plane: hosts with a player show it under the graphics
+            // plane; width/height 0 means full screen.
+            if let Some(id) = super::video::player_id(vm, &node_ptr) {
+                let (vw, vh) = if w > 0.0 && h > 0.0 {
+                    (w, h)
+                } else {
+                    (vm.sg.design_width, vm.sg.design_height)
+                };
+                items.push(format!(
+                    "[\"v\",{},{},{},{},{}]",
+                    transform.x, transform.y, vw, vh, id
+                ));
+            }
         } else if has(node, "Poster") {
             let uri = node.text("uri");
             if !uri.is_empty() {

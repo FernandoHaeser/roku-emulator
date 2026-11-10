@@ -7,6 +7,12 @@ describe("extractProbeOutput", () => {
     expect(extractProbeOutput(raw)).toEqual({ status: "ok", output: "hello\n 3  3.5\n" });
   });
 
+  it("drops timestamped OS log lines from the trace", () => {
+    const raw =
+      "@@PROBE_BEGIN\nclip playing\n11-09 23:38:52.130 sdkl [beacon.signal] |VODStartInitiate --> TimeBase(277 ms)\nclip paused\n@@PROBE_END\n";
+    expect(extractProbeOutput(raw).output).toBe("clip playing\nclip paused\n");
+  });
+
   it("uses the last BEGIN marker (re-launch after stale output)", () => {
     const raw = "@@PROBE_BEGIN\nold\n@@PROBE_BEGIN\nnew\n@@PROBE_END\n";
     expect(extractProbeOutput(raw).output).toBe("new\n");

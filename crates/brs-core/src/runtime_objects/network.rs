@@ -66,6 +66,8 @@ fn event(state: &AssocArray, result: &Json) -> Value {
 }
 pub fn complete_http(vm: &mut Vm, id: u32, response: &str) {
     let Some(pending) = vm.env.http_pending.remove(&id) else {
+        // Not a roUrlTransfer: maybe a Video metadata request.
+        crate::sg::video::complete_http(vm, id, response);
         return;
     };
     let Some(object) = pending.object.upgrade() else {

@@ -9,10 +9,12 @@ import type {
   ChannelStatus,
   RemoteKey,
   ShellToWorkerMessage,
+  VideoCommand,
   WorkerToShellMessage,
 } from "@roku-emu/protocol";
 import engineUrl from "@/wasm/brs.wasm?url";
 import { CanvasRenderer } from "./canvasRenderer";
+import { parseDisplayList, videoRects } from "./displayList";
 import { BrsEngine, EngineStatus, type EngineStatusCode } from "./engine";
 import { waitDebugCommand } from "./debugMailbox";
 import { imageSize } from "./imageHeaders";
@@ -41,6 +43,9 @@ let channelId = "";
 let generation = 0;
 /** Display list revision last drawn (-1 forces a redraw). */
 let drawnRevision = -1;
+/** Last video layout sent to the shell, and blob URLs of package media. */
+let videoLayoutKey = "[]";
+const videoBlobUrls: string[] = [];
 /** Pending wake-up (sleep or yield) of the current run. */
 let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 const lines = new LineBuffer();
@@ -147,14 +152,46 @@ function publishState(instance: BrsEngine): void {
       request: JSON.stringify({ url: uri, method: "GET", timeoutMs: 30000 }),
     });
   }
+  for (const command of instance.takeVideoCommands() as VideoCommand[]) {
+    post({ type: "videoCommand", command: resolveVideoSource(instance, command) });
+  }
   const result = instance.displayList(drawnRevision);
   if (result.kind === "list") {
     drawnRevision = instance.revision();
     if (headless) post({ type: "displayList", json: result.json });
     else renderer?.show(result.json);
+    if (!headless) publishVideoLayout(result.json);
   }
   const registry = instance.takeRegistry();
   if (registry !== null) post({ type: "registry", channelId, json: registry });
+}
+
+/** Package media becomes a same-origin blob URL the shell's player can open. */
+function resolveVideoSource(instance: BrsEngine, command: VideoCommand): VideoCommand {
+  if (command.op !== "load" || !command.url.startsWith("pkg:/")) return command;
+  const bytes = instance.packageFile(command.url);
+  if (!bytes) return command;
+  const url = URL.createObjectURL(new Blob([bytes], { type: "video/mp4" }));
+  videoBlobUrls.push(url);
+  return { ...command, url };
+}
+
+/** Tells the shell where video planes are, only when they change. */
+function publishVideoLayout(json: string): void {
+  const list = json.includes('["v",') ? parseDisplayList(json) : null;
+  const rects = list ? videoRects(list) : [];
+  const key = JSON.stringify(rects);
+  if (key === videoLayoutKey) return;
+  videoLayoutKey = key;
+  post({ type: "videoLayout", width: list?.w ?? 0, height: list?.h ?? 0, rects });
+}
+
+function resetVideo(): void {
+  post({ type: "videoCommand", command: { op: "reset" } });
+  if (videoLayoutKey !== "[]") post({ type: "videoLayout", width: 0, height: 0, rects: [] });
+  videoLayoutKey = "[]";
+  for (const url of videoBlobUrls) URL.revokeObjectURL(url);
+  videoBlobUrls.length = 0;
 }
 
 function schedule(instance: BrsEngine, runGeneration: number, delayMs: number): void {
@@ -212,6 +249,7 @@ function stopChannel(): void {
   }
   renderer?.clear();
   if (headless) post({ type: "displayList", json: null });
+  else resetVideo();
   drawnRevision = -1;
 }
 
@@ -244,6 +282,9 @@ async function launchChannel(
       return;
     }
     if (registry) instance.loadRegistry(registry);
+    // The shell plays video with a real player; headless hosts keep the
+    // engine's simulated playback.
+    if (!headless) instance.setVideoExternal(true);
     active = instance;
     reportStatus("running");
     if (stopOnEntry) instance.debuggerCommand("break");
@@ -306,6 +347,12 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
       break;
     case "stopChannel":
       stopChannel();
+      break;
+    case "videoEvent":
+      if (active) {
+        active.videoEvent(message.event);
+        schedule(active, generation, 0);
+      }
       break;
     case "inspectChannel":
       void inspectChannel(message.requestId, message.zip);

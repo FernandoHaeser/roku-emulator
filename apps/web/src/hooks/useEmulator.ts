@@ -16,6 +16,7 @@ import { ServerWorker } from "@/worker/serverWorker";
 import { CanvasRenderer } from "@/worker/canvasRenderer";
 import { DEBUG_MAILBOX_BYTES, writeDebugCommand } from "@/worker/debugMailbox";
 import { mapKeyboardCode } from "@/keyboard";
+import { VideoHost } from "@/video/videoHost";
 import {
   DEV_CHANNEL_ID,
   deleteDevChannel,
@@ -150,7 +151,12 @@ export function useEmulator(width: number, height: number) {
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     canvas.style.display = "block";
-    screenHost.appendChild(canvas);
+    // Video planes sit under the channel canvas, which clears their areas.
+    const videoLayer = document.createElement("div");
+    videoLayer.style.position = "absolute";
+    videoLayer.style.inset = "0";
+    canvas.style.position = "relative";
+    screenHost.append(videoLayer, canvas);
 
     const worker = serverRuntimeEnabled
       ? new ServerWorker()
@@ -161,6 +167,9 @@ export function useEmulator(width: number, height: number) {
           return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
         })
       : null;
+    const videoHost = new VideoHost(videoLayer, (event) =>
+      worker.postMessage({ type: "videoEvent", event } satisfies ShellToWorkerMessage),
+    );
     const inspections = pendingInspections.current;
     const httpControllers = new Map<number, AbortController>();
     const mailbox =
@@ -258,6 +267,12 @@ export function useEmulator(width: number, height: number) {
           httpControllers.get(message.id)?.abort();
           httpControllers.delete(message.id);
           break;
+        case "videoCommand":
+          videoHost.command(message.command);
+          break;
+        case "videoLayout":
+          videoHost.setLayout(message.width, message.height, message.rects);
+          break;
         case "registry":
           saveRegistry(message.channelId, message.json);
           break;
@@ -330,6 +345,8 @@ export function useEmulator(width: number, height: number) {
       for (const controller of httpControllers.values()) controller.abort();
       worker.terminate();
       workerRef.current = null;
+      videoHost.reset();
+      videoLayer.remove();
       for (const pending of inspections.values()) pending.reject(new Error("worker stopped"));
       inspections.clear();
       canvas.remove();

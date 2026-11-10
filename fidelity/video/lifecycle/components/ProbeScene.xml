@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Video lifecycle probe: field defaults, then three chained phases so the
+     output order is deterministic:
+       clip    pkg:/media/clip.mp4 (6 s test pattern): play, pause, resume,
+               seek and finish;
+       hls     public HLS test stream: play, then stop;
+       missing HLS URL answering 404: error fields. -->
+<component name="ProbeScene" extends="Scene">
+  <interface>
+    <field id="done" type="boolean" />
+  </interface>
+  <script type="text/brightscript" uri="ProbeScene.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x000000FF" />
+    <Timer id="pauseTimer" duration="1.5" />
+    <Timer id="seekTimer" duration="1" />
+    <Timer id="stopTimer" duration="1" />
+  </children>
+</component>
