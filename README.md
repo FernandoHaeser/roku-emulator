@@ -356,6 +356,7 @@ pending.
 | [docs/fidelity-workflow.md](docs/fidelity-workflow.md)           | Add a probe, record it on the device, make the emulator match                                 |
 | [docs/marketplace-publishing.md](docs/marketplace-publishing.md) | Publish the VS Code extension: Entra ID (OIDC) setup, releases, troubleshooting               |
 | [docs/git-workflow.md](docs/git-workflow.md)                     | Gitflow: `develop` (default), `release` (pre-prod), `master` (prod), PRs and releases         |
+| [docs/vibeview-review.md](docs/vibeview-review.md)               | VibeView architecture, licensing and useful automation techniques                             |
 | [CHANGELOG.md](CHANGELOG.md)                                     | Changes per phase                                                                             |
 
 ## Contributing
