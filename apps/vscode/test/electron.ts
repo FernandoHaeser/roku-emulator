@@ -1,8 +1,11 @@
+import { connect } from "node:net";
+import { once } from "node:events";
 import * as assert from "node:assert/strict";
 import * as vscode from "vscode";
 
 interface RuntimeStatus {
   running: boolean;
+  watching?: boolean;
   url?: string;
   ready: boolean;
   isolated?: boolean;
@@ -50,6 +53,46 @@ export async function run() {
       await (await fetch(`http://127.0.0.1:${status.ports.ecpPort}/query/device-info`)).text()
     ).includes("developer-enabled"),
   );
+  // Observe the new source executing, rather than the installer file name.
+  const sourceUri = vscode.Uri.joinPath(folder.uri, "source/main.brs");
+  const originalSource = await vscode.workspace.fs.readFile(sourceUri);
+  const consoleSocket = connect(status.ports.consolePort, "127.0.0.1");
+  let consoleText = "";
+  consoleSocket.on("data", (chunk) => {
+    consoleText += String(chunk);
+  });
+  await once(consoleSocket, "connect");
+  try {
+    await vscode.commands.executeCommand("rokuEmulator.watch");
+    assert.equal(
+      (await vscode.commands.executeCommand<RuntimeStatus>("rokuEmulator._status")).watching,
+      true,
+    );
+    await waitFor(
+      async () => consoleText,
+      (value) => value.includes("\r\n 42\r\n"),
+    );
+    await vscode.workspace.fs.writeFile(
+      sourceUri,
+      Buffer.from(
+        Buffer.from(originalSource)
+          .toString()
+          .replace(" print answer", ' print "HOT_RELOAD_OK"\n print answer'),
+      ),
+    );
+    await waitFor(
+      async () => consoleText,
+      (value) => value.includes("HOT_RELOAD_OK"),
+    );
+    await vscode.commands.executeCommand("rokuEmulator.watch");
+    assert.equal(
+      (await vscode.commands.executeCommand<RuntimeStatus>("rokuEmulator._status")).watching,
+      false,
+    );
+  } finally {
+    consoleSocket.destroy();
+    await vscode.workspace.fs.writeFile(sourceUri, originalSource);
+  }
   const brightscript = vscode.extensions.getExtension("RokuCommunity.brightscript");
   assert.ok(brightscript, "Real BrightScript extension is installed in isolated test profile");
   await brightscript.activate();

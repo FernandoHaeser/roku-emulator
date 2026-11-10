@@ -234,12 +234,18 @@ fn set_field_from_text(
 
 /// `CreateObject("roSGNode", type)`: full creation, init included.
 pub fn create_node(vm: &mut Vm, type_name: &str) -> Result<Option<ObjectRef>, RuntimeError> {
+    if type_name.eq_ignore_ascii_case("Roku_Analytics:AnalyticsNode") {
+        vm.write(
+            "EMULATOR: Roku Analytics uses a local no-op mock; no telemetry is transmitted.\n",
+        );
+    }
     let Some(object) = allocate_node(vm, type_name) else {
         return Ok(None);
     };
-    populate_node(vm, &object)?;
     super::widgets::initialize(vm, &object)?;
     super::video::initialize(vm, &object)?;
+    super::spinner::initialize(vm, &object)?;
+    populate_node(vm, &object)?;
     Ok(Some(object))
 }
 
@@ -367,6 +373,8 @@ pub fn set_field(
     };
     side_effects(vm, object, &change.field)?;
     super::widgets::changed(vm, object, &change.field)?;
+    super::channel_store::changed(vm, object, &change.field);
+    super::spinner::changed(vm, object, &change.field)?;
     notify(vm, object, change)
 }
 
@@ -699,6 +707,8 @@ fn service_inner(vm: &mut Vm) -> Result<(), RuntimeError> {
         super::bitmap::apply_results(vm)?;
     }
     super::video::service(vm)?;
+    super::channel_store::service(vm)?;
+    super::spinner::service(vm)?;
     if vm.sg.pending_scenes.is_empty() {
         while let Some((key, pressed)) = vm.sg.keys.pop_front() {
             dispatch_key(vm, &key, pressed)?;
@@ -760,6 +770,28 @@ pub fn node_method(
 ) -> Result<Value, RuntimeError> {
     let children = || with_node(object, |n| n.children.clone());
     Ok(match name {
+        "signalbeacon" => {
+            let name = arg_str(&args, 0);
+            if matches!(
+                name.as_str(),
+                "AppLaunchComplete"
+                    | "AppDialogInitiate"
+                    | "AppDialogComplete"
+                    | "EPGLaunchInitiate"
+                    | "EPGLaunchComplete"
+                    | "AppSuspendInitiate"
+                    | "AppSuspendComplete"
+                    | "AppResumeInitiate"
+                    | "AppResumeComplete"
+            ) {
+                let line = crate::lifecycle::log_line(
+                    &vm.device_timestamp(),
+                    &crate::lifecycle::beacon("signal", &name, "TimeBase(NotApplicable)"),
+                );
+                vm.write(&line);
+            }
+            Value::Invalid
+        }
         "subtype" => Value::string(with_node(object, |n| n.subtype.to_string())),
         "issubtype" => bool_value(with_node(object, |n| n.is_subtype(&arg_str(&args, 0)))),
         "parentsubtype" => {
@@ -1046,6 +1078,8 @@ pub fn node_method(
             focused_node(vm).is_some_and(|f| ancestors(&f).iter().any(|a| Rc::ptr_eq(a, object))),
         ),
         "boundingrect" | "localboundingrect" | "scenboundingrect" | "sceneboundingrect" => {
+            // Native widget geometry must exist even during a component's init.
+            super::widgets::service(vm)?;
             let rect = match name {
                 "localboundingrect" => super::render::local_bounds(vm, object),
                 "sceneboundingrect" | "scenboundingrect" => super::render::scene_bounds(vm, object),

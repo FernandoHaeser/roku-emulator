@@ -37,6 +37,7 @@ enum Remote {
 #[derive(Default)]
 pub struct Images {
     remote: HashMap<String, Remote>,
+    package_results: Vec<(Weak<std::cell::RefCell<Object>>, String)>,
     /// URIs the host still has to fetch.
     requests: Vec<String>,
     /// Host answers waiting for the render thread.
@@ -47,7 +48,7 @@ pub struct Images {
 
 impl Images {
     pub fn has_results(&self) -> bool {
-        !self.results.is_empty()
+        !self.results.is_empty() || !self.package_results.is_empty()
     }
 }
 
@@ -63,6 +64,16 @@ pub fn complete(vm: &mut Vm, uri: &str, size: Option<(u32, u32)>) {
 
 /// Applies host results to the Posters waiting for them (render thread).
 pub fn apply_results(vm: &mut Vm) -> Result<(), RuntimeError> {
+    for (poster, uri) in std::mem::take(&mut vm.sg.images.package_results) {
+        let Some(poster) = poster.upgrade() else {
+            continue;
+        };
+        if with_node(&poster, |n| n.text("uri")) == uri {
+            let size = vm.env.read_file(&uri).as_deref().and_then(image_size);
+            let state = size.map_or(Remote::Failed, |(w, h)| Remote::Ready(w, h));
+            finish(vm, &poster, &uri, state)?;
+        }
+    }
     while let Some((uri, size)) = vm.sg.images.results.pop_front() {
         let state = size.map_or(Remote::Failed, |(w, h)| Remote::Ready(w, h));
         vm.sg.images.remote.insert(uri.clone(), state);
@@ -167,6 +178,15 @@ pub fn load(vm: &mut Vm, poster: &ObjectRef, uri: &str) -> Result<(), RuntimeErr
         return set_field(vm, poster, "loadStatus", Value::string("none"));
     }
     if uri.starts_with("pkg:/") {
+        if super::spinner::owns_poster(poster) && !with_node(poster, |n| n.flag("loadSync")) {
+            set_size(vm, poster, uri, None)?;
+            set_field(vm, poster, "loadStatus", Value::string("loading"))?;
+            vm.sg
+                .images
+                .package_results
+                .push((std::rc::Rc::downgrade(poster), uri.to_string()));
+            return Ok(());
+        }
         let size = vm.env.read_file(uri).as_deref().and_then(image_size);
         set_size(vm, poster, uri, size)?;
         let status = if size.is_some() { "ready" } else { "failed" };

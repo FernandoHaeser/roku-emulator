@@ -136,10 +136,14 @@ pub(super) fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Re
                 .min_by(|a, b| a.1.total_cmp(&b.1));
             if let Some((index, _)) = next {
                 state.selected = index;
+            } else if matches!(key, "up" | "down") {
+                return Ok(Some(false));
             }
+            track(vm, node).consumed_keys.insert(key.to_string());
             track(vm, node).dirty = true;
+            return Ok(Some(true));
         }
-        return Ok(Some(true));
+        return Ok(Some(track(vm, node).consumed_keys.remove(key)));
     }
     if key == "options" {
         if pressed {
@@ -282,7 +286,7 @@ pub(super) fn render(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result
     let layout = keys(&state.keyboard);
     let mut focused_key = None;
     for (index, key) in layout.into_iter().enumerate() {
-        let focused = index == state.keyboard.selected;
+        let focused = with_node(node, |n| n.has_focus) && index == state.keyboard.selected;
         let (x, width) = cell(vm, &key);
         let y = 94.0 + key.y;
         // FHD cells sit inside their bitmap margins; HD cells are separated

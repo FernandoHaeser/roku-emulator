@@ -1,3 +1,5 @@
+import { loadConfig } from "../../../packages/server/src/config";
+const device = loadConfig();
 import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,14 +13,14 @@ const md5 = (text: string) => createHash("md5").update(text).digest("hex");
 test("installer deploy reaches WASM and prints to the telnet console", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
-  const base = "http://127.0.0.1:8060";
+  const base = `http://127.0.0.1:${device.ecpPort}`;
   const challenge = await fetch(`${base}/plugin_install`);
   const nonce = /nonce="([^"]+)"/.exec(challenge.headers.get("www-authenticate")!)![1];
   const uri = "/plugin_install";
   const digest = md5(
     `${md5("rokudev:rokudev:rokudev")}:${nonce}:00000001:e2e:auth:${md5(`POST:${uri}`)}`,
   );
-  const socket = connect(8085, "127.0.0.1");
+  const socket = connect(device.consolePort, "127.0.0.1");
   let output = "";
   socket.on("data", (chunk) => {
     output += String(chunk);
@@ -58,7 +60,7 @@ test("RokuCommunity adapter deploys, inspects a STOP, steps and continues in WAS
   const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const scratch = await mkdtemp(join(tmpdir(), "roku-emu-debug-"));
-  const adapter = createRokuAdapter(8085, 8060);
+  const adapter = createRokuAdapter(device.consolePort, device.ecpPort);
   try {
     await page.goto("/");
     await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
@@ -70,8 +72,8 @@ test("RokuCommunity adapter deploys, inspects a STOP, steps and continues in WAS
     await rokuDeploy.sideload({
       device: { host: "127.0.0.1" },
       password: "rokudev",
-      packagePort: 8060,
-      ecpPort: 8060,
+      packagePort: device.installerPort,
+      ecpPort: device.ecpPort,
       zip,
       failOnCompileError: false,
     });
@@ -129,7 +131,7 @@ test("socket debugger negotiates, installs breakpoints and reads/sets live varia
   const scratch = await mkdtemp(join(tmpdir(), "roku-protocol-"));
   const client = new DebugProtocolClient({
     device: { host: "127.0.0.1" },
-    controlPort: 8081,
+    controlPort: device.debugPort,
     shutdownTimeout: 100,
     exitChannelTimeout: 100,
   });
@@ -145,8 +147,8 @@ test("socket debugger negotiates, installs breakpoints and reads/sets live varia
     await rokuDeploy.sideload({
       device: { host: "127.0.0.1" },
       password: "rokudev",
-      packagePort: 8060,
-      ecpPort: 8060,
+      packagePort: device.installerPort,
+      ecpPort: device.ecpPort,
       zip,
       remoteDebug: true,
       failOnCompileError: false,
@@ -184,7 +186,7 @@ test("socket debugger negotiates, installs breakpoints and reads/sets live varia
 
 test("STOP inside SceneGraph init preserves the native callback and resumes", async ({ page }) => {
   const { createRokuAdapter } = await import("../../../packages/server/test/rokuAdapter");
-  const adapter = createRokuAdapter(8085, 8060);
+  const adapter = createRokuAdapter(device.consolePort, device.ecpPort);
   try {
     await page.goto("/");
     await expect(page.getByText("Pronto", { exact: true })).toBeVisible();

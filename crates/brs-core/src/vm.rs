@@ -413,7 +413,7 @@ impl Vm {
         for timer in &self.sg.timers {
             consider(timer.due_ms);
         }
-        if !self.sg.animations.is_empty() {
+        if !self.sg.animations.is_empty() || self.sg.spinners.active() {
             consider(self.now_ms() + crate::sg::animation::FRAME_MS);
         }
         let interval = crate::sg::video::wake_interval_ms(self);
@@ -1332,8 +1332,8 @@ pub fn coerce(value: Value, ty: TypeName) -> Result<Value, RuntimeError> {
         }
         TypeName::Float if value.is_numeric() => Value::Float(value.as_f64().unwrap_or(0.0) as f32),
         TypeName::Double if value.is_numeric() => Value::Double(value.as_f64().unwrap_or(0.0)),
-        TypeName::String if matches!(value, Value::String(_)) => value,
-        TypeName::Boolean if matches!(value, Value::Boolean(_)) => value,
+        TypeName::String if matches!(value.unboxed(), Value::String(_)) => value.unboxed(),
+        TypeName::Boolean if matches!(value.unboxed(), Value::Boolean(_)) => value.unboxed(),
         TypeName::Function if matches!(value, Value::Function(_)) => value,
         TypeName::Object | TypeName::Dynamic | TypeName::Void => value,
         _ => return Err(fail(&value)),

@@ -1,6 +1,6 @@
 export const styles = {
   panel:
-    "flex h-[60vh] flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 lg:h-auto",
+    "flex h-[60vh] flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 lg:h-[calc(100dvh-86px)]",
   tabList: "flex border-b border-neutral-800 px-2",
   tab: {
     base: "border-b-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500",

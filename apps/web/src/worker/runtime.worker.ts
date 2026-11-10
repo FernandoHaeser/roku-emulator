@@ -413,6 +413,8 @@ self.onmessage = (event: MessageEvent<ShellToWorkerMessage>) => {
       if (active) {
         const resumed = active.debuggerCommand(message.command);
         emitOutput(active, true);
+        const registry = active.takeRegistry();
+        if (registry !== null) post({ type: "registry", channelId, json: registry });
         if (resumed) {
           reportStatus("running");
           schedule(active, generation, 0);

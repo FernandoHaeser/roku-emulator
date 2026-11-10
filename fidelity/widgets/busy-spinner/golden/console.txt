@@ -1,0 +1,14 @@
+poster in init=true
+default control=none clockwise=true interval= 2 
+children= 1
+poster type=Poster
+initial child same=true
+uri=pkg:/images/panel.png poster=pkg:/images/panel.png
+load=loading
+size= 0 , 0 
+clear alias=false
+replacement alias=pkg:/images/panel.png
+replacement children= 1
+replacement child same=false
+forward child uri=
+forward public uri=pkg:/images/other.png

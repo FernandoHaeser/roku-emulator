@@ -145,6 +145,20 @@ pub fn local_bounds(vm: &Vm, object: &ObjectRef) -> Rect {
                 width: pick("width", layout.width()),
                 height: pick("height", layout.height()),
             })
+        } else if has(node, "Keyboard") {
+            // Default native footprint measured by widgets/selection-controls
+            // in both design resolutions, including the widget's padding.
+            let (width, height) = if is_fhd(vm) {
+                (1416.0, 452.0)
+            } else {
+                (942.0, 302.0)
+            };
+            Some(Rect {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height,
+            })
         } else if has(node, "Poster") {
             let (width, height) = poster_size(node);
             Some(Rect {

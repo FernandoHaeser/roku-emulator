@@ -17,6 +17,7 @@ type Result<T> = std::result::Result<T, RuntimeError>;
 pub struct Widgets {
     entries: HashMap<usize, State>,
     modal: Option<ObjectRef>,
+    servicing: bool,
 }
 struct State {
     node: Weak<std::cell::RefCell<Object>>,
@@ -106,6 +107,13 @@ pub fn changed(vm: &mut Vm, node: &ObjectRef, field: &str) -> Result<()> {
             | "message"
             | "buttons"
             | "buttonfocused"
+            | "checkeditem"
+            | "checkedstate"
+            | "checkediconuri"
+            | "focusedcheckediconuri"
+            | "wrapdividerheight"
+            | "wrapdividerwidth"
+            | "wrapdividerbitmapuri"
     ) {
         track(vm, node).dirty = true;
     }
@@ -173,6 +181,9 @@ fn move_to(vm: &mut Vm, node: &ObjectRef, row: i32, col: i32) -> Result<()> {
     Ok(())
 }
 pub fn focus(vm: &mut Vm, node: &ObjectRef) -> Result<()> {
+    if has(node, "Keyboard") || has(node, "MiniKeyboard") {
+        track(vm, node).dirty = true;
+    }
     if has(node, "Button") {
         track(vm, node).dirty = true;
         if let Some(parent) = with_node(node, |n| n.parent.as_ref().and_then(Weak::upgrade)) {
@@ -214,14 +225,19 @@ pub fn key(vm: &mut Vm, node: &ObjectRef, key: &str, pressed: bool) -> Result<bo
     }
     let current = number(node, "itemFocused").max(0);
     if key == "OK" {
+        let radio_check =
+            has(node, "RadioButtonList") && with_node(node, |n| n.flag("checkOnSelect"));
         if pressed {
             if is_rows(node) {
                 let pair = with_node(node, |n| n.field("rowItemFocused").unwrap().value.clone());
                 emit(vm, node, "rowItemSelected", pair)?;
             }
+            if radio_check {
+                set_field(vm, node, "checkedItem", Value::Integer(current))?;
+            }
             emit(vm, node, "itemSelected", Value::Integer(current))?;
         }
-        return Ok(is_rows(node) && pressed);
+        return Ok((is_rows(node) || radio_check) && pressed);
     }
     if is_rows(node) {
         if !pressed {
@@ -320,6 +336,15 @@ pub fn children(vm: &Vm, node: &ObjectRef) -> Vec<ObjectRef> {
         .unwrap_or_default()
 }
 pub fn service(vm: &mut Vm) -> Result<()> {
+    if vm.sg.widgets.servicing {
+        return Ok(());
+    }
+    vm.sg.widgets.servicing = true;
+    let result = service_inner(vm);
+    vm.sg.widgets.servicing = false;
+    result
+}
+fn service_inner(vm: &mut Vm) -> Result<()> {
     // Bindings can enqueue native child widgets. Drain a bounded number of
     // layout passes so a channel blocked on wait() still has its first frame.
     for _ in 0..4 {
@@ -393,22 +418,78 @@ fn service_once(vm: &mut Vm) -> Result<()> {
                     )?;
                     state.rendered.push(background);
                 }
-                for offset in 0..items.len().min(256) {
+                for offset in 0..items
+                    .len()
+                    .min(number(&node, "numRows").max(1) as usize)
+                    .min(256)
+                {
                     let index = (focus + offset) % items.len();
                     let item = &items[index];
                     let label = create_node(vm, "Label")?.expect("Label");
                     let title = with_node(item, |n| n.text("title"));
                     let focused = has_focus && offset == 0;
+                    let scale = design_scale(vm);
+                    let radio = has(&node, "RadioButtonList");
+                    let text_x = if radio { 54.0 * scale } else { 0.0 };
+                    let mut y = offset as f64 * (size.1 + spacing.1);
+                    // The native fixed-focus radio list separates its last and
+                    // first entries when the visible rows wrap (selection-controls).
+                    if radio && focus + offset >= items.len() {
+                        let divider = with_node(&node, |n| n.number("wrapDividerHeight"));
+                        let divider = if divider > 0.0 { divider } else { 36.0 * scale };
+                        if index == 0 {
+                            add_rectangle(
+                                vm,
+                                &mut state,
+                                0.0,
+                                y + divider / 2.0,
+                                size.0,
+                                1.5 * scale,
+                                0x9999_99FFu32,
+                            )?;
+                        }
+                        y += divider;
+                    }
+                    if radio && number(&node, "checkedItem") == index as i32 {
+                        let uri = with_node(&node, |n| {
+                            n.text(if focused {
+                                "focusedCheckedIconUri"
+                            } else {
+                                "checkedIconUri"
+                            })
+                        });
+                        let icon =
+                            create_node(vm, if uri.is_empty() { "Label" } else { "Poster" })?
+                                .expect("selection icon");
+                        set_field(vm, &icon, "width", Value::Float((36.0 * scale) as f32))?;
+                        set_field(vm, &icon, "height", Value::Float((36.0 * scale) as f32))?;
+                        set_field(
+                            vm,
+                            &icon,
+                            "translation",
+                            super::float_array(&[0.0, y + (size.1 - 36.0 * scale) / 2.0]),
+                        )?;
+                        if uri.is_empty() {
+                            set_field(vm, &icon, "text", Value::string("✓"))?;
+                            let color = with_node(&node, |n| {
+                                n.raw(if focused { "focusedColor" } else { "color" })
+                            });
+                            set_field(vm, &icon, "color", color)?;
+                        } else {
+                            set_field(vm, &icon, "uri", Value::string(uri))?;
+                        }
+                        state.rendered.push(icon);
+                    }
                     set_field(vm, &label, "text", Value::string(title))?;
-                    set_field(vm, &label, "width", Value::Float(size.0 as f32))?;
-                    set_field(vm, &label, "height", Value::Float(size.1 as f32))?;
-                    set_field(vm, &label, "vertAlign", Value::string("center"))?;
                     set_field(
                         vm,
                         &label,
-                        "translation",
-                        super::float_array(&[0.0, offset as f64 * (size.1 + spacing.1)]),
+                        "width",
+                        Value::Float((size.0 - text_x).max(0.0) as f32),
                     )?;
+                    set_field(vm, &label, "height", Value::Float(size.1 as f32))?;
+                    set_field(vm, &label, "vertAlign", Value::string("center"))?;
+                    set_field(vm, &label, "translation", super::float_array(&[text_x, y]))?;
                     for (target, source) in [
                         ("font", if focused { "focusedFont" } else { "font" }),
                         ("color", if focused { "focusedColor" } else { "color" }),
@@ -614,7 +695,7 @@ pub fn focus_target(node: &ObjectRef) -> ObjectRef {
     node.clone()
 }
 pub fn blur(vm: &mut Vm, node: &ObjectRef) {
-    if is_list(node) || has(node, "Button") {
+    if is_list(node) || has(node, "Button") || has(node, "Keyboard") || has(node, "MiniKeyboard") {
         track(vm, node).dirty = true;
     }
 }

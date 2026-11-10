@@ -6,11 +6,13 @@
 
 pub mod animation;
 pub mod bitmap;
+pub mod channel_store;
 pub mod component;
 mod font_metrics;
 pub mod render;
 pub mod runtime;
 pub mod schema;
+pub mod spinner;
 pub mod text;
 pub mod video;
 pub mod widgets;
@@ -474,6 +476,8 @@ pub struct SceneGraph {
     /// Font files read from the package, by `pkg:/` URI (`None` = unreadable).
     pub fonts: HashMap<String, Option<Rc<Vec<u8>>>>,
     pub widgets: widgets::Widgets,
+    pub spinners: spinner::Spinners,
+    pub channel_stores: channel_store::ChannelStores,
     /// Remote key events waiting for the render thread: (key, pressed).
     pub keys: std::collections::VecDeque<(String, bool)>,
     /// Design resolution from the manifest (`ui_resolutions`).

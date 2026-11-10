@@ -5,7 +5,12 @@ import { dirname } from "node:path";
 import { Worker } from "node:worker_threads";
 import { SURFACE } from "../../../apps/web/src/config/surface";
 import { DEBUG_MAILBOX_BYTES, writeDebugCommand } from "../../../apps/web/src/worker/debugMailbox";
-import type { ShellToWorkerMessage, WorkerToShellMessage } from "@roku-emu/protocol";
+import {
+  networkStart,
+  networkFinish,
+  type ShellToWorkerMessage,
+  type WorkerToShellMessage,
+} from "@roku-emu/protocol";
 import { httpRequest } from "./httpProxy";
 import type { DeviceBridge } from "./bridge";
 
@@ -128,17 +133,28 @@ export function startNodeRuntime(bridge: DeviceBridge, workerPath: string, regis
           });
         break;
       case "httpRequest": {
+        const entry = networkStart(message.id, message.request, performance.now());
+        bridge.runtimeMessage({ type: "network", entry });
         const controller = new AbortController();
         controllers.set(message.id, controller);
         void httpRequest(JSON.parse(message.request), controller.signal)
           .then((result) => {
             controllers.delete(message.id);
             const response = JSON.stringify(result);
+            bridge.runtimeMessage({
+              type: "network",
+              entry: networkFinish(entry, response, performance.now()),
+            });
             if (message.buffer) writeDebugCommand(message.buffer, response);
             else worker.postMessage({ type: "httpComplete", id: message.id, response });
           })
           .catch((error) => {
             const response = JSON.stringify({ status: -7, failure: String(error) });
+            controllers.delete(message.id);
+            bridge.runtimeMessage({
+              type: "network",
+              entry: networkFinish(entry, response, performance.now()),
+            });
             if (message.buffer) writeDebugCommand(message.buffer, response);
             else worker.postMessage({ type: "httpComplete", id: message.id, response });
           });

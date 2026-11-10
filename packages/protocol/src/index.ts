@@ -8,6 +8,8 @@ import type { RemoteKey } from "./keys";
 export * from "./bridge";
 export * from "./keys";
 export * from "./scene";
+export * from "./network";
+import type { NetworkEntry } from "./network";
 
 /** Id prefix of the shell's own inspection requests (`__emu` commands). */
 export const SHELL_RPC_PREFIX = "shell-";
@@ -111,4 +113,5 @@ export type WorkerToShellMessage =
   | { type: "videoLayout"; width: number; height: number; rects: VideoRect[] }
   /** Response to an inspection request of the shell (id prefix SHELL_RPC_PREFIX). */
   | { type: "inspection"; json: string }
+  | { type: "network"; entry: NetworkEntry }
   | { type: "fatal"; message: string };

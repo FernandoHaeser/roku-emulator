@@ -78,6 +78,10 @@
       {
         "command": "rokuEmulator.browser",
         "title": "Roku Emulator: Abrir no navegador"
+      },
+      {
+        "command": "rokuEmulator.watch",
+        "title": "Roku Emulator: Ativar/desativar hot reload"
       }
     ],
     "configuration": {

@@ -684,6 +684,18 @@ impl FunctionCompiler<'_, '_> {
                 }
                 self.emit(Instr::GetIndex(indexes.len() as u8));
             }
+            Expr::OptionalDot(object, name) => {
+                self.expression(object)?;
+                self.emit(Instr::Dup);
+                let invalid = self.constant(Value::Invalid);
+                self.emit(Instr::Constant(invalid));
+                self.emit(Instr::Binary(BinaryOp::NotEqual));
+                let skip = self.emit(Instr::JumpIfFalse(0));
+                let key = self.name_constant(&name.to_lowercase());
+                self.emit(Instr::GetField(key));
+                let end = self.here();
+                self.patch(skip, end);
+            }
             Expr::Dot(object, name) => {
                 self.expression(object)?;
                 let key = self.name_constant(&name.to_lowercase());

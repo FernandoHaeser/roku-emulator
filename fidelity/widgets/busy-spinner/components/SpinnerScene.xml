@@ -1,0 +1,4 @@
+<component name="SpinnerScene" extends="Scene">
+<script type="text/brightscript" uri="SpinnerScene.brs" />
+<children><Rectangle width="1920" height="1080" color="0x000000FF" /><ProbeSpinner id="spinner" uri="pkg:/images/panel.png" translation="[300,300]" /><BusySpinner id="static" uri="pkg:/images/panel.png" control="stop" translation="[600,300]" /></children>
+</component>
