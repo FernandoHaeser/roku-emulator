@@ -413,6 +413,47 @@ pub extern "C" fn brs_package_file() -> i32 {
     })
 }
 
+/// Hands Video playback to the host player (`1`) or keeps the engine's
+/// simulated backend (`0`). Call after `brs_load_zip`.
+#[no_mangle]
+pub extern "C" fn brs_video_external(external: i32) {
+    STATE.with(|state| {
+        if let Some(vm) = state.borrow_mut().vm.as_mut() {
+            brs_core::sg::video::set_external(vm, external != 0);
+        }
+    })
+}
+
+/// Pending Video player commands as a JSON array in the blob, or `BLOB_NONE`.
+#[no_mangle]
+pub extern "C" fn brs_video_commands() -> i32 {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let commands = state
+            .vm
+            .as_mut()
+            .map(brs_core::sg::video::take_commands)
+            .unwrap_or_default();
+        if commands.is_empty() {
+            return BLOB_NONE;
+        }
+        state.blob = format!("[{}]", commands.join(",")).into_bytes();
+        state.blob.len() as i32
+    })
+}
+
+/// Host player event (JSON in the scratch buffer), see `video::host_event`.
+#[no_mangle]
+pub extern "C" fn brs_video_event() {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let event = scratch_text(&state);
+        if let Some(vm) = state.vm.as_mut() {
+            brs_core::sg::video::host_event(vm, &event);
+        }
+    })
+}
+
 /// Replaces the channel registry with the JSON in the scratch buffer.
 /// Called right after `brs_load_zip`, before the first `brs_run`.
 #[no_mangle]

@@ -12,6 +12,7 @@ pub mod render;
 pub mod runtime;
 pub mod schema;
 pub mod text;
+pub mod video;
 pub mod widgets;
 
 use std::cell::RefCell;
@@ -44,6 +45,8 @@ pub enum FieldKind {
     Font,
     /// Notifies on every set; carries no meaningful value (Timer.fire).
     Trigger,
+    /// Any value, e.g. native agents (Video.drmHttpAgent: roHttpAgent).
+    Object,
 }
 
 impl FieldKind {
@@ -152,7 +155,7 @@ impl FieldKind {
                 Value::Object(object) if matches!(&*object.borrow(), Object::Node(_)) => value,
                 _ => return None,
             },
-            FieldKind::Trigger => value,
+            FieldKind::Trigger | FieldKind::Object => value,
         })
     }
 
@@ -169,6 +172,9 @@ impl FieldKind {
                 }
                 _ => value.clone(),
             },
+            // Unset node fields read back as a roInvalid object on the device
+            // (`type(video.content)` = "roInvalid"); other kinds give invalid.
+            Value::Invalid if self == FieldKind::Node => Value::boxed(Value::Invalid),
             Value::Invalid => Value::Invalid,
             other => Value::boxed(other.clone()),
         }
@@ -463,6 +469,8 @@ pub struct SceneGraph {
     /// Remote Poster images: load state by URI and hosts' pending work
     /// (see `bitmap.rs`).
     pub images: bitmap::Images,
+    /// Video playback state (see `video.rs`).
+    pub videos: video::Videos,
     /// Font files read from the package, by `pkg:/` URI (`None` = unreadable).
     pub fonts: HashMap<String, Option<Rc<Vec<u8>>>>,
     pub widgets: widgets::Widgets,

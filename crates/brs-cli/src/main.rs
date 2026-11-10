@@ -233,7 +233,10 @@ fn execute(
                     None if begun && !keys.steps.is_empty() => {
                         std::thread::sleep(Duration::from_millis(10))
                     }
-                    None if !vm.env.http_pending.is_empty() || images_in_flight > 0 => {
+                    None if !vm.env.http_pending.is_empty()
+                        || images_in_flight > 0
+                        || vm.sg.videos.busy() =>
+                    {
                         std::thread::sleep(Duration::from_millis(10))
                     }
                     None => break Status::Waiting,
@@ -256,6 +259,35 @@ fn execute(
     (text, status, started.elapsed())
 }
 
+/// Timestamped OS log line (`11-09 23:38:52.130 sdkl [beacon.signal] ...`);
+/// same rule as `stripSystemLog` in packages/oracle/src/probe.ts.
+fn is_system_log(line: &str) -> bool {
+    let bytes = line.as_bytes();
+    let stamp = "dd-dd dd:dd:dd.ddd ";
+    if bytes.len() <= stamp.len()
+        || !stamp
+            .bytes()
+            .zip(bytes)
+            .all(|(pattern, byte)| match pattern {
+                b'd' => byte.is_ascii_digit(),
+                other => other == *byte,
+            })
+    {
+        return false;
+    }
+    let rest = &line[stamp.len()..];
+    let Some((source, tail)) = rest.split_once(char::is_whitespace) else {
+        return false;
+    };
+    !source.is_empty() && tail.trim_start().starts_with('[') && tail.contains(']')
+}
+
+fn strip_system_log(text: &str) -> String {
+    text.split_inclusive('\n')
+        .filter(|line| !(line.ends_with('\n') && is_system_log(line)))
+        .collect()
+}
+
 /// Same extraction rule as the oracle (packages/oracle/src/probe.ts).
 fn extract_probe_output(console: &str) -> (&'static str, String) {
     let Some(begin) = console.rfind(PROBE_BEGIN) else {
@@ -263,7 +295,7 @@ fn extract_probe_output(console: &str) -> (&'static str, String) {
     };
     let rest = &console[begin + PROBE_BEGIN.len()..];
     match rest.find(PROBE_END) {
-        Some(end) => ("ok", rest[..end].to_string()),
+        Some(end) => ("ok", strip_system_log(&rest[..end])),
         None if rest.contains("BrightScript Micro Debugger.") => ("crashed", rest.to_string()),
         None => ("incomplete", rest.to_string()),
     }
@@ -410,5 +442,22 @@ fn main() -> ExitCode {
             eprintln!("Usage:\n  brs run <channel dir or zip>\n  brs conformance <fidelity dir>");
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod probe_output_tests {
+    use super::{extract_probe_output, is_system_log};
+
+    #[test]
+    fn drops_os_log_lines() {
+        assert!(is_system_log(
+            "11-09 23:38:52.130 sdkl [beacon.signal] |VODStartInitiate --> TimeBase(277 ms)\n"
+        ));
+        assert!(!is_system_log("clip playing\n"));
+        assert!(!is_system_log("11-09 is not a log line [x]\n"));
+        let console =
+            "@@PROBE_BEGIN\na\n11-09 23:38:52.130 sdkl [beacon.signal] x\nb\n@@PROBE_END\n";
+        assert_eq!(extract_probe_output(console), ("ok", "a\nb\n".to_string()));
     }
 }

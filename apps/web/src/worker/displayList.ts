@@ -4,6 +4,8 @@
  * canvas types so it can be unit tested in Node.
  */
 
+import type { VideoRect } from "@roku-emu/protocol";
+
 export type DisplayItem =
   /** Rectangle: x, y, w, h, rgba, opacity. */
   | ["r", number, number, number, number, number, number]
@@ -28,6 +30,8 @@ export type DisplayItem =
       string,
       number,
     ]
+  /** Video plane: x, y, w, h, player id. The graphics plane is cleared there. */
+  | ["v", number, number, number, number, number]
   /** Push rotation: pivot x, pivot y (design px), radians counterclockwise. */
   | ["R", number, number, number]
   /** Pop rotation. */
@@ -44,6 +48,13 @@ export interface DisplayList {
   /** Scene backgroundColor (signed 0xRRGGBBAA). */
   bg: number;
   items: DisplayItem[];
+}
+
+/** Video planes of a frame (top-level transforms already applied). */
+export function videoRects(list: DisplayList): VideoRect[] {
+  return list.items
+    .filter((item): item is Extract<DisplayItem, { 0: "v" }> => item[0] === "v")
+    .map(([, x, y, w, h, id]) => ({ id, x, y, w, h }));
 }
 
 export function parseDisplayList(json: string): DisplayList {

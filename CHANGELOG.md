@@ -5,6 +5,28 @@ README; the project is pre-1.0 and every release is a beta.
 
 ## [Unreleased]
 
+### Added (F6: video, in progress)
+
+- Device probe `video/lifecycle`: Video defaults (146 fields), state
+  sequence for MP4 over HTTP and from `pkg:/`, HLS, pause/resume/seek/stop
+  and the error fields of an HTTP 404. Conformance passes in the CLI and in
+  the browser.
+- Video node in the engine (`sg/video.rs`). Default backend is simulated:
+  duration from the MP4 `mvhd` box or the HLS EXTINF sum (first variant of a
+  master playlist), engine clock and `notificationInterval` position updates.
+  The web shell runs it in external mode: the engine emits load/pause/resume/
+  seek/stop commands and the shell reports player events.
+- Web shell playback: `<video>` elements under the channel canvas, which
+  clears Video planes. Progressive MP4 plays natively (package media as blob
+  URLs); HLS/DASH use Shaka Player 4.12 and mux.js 7.0 (Apache-2.0) with
+  requests through the loopback HTTP proxy, so streams need no CORS headers.
+- Field kind `Object` for fields that accept any value; unset node-typed
+  fields read back as boxed invalid like the device. `effect` moved from Group
+  to Rectangle (Video has no `effect` field on the device).
+- Oracle and CLI drop timestamped OS log lines (beacons) from probe traces.
+- Browser video test mutes media: headless Chromium has no audio sink and
+  freezes the clock of audible media.
+
 ### Added (F5: widget foundation, in progress)
 
 - Device-recorded probes for LabelList, RowList, MarkupGrid, ButtonGroup,

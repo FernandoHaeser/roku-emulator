@@ -148,6 +148,17 @@ export type ProbeOutput =
  * Extracts the text printed between the last BEGIN marker and the END marker
  * that follows it. Marker lines themselves are excluded.
  */
+/**
+ * Timestamped OS log lines (e.g. `11-09 23:38:52.130 sdkl [beacon.signal] |VODStartInitiate`)
+ * interleave with channel output on the debug console; they are not program
+ * output and carry wall-clock times, so traces drop them.
+ */
+const SYSTEM_LOG_LINE = /^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \S+\s+\[[^\]]+\].*\n/gm;
+
+export function stripSystemLog(text: string): string {
+  return text.replace(SYSTEM_LOG_LINE, "");
+}
+
 export function extractProbeOutput(rawConsole: string): ProbeOutput {
   const text = normalizeConsoleText(rawConsole);
   const beginIndex = text.lastIndexOf(`${PROBE_BEGIN_MARKER}\n`);
@@ -160,5 +171,5 @@ export function extractProbeOutput(rawConsole: string): ProbeOutput {
     const output = text.slice(start);
     return { status: CRASH_PATTERN.test(output) ? "crashed" : "incomplete", output };
   }
-  return { status: "ok", output: text.slice(start, endIndex) };
+  return { status: "ok", output: stripSystemLog(text.slice(start, endIndex)) };
 }

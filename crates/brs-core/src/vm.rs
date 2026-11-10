@@ -416,6 +416,10 @@ impl Vm {
         if !self.sg.animations.is_empty() {
             consider(self.now_ms() + crate::sg::animation::FRAME_MS);
         }
+        let interval = crate::sg::video::wake_interval_ms(self);
+        if let Some(at) = self.sg.videos.next_wake(self.now_ms(), interval) {
+            consider(at);
+        }
         match earliest {
             Some(until_ms) => Status::Sleeping { until_ms },
             None => Status::Waiting,

@@ -9,7 +9,7 @@
 **BrightScript and SceneGraph, compiled to WebAssembly, diffed byte by byte against Roku hardware.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/FernandoHaeser/roku-emulator/ci.yml?branch=develop&style=flat-square&label=CI)](https://github.com/FernandoHaeser/roku-emulator/actions/workflows/ci.yml)
-[![Device conformance](https://img.shields.io/badge/device_conformance-39%2F41_probes-22d3ee?style=flat-square)](#how-fidelity-works)
+[![Device conformance](https://img.shields.io/badge/device_conformance-40%2F42_probes-22d3ee?style=flat-square)](#how-fidelity-works)
 [![Rust](https://img.shields.io/badge/core-Rust-b7410e?style=flat-square&logo=rust&logoColor=white)](crates/brs-core)
 [![WebAssembly](https://img.shields.io/badge/runs_in-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](crates/brs-wasm)
 [![React](https://img.shields.io/badge/shell-React_+_TypeScript-3178c6?style=flat-square&logo=typescript&logoColor=white)](apps/web)
@@ -149,7 +149,8 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | Runtime objects (F2)       | Done: network via local proxy, files, regex, crypto (device-verified probe `runtime/extended`)     |
 | SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                    |
 | Renderer (F4)              | Screenshot diffs, measured text, package fonts, Poster/9-patch, remote loads, rotation, animations |
-| Widgets (F5), Video (F6)   | Widgets in progress: lists, grid bindings, buttons, modal dialogs and keyboard; Video follows      |
+| Widgets (F5)               | In progress: lists, grid bindings, buttons, modal dialogs and keyboard                             |
+| Video (F6)                 | In progress: device-recorded Video lifecycle (MP4, HLS, HTTP errors); DRM pending                  |
 | VS Code debugging (F7)     | Done: deploy, console, telnet and binary (8081) debugger, SceneGraph callback suspension           |
 
 **Known gaps** (tracked by failing conformance):
@@ -165,6 +166,10 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 - Widget support (F5) is in progress. Native-theme artwork, animated widget
   scrolling, sections and specialized widgets are not fully reproduced.
   The Roku system font is not redistributable, so a bundled substitute is used.
+- Video (F6) is in progress. Playback events, defaults and HTTP errors match
+  `video/lifecycle`; DRM (Widevine), trick play, captions and audio-track
+  selection are not implemented yet. CLI and VS Code use a simulated player
+  (timing only, no frames).
 
 ## Roadmap
 
@@ -176,7 +181,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | F3 · SceneGraph core    | Components, fields, observers, threads, focus                                                   | Done        |
 | F4 · Renderer           | Pixel diffs vs device screenshots, fonts, animations                                            | In progress |
 | F5 · Widgets            | Device-probed list/grid events and bindings, buttons, modal dialogs and keyboard                | In progress |
-| F6 · Video              | `Video` node over Shaka Player, Widevine via EME                                                | Planned     |
+| F6 · Video              | `Video` node over Shaka Player, Widevine via EME                                                | In progress |
 | F7 · Tooling            | Dev installer, ECP, console, telnet and binary debug protocol                                   | Done        |
 | F8 · Shell              | Clickable remote, node inspector, network and registry panels, hot reload                       | Partial     |
 | F9 · Closed libraries   | Configurable mocks for ads, analytics and channel store                                         | Planned     |

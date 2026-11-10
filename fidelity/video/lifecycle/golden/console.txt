@@ -1,0 +1,189 @@
+-- defaults
+actionButtonRow :roInvalid
+allowOptionsKeyOverride=false
+alwaysShowVideoPlanes=false
+asyncStopSemantics=false
+audioChannelsCount= 0
+audioFormat=""
+audioSelectionPreferences :roAssociativeArray
+audioTrack=""
+autoPlayAfterSeek=true
+availableAudioTracks :roArray
+availableSubtitleTracks :roArray
+bifDisplay :roSGNode
+bookmarkerExitURL=""
+bottomRowButtonFocused= 0
+bottomRowButtonSelected= 0
+bottomRowButtons :Invalid
+bufferingBar :roSGNode
+bufferingBarVisibilityAuto=true
+bufferingBarVisibilityBounds :Invalid
+bufferingBarVisibilityHint=false
+bufferingStatus :Invalid
+bufferingTextColor= 0
+capFontPath=""
+capFontSize= 0
+captionMode="Inherit"
+captionRenderArea :Invalid
+captionStyle :Invalid
+captionsAvailable=false
+cdnSwitch :Invalid
+cgms="norestriction"
+change :roAssociativeArray
+childRenderOrder="last"
+clipId= 0
+clippingRect :roAssociativeArray
+completedStreamInfo :Invalid
+content :roInvalid
+contentBlocked=false
+contentClassifier=""
+contentIndex=-1
+contentIsPlaylist=false
+control="none"
+controlExt :Invalid
+currentAudioTrack=""
+currentSubtitleTrack=""
+customTitle :roInvalid
+decoderStats :Invalid
+detachableMediaPlayer=false
+disableScreenSaver=false
+dismissSeekWithBack=false
+dolbyAtmosDetected=false
+downloadedSegment :Invalid
+drmHttpAgent :roHttpAgent
+dtsVirtualXDetected=false
+duration= 0 
+effectiveAudioSelectionPreferences :roArray
+effectiveSubtitleSelectionPreferences :roArray
+enableDecoderStats=false
+enableLiveAvailabilityWindow=true
+enablePivotNode=true
+enableRenderTracking=false
+enableScreenSaverWhilePlaying=false
+enableThumbnailTilesDuringLive=false
+enableTrickPlay=true
+enableTunerAbsoluteSeek=false
+enableUI=true
+errorCode= 0
+errorInfo :Invalid
+errorMsg=""
+errorStr=""
+focusButton= 0
+focusable=true
+focusedChild :roInvalid
+focusedItem=""
+gain= 0 
+globalCaptionMode="On"
+height= 0 
+id=""
+inheritParentOpacity=true
+inheritParentTransform=true
+interstitialPods :Invalid
+interstitialPodsProcessingDone :Invalid
+licenseStatus :Invalid
+loop=false
+manifestData :Invalid
+maxVideoDecodeResolution :roArray
+mediaPlayerAgent :roMediaPlayerAgent
+mute=false
+muteAudioGuide=false
+nextContentIndex=-1
+notificationInterval= 0.5 
+opacity= 1 
+pauseBufferChanged=false
+pauseBufferClipId= 0
+pauseBufferEnd= 0 
+pauseBufferEndMargin= 0 
+pauseBufferEpochOffset= 0 
+pauseBufferOverflow=false
+pauseBufferPosition= 0 
+pauseBufferStart= 0 
+pauseBufferStartMargin= 0 
+pivotNode :roInvalid
+playPauseWithSelect=false
+playStartInfo :Invalid
+playbackActionButtonFocusIndicatorBlendColor=-1
+playbackActionButtonFocused= 0
+playbackActionButtonFocusedTextColor=-1
+playbackActionButtonFocusedTextFont :roInvalid
+playbackActionButtonHeight= 0 
+playbackActionButtonSelected= 0
+playbackActionButtonUnfocusedTextColor=-1
+playbackActionButtonUnfocusedTextFont :roInvalid
+playbackActionButtons :Invalid
+playbackSpeed= 1 
+playbackUI :roInvalid
+position= 0 
+positionInfo :Invalid
+renderPass= 0
+renderTracking="disabled"
+resolution=""
+retrievingBar :roSGNode
+retrievingBarVisibilityAuto=true
+retrievingBarVisibilityBounds :Invalid
+retrievingBarVisibilityHint=false
+retrievingTextColor= 0
+rotation= 0 
+scale :roArray
+scaleRotateCenter :roArray
+seamlessAudioTrackSelection=false
+seek= 0 
+seekClip :Invalid
+seekMode="default"
+showUI :Invalid
+singleForegroundVideo=false
+state="none"
+stateInfo :Invalid
+streamInfo :Invalid
+streamingSegment :Invalid
+subtitleSelectionPreferences :roAssociativeArray
+subtitleTrack=""
+supplementaryAudioVolume= 50
+suppressCaptions=false
+syncTrickplayWithControl=false
+teletextTrack=""
+thumbnailTiles :Invalid
+timeToStartStreaming= 0 
+timedMetaData :Invalid
+timedMetaData2 :Invalid
+timedMetaDataSelectionKeys :roArray
+tracks :roArray
+translation :roArray
+trickPlayBackground :roInvalid
+trickPlayBackgroundOverlay=""
+trickPlayBar :roSGNode
+trickPlayBarVisibilityAuto=true
+trickPlayBarVisibilityHint=false
+trickPlayMode=""
+trickPlayPosition= 0 
+uiMetadata :Invalid
+videoFormat=""
+videoTrack=""
+visible=true
+warningInfo :Invalid
+width= 0 
+-- clip
+clip buffering
+clip playing
+duration  6 
+clip paused
+paused after start true
+clip playing
+clip buffering
+clip playing
+clip finished
+finished at end true
+-- hls
+hls buffering
+hls playing
+duration  634
+hls stopped
+-- missing
+after stop none
+missing buffering
+missing error
+errorCode -1
+errorMsg There was an error in the HTTP response.  This could mean that malformed HTTP headers or an HTTP error code was returned.
+errorStr reader pick stream error:HTTP error:Transfer error: HTTP response code said error response code:(404):404
+-- done
+missing finished

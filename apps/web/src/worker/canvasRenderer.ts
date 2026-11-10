@@ -213,6 +213,13 @@ export class CanvasRenderer {
         case "t":
           this.drawText(item);
           break;
+        case "v": {
+          // Punch through to the video plane under the canvas (the shell
+          // positions the player there).
+          const [, x, y, w, h] = item;
+          context.clearRect(x, y, w, h);
+          break;
+        }
         case "c": {
           const [, x, y, w, h] = item;
           context.save();

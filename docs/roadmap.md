@@ -39,7 +39,14 @@ home screen; those are the current architecture.
    behavior. Browser tests compare event traces and device screenshots. Widget
    animation timing, sections, specialized variants and full theme geometry
    still require more work; this is not complete widget compatibility.
-6. Continue F6 playback/DRM and the remaining tools (F8). After the agreed
+6. F6 video: in progress on `feature/f6-video`. Done: Video node with the
+   device's 146 field defaults and state sequence (`video/lifecycle`: MP4
+   from HTTP and `pkg:/`, HLS, HTTP 404 error fields), a simulated player for
+   CLI/VS Code and real playback in the web shell (`<video>` under the canvas,
+   Shaka Player + mux.js for HLS/DASH over the local proxy). Next: Widevine
+   DRM via EME (content `drmParams`), then trick play, captions and audio
+   tracks.
+7. Remaining tools (F8). After the agreed
    implementation sequence, freeze feature work and review GitHub tasks #5–#16
    (platform integrity and CI/CD). Native desktop/F9 mocks remain later roadmap
    items. Do not start release/publication automation ahead of that review.

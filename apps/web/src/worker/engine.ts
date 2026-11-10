@@ -31,6 +31,9 @@ interface EngineExports {
   brs_display_list(knownRevision: number): number;
   brs_package_file(): number;
   brs_registry_load(): void;
+  brs_video_external(external: number): void;
+  brs_video_commands(): number;
+  brs_video_event(): void;
   brs_registry_take(): number;
   brs_take_output(): number;
   brs_output_len(): number;
@@ -235,5 +238,22 @@ export class BrsEngine {
     const length = this.exports.brs_output_len();
     if (length === 0) return "";
     return this.decoder.decode(new Uint8Array(this.exports.memory.buffer, pointer, length));
+  }
+
+  /** Hands Video playback to the shell's player instead of the simulation. */
+  setVideoExternal(external: boolean): void {
+    this.exports.brs_video_external(external ? 1 : 0);
+  }
+
+  /** Pending player commands (JSON objects) since the last call. */
+  takeVideoCommands(): unknown[] {
+    const length = this.exports.brs_video_commands();
+    if (length < 0) return [];
+    return JSON.parse(this.blobText(length)) as unknown[];
+  }
+
+  videoEvent(event: unknown): void {
+    this.writeScratch(JSON.stringify(event));
+    this.exports.brs_video_event();
   }
 }
