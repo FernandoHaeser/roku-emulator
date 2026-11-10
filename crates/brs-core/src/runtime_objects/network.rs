@@ -29,6 +29,21 @@ fn headers(state: &AssocArray) -> Json {
         .filter(Json::is_object)
         .unwrap_or(json!({}))
 }
+pub(crate) fn request_headers(vm: &Vm, object: &ObjectRef, url: &str) -> Json {
+    let state = state(object);
+    let mut result = headers(&state);
+    if let Some(cookie) = cookies::header(vm, object, url) {
+        result["Cookie"] = json!(cookie);
+    }
+    if !get_str(&state, "authorization").is_empty() {
+        result["Authorization"] = json!(get_str(&state, "authorization"));
+    }
+    if !get_str(&state, "useragent").is_empty() {
+        result["User-Agent"] = json!(get_str(&state, "useragent"));
+    }
+    result
+}
+
 fn event(state: &AssocArray, result: &Json) -> Value {
     let mut state = state.clone();
     state.set(
@@ -310,16 +325,7 @@ pub(super) fn call(vm: &mut Vm, object: &ObjectRef, method: &str, args: &[Value]
             } else {
                 None
             };
-            let mut headers = headers(&state);
-            if let Some(cookie) = cookies::header(vm, object, &get_str(&state, "url")) {
-                headers["Cookie"] = json!(cookie);
-            }
-            if !get_str(&state, "authorization").is_empty() {
-                headers["Authorization"] = json!(get_str(&state, "authorization"));
-            }
-            if !get_str(&state, "useragent").is_empty() {
-                headers["User-Agent"] = json!(get_str(&state, "useragent"));
-            }
+            let headers = request_headers(vm, object, &get_str(&state, "url"));
             let request=json!({"url":get_str(&state,"url"),"method":verb,"headers":headers,"body":STANDARD.encode(body),"username":get_str(&state,"username"),"password":get_str(&state,"password"),"peerVerify":!matches!(state.get("peerverify"),Some(Value::Boolean(false))),"hostVerify":!matches!(state.get("hostverify"),Some(Value::Boolean(false))),"ca":vm.env.read_file(&get_str(&state,"certificates")).map(|b|String::from_utf8_lossy(&b).into_owned()),"timeout": if get_int(&state,"timeout")>0{get_int(&state,"timeout")}else{30000}}).to_string();
             if asynchronous {
                 vm.env.next_identity += 1;

@@ -873,6 +873,9 @@ pub fn node_method(
     name: &str,
     args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
+    if let Some(result) = super::http_agent::call(vm, object, name, &args) {
+        return result;
+    }
     let children = || with_node(object, |n| n.children.clone());
     Ok(match name {
         "signalbeacon" => {

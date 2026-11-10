@@ -127,3 +127,15 @@ test("scenegraph/scene-background retains the theme until backgroundUri is assig
   await expect.poll(backgroundPixel).toEqual([0, 0, 0, 255]);
   expect(probeOutput(await consoleLines(page))).toBe(golden);
 });
+
+test("scenegraph/http-agent matches native inheritance and rejected assignments", async ({
+  page,
+}) => {
+  const probe = "scenegraph/http-agent";
+  const golden = readFileSync(join(repoRoot, "fidelity", probe, "golden/console.txt"), "utf8");
+  await page.goto("/");
+  await expect(page.getByText("Pronto", { exact: true })).toBeVisible();
+  await sideload(page, probe);
+  await expect.poll(async () => (await consoleLines(page)).includes("@@PROBE_END")).toBe(true);
+  expect(probeOutput(await consoleLines(page))).toBe(golden);
+});

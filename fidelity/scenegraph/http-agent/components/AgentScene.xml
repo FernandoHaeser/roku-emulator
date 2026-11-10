@@ -1,0 +1,34 @@
+<component name="AgentScene" extends="Scene"><script type="text/brightscript"><![CDATA[
+sub init()
+ parent=CreateObject("roSGNode","Group")
+ child=parent.createChild("Rectangle")
+ video=parent.createChild("Video")
+ other=CreateObject("roSGNode","Group")
+ agent=parent.getHttpAgent()
+ print "agent type=";type(agent)
+ print "node access=";GetInterface(parent,"ifSGNodeHttpAgentAccess")<>invalid
+ print "node http=";GetInterface(parent,"ifHttpAgent")<>invalid
+ print "agent http=";GetInterface(agent,"ifHttpAgent")<>invalid
+ expires=CreateObject("roDateTime")
+ expires.FromSeconds(expires.AsSeconds()+3600)
+ agent.EnableCookies()
+ print "add default=";agent.AddCookies([{expires:expires,secure:false,version:0,name:"probe",value:"default",domain:"example.com",path:"/"}])
+ print "default cookies=";other.getHttpAgent().GetCookies("example.com","/").Count()
+ print "child cookies=";child.getHttpAgent().GetCookies("example.com","/").Count()
+ print "video cookies=";video.getHttpAgent().GetCookies("example.com","/").Count()
+ replacement=CreateObject("roHttpAgent")
+ replacement.EnableCookies()
+ print "add replacement=";replacement.AddCookies([{expires:expires,secure:false,version:0,name:"one",value:"replacement",domain:"example.com",path:"/"},{expires:expires,secure:false,version:0,name:"two",value:"replacement",domain:"example.com",path:"/"}])
+ print "set parent=";parent.setHttpAgent(replacement)
+ print "parent cookies=";parent.getHttpAgent().GetCookies("example.com","/").Count()
+ print "child inherited=";child.getHttpAgent().GetCookies("example.com","/").Count()
+ print "video inherited=";video.getHttpAgent().GetCookies("example.com","/").Count()
+ print "set child=";child.setHttpAgent(agent)
+ print "own child=";child.getHttpAgent().GetCookies("example.com","/").Count()
+ print "reset child=";child.setHttpAgent(invalid)
+ print "reset inherited=";child.getHttpAgent().GetCookies("example.com","/").Count()
+ print "reject transfer=";parent.setHttpAgent([])
+ print "parent unchanged=";parent.getHttpAgent().GetCookies("example.com","/").Count()
+ print "@@PROBE_END"
+end sub
+]]></script></component>

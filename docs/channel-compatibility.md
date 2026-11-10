@@ -128,3 +128,24 @@ does not remove that image. Explicitly assigning `backgroundUri = ""`, even
 though the field already reads empty, clears it and reveals the color. The
 renderer reproduces the measured solid theme color; custom background images
 and other Roku themes still require coverage.
+
+Opening a catalog item exposed the missing `Video.setHttpAgent()` method.
+`scenegraph/http-agent` now covers native agent access, interface discovery,
+ancestor inheritance, per-node overrides and rejected assignments. Video
+metadata/preflight and adaptive web playback use the selected agent's headers;
+`ContentNode.HttpHeaders` replaces its custom headers, as observed on the Roku.
+The browser HLS tests require the expected headers on both manifests and media
+segments and reject stale agent headers after metadata replacement. The same
+owned HLS fixture was checked on the physical device in both modes.
+
+This does not complete media/network compatibility: forwarding node-agent
+settings in the Poster loader, custom headers for native progressive browser
+playback, complete certificate/client identity handling and broader separate
+DRM-agent coverage remain open.
+
+After the agent fix, the unchanged ZIP also opened the first catalog stream
+from the authenticated second `demo` provider. The browser's actual media
+player reported `readyState = 4`, advancing past 18 seconds with `paused = false`,
+no media error and no channel runtime error. This is a single-stream playback
+check; captions, alternate audio, trick play, other providers and protected
+streams are not validated by it.

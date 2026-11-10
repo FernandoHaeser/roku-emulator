@@ -9,6 +9,7 @@ pub mod bitmap;
 pub mod channel_store;
 pub mod component;
 mod font_metrics;
+pub mod http_agent;
 pub mod layout;
 pub mod render;
 pub mod runtime;
@@ -335,6 +336,7 @@ pub struct Node {
     pub component: Option<ComponentInstance>,
     pub has_focus: bool,
     pub aliases: Box<AliasState>,
+    pub http_agent: Option<ObjectRef>,
     /// Position supplied by a native list/grid container, separate from translation.
     pub render_offset: (f64, f64),
     pub native_paint: Option<NativePaint>,
@@ -366,6 +368,7 @@ impl Node {
             component: None,
             has_focus: false,
             aliases: Box::default(),
+            http_agent: None,
             render_offset: (0.0, 0.0),
             native_paint: None,
             load_display_mode: None,
@@ -518,6 +521,7 @@ pub struct Timer {
 pub struct SceneGraph {
     pub components: HashMap<String, Rc<ComponentDef>>,
     pub global: Option<ObjectRef>,
+    pub default_http_agent: Option<ObjectRef>,
     pub screens: Vec<ScreenState>,
     /// Nodes created by CreateScene whose children/init still have to run on
     /// the render thread.
