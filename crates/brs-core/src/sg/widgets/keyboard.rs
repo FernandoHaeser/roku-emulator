@@ -634,24 +634,38 @@ fn render_mini(vm: &mut Vm, node: &ObjectRef, state: &mut State) -> Result<()> {
             keyboard_rectangle(
                 vm,
                 state,
-                x - 12.0,
-                y - 15.0,
-                key.width + 24.0,
-                105.0,
+                x - 13.5,
+                y - 13.5,
+                key.width + 25.5,
+                108.0,
                 0x3232_32FF,
             )?;
-            for band in 0..34 {
-                let shade = (224.0 - 73.0 * band as f64 / 33.0).round() as u32;
+            for band in 0..35 {
+                let shade = (224.0 - 73.0 * band as f64 / 34.0).round() as u32;
                 keyboard_rectangle(
                     vm,
                     state,
-                    x - 10.5,
-                    y - 13.5 + band as f64 * 3.0,
-                    key.width + 21.0,
+                    x - 12.0,
+                    y - 12.0 + band as f64 * 3.0,
+                    key.width + 22.5,
                     3.0,
                     (shade << 24) | (shade << 16) | (shade << 8) | 255,
                 )?;
             }
+        }
+        let icon_color = if selected {
+            0x000000FFu32
+        } else {
+            with_node(node, |n| {
+                n.number(if focused {
+                    "focusedKeyColor"
+                } else {
+                    "keyColor"
+                }) as i64 as u32
+            })
+        };
+        if mini_icon(vm, state, &key, x, y, icon_color)? {
+            continue;
         }
         let label = create_node(vm, "Label")?.expect("Label");
         let text = match key.text.as_str() {
@@ -889,5 +903,56 @@ pub(super) fn host_input(vm: &mut Vm, text: &str, command: &str) -> Result<bool>
         set_field(vm, &target, "text", Value::string(new))?;
     }
     set_field(vm, &target, "cursorPosition", Value::Integer(cursor as i32))?;
+    Ok(true)
+}
+
+/// Geometry for the native key symbols, independent of the host's font fallback.
+fn mini_icon(
+    vm: &mut Vm,
+    state: &mut State,
+    key: &Key,
+    x: f64,
+    y: f64,
+    color: u32,
+) -> Result<bool> {
+    let cx = x + key.width / 2.0;
+    let cy = y + 40.5;
+    let mut strokes = Vec::new();
+    match key.text.as_str() {
+        "clear" => {
+            strokes.extend([
+                (-4.5, -15.0, 9.0, 3.0),
+                (-12.0, -10.5, 24.0, 3.0),
+                (-9.0, -6.0, 2.0, 21.0),
+                (7.0, -6.0, 2.0, 21.0),
+                (-9.0, 13.0, 18.0, 2.0),
+                (-3.5, -4.5, 1.5, 15.0),
+                (2.0, -4.5, 1.5, 15.0),
+            ]);
+        }
+        "space" => strokes.extend([
+            (-15.0, 0.0, 30.0, 3.0),
+            (-15.0, -3.0, 3.0, 6.0),
+            (12.0, -3.0, 3.0, 6.0),
+        ]),
+        "delete" => {
+            strokes.extend([
+                (-7.5, -9.0, 22.5, 2.0),
+                (-7.5, 7.0, 22.5, 2.0),
+                (13.0, -9.0, 2.0, 18.0),
+            ]);
+            for i in 0..6 {
+                let offset = i as f64 * 1.5;
+                strokes.push((-9.0 - offset, -9.0 + offset, 3.0, 1.5));
+                strokes.push((-9.0 - offset, 7.5 - offset, 3.0, 1.5));
+                strokes.push((-1.5 + offset, -4.5 + offset, 2.0, 1.5));
+                strokes.push((-1.5 + offset, 3.0 - offset, 2.0, 1.5));
+            }
+        }
+        _ => return Ok(false),
+    }
+    for (dx, dy, w, h) in strokes {
+        keyboard_rectangle(vm, state, cx + dx, cy + dy, w, h, color)?;
+    }
     Ok(true)
 }

@@ -66,13 +66,14 @@ References: [collection literals and optional operators](https://developer.roku.
 [RadioButtonList](https://developer.roku.com/dev/docs/radiobuttonlist), and
 [ChannelStore](https://developer.roku.com/dev/docs/channelstore).
 
-The MiniKeyboard screenshots differ by 0.357% (FHD) and 0.382% (HD). Their
-behavioral traces pass in both resolutions. Like the selection-control probes,
-they document a substitute-artwork budget (0.5%): the clear/space/delete icons
-are locally drawn glyphs instead of Roku system artwork, and key labels use
-the substitute font. Icon and glyph parity remain open. The standard keyboard dialog's final-state
-screenshot passes its current budget; its open-dialog artwork still differs
-from the device and requires broader visual coverage.
+The MiniKeyboard screenshots currently differ by 0.315% (FHD) and 0.299% (HD).
+The original 0.1% visual budget is restored, so both checks still fail rather
+than accepting those differences through a larger tolerance. Clear/space/delete
+symbols now use host-independent geometry, and focus dimensions are closer to
+the captures; glyph rasterization and remaining artwork differences are open.
+Behavioral traces still pass in both resolutions. The standard keyboard dialog's
+final-state screenshot passes its current budget; its open-dialog artwork still
+differs from the device and requires broader visual coverage.
 
 Physical keyboard input is an emulator convenience alongside remote navigation.
 The active TextEditBox or keyboard accepts Unicode text, spaces and punctuation,
@@ -84,8 +85,9 @@ Options when their former letter/backspace shortcuts are used for typing.
 
 The first result for `demo` (`CDNTV - SEDE-POA`) supplies the bare hostname
 `demo`. Authentication fails before an HTTP response on both runtimes: the
-physical Roku reports DNS error -6; the emulator currently reports transport
-error -7. The transport error difference remains open; the endpoint is not
+physical Roku reports DNS error -6. The emulator now maps resolver failures
+(ENOTFOUND/EAI_AGAIN, including wrapped fetch causes) to -6, while connection
+refusal remains -7. A transport test verifies both cases. The endpoint is not
 rewritten to another provider.
 
 The InfoPane used to show that failure is now implemented from the
@@ -108,3 +110,7 @@ Device rules recorded while doing so, each with its own probe:
   writes integral Float/Double values in full (`runtime/json-numbers`).
 - `isSubtype()` excludes the node's own type, except where a native widget
   reports a public type other than its own (InfoPane → `InfoLabel`).
+
+After the Orca restart, the configured device did not answer a bounded ECP probe
+and SSDP discovery found no Roku. Further native font/alias measurements require
+the physical device to become reachable.
