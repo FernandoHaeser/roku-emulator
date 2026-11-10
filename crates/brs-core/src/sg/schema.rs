@@ -312,6 +312,7 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
             spec("description", String, empty),
             spec("url", Uri, empty),
             spec("streamFormat", String, empty),
+            spec("drmParams", AssocArray, empty_aa),
             spec("HDPosterUrl", Uri, empty),
             spec("SDPosterUrl", Uri, empty),
             spec("FHDPosterUrl", Uri, empty),

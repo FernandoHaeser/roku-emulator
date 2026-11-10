@@ -85,6 +85,7 @@ sub onState()
             cut = Instr(1, detail, ":extra:")
             if cut > 0 then detail = Left(detail, cut - 1)
             print "errorStr "; detail
+            printErrorInfo(m.video.errorInfo)
             print "-- done"
             m.top.done = true
         end if
@@ -102,4 +103,23 @@ end sub
 
 sub onSeekTimer()
     m.video.seek = 4
+end sub
+
+sub printErrorInfo(info as dynamic)
+    if info = invalid then return
+    keys = []
+    for each key in info
+        keys.push(key)
+    end for
+    keys.sort()
+    for each key in keys
+        value = info[key]
+        ' clipid counts contents per app run; dbgmsg repeats errorStr
+        ' with the internal ids after ":extra:".
+        if key = "dbgmsg" then
+            cut = Instr(1, value, ":extra:")
+            if cut > 0 then value = Left(value, cut - 1)
+        end if
+        if key <> "clipid" then print "errorInfo "; key; "="; value
+    end for
 end sub

@@ -220,6 +220,16 @@ the next service pass; `stop` fires `stopped` synchronously. Two backends:
   proxy; MPEG-TS segments are transmuxed by mux.js. Autoplay rejection retries
   muted, since a TV has no user gesture.
 
+DASH contents and contents with `drmParams` go through a preflight in both
+backends: the engine fetches the manifest (duration from
+`mediaPresentationDuration`, protection from Widevine/CENC
+`ContentProtection` or HLS key tags) and, for protected streams, posts a
+Widevine service certificate request (`08 04`) to the license server. Failures
+produce the device's DRM error fields; only then does the host get `load`
+(with `drm`). Shaka maps `drm.keySystem` to an EME key system. If the browser
+has no CDM for it, the host answers `unsupported` and that player switches to
+the simulated clock, so channels see the same events without frames.
+
 Players of garbage-collected Video nodes are dropped (and stopped on the host).
 
 ## Oracle (`packages/oracle`)

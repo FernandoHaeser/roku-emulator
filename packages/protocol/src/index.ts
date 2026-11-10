@@ -9,8 +9,15 @@ export * from "./bridge";
 export * from "./keys";
 
 /** Command for the shell's video player (crates/brs-core/src/sg/video.rs). */
+/** `content.drmParams` of a protected stream. */
+export interface VideoDrm {
+  /** Roku key system name ("widevine", "playready"). */
+  keySystem: string;
+  licenseServerURL: string;
+}
+
 export type VideoCommand =
-  | { id: number; op: "load"; url: string; format: string }
+  | { id: number; op: "load"; url: string; format: string; drm?: VideoDrm }
   | { id: number; op: "pause" | "resume" | "stop" }
   | { id: number; op: "seek"; position: number }
   /** Channel exited: destroy every player. */
@@ -20,7 +27,10 @@ export type VideoCommand =
 export type VideoEvent =
   | { id: number; type: "buffering" | "playing" | "paused" | "ended" }
   | { id: number; type: "duration" | "position"; value: number }
-  | { id: number; type: "error"; status: number; message: string };
+  /** `category: "drm"` for license failures (HTTP status of the license request). */
+  | { id: number; type: "error"; status: number; message: string; category?: "drm" }
+  /** No CDM for the stream's key system: the engine continues on its own clock. */
+  | { id: number; type: "unsupported" };
 
 /** Video plane of a player, in the channel's design resolution. */
 export interface VideoRect {

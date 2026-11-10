@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Video DRM probe: chained phases (deterministic output order) over the
+     public Shaka demo assets:
+       dash        clear DASH: play, then stop;
+       widevine    Widevine DASH with a working license server: play, stop;
+       badlicense  Widevine DASH whose license URL answers 404: error fields;
+       nodrm       Widevine DASH without drmParams.
+     A guard timer ends a phase that never reaches a final state. -->
+<component name="ProbeScene" extends="Scene">
+  <interface>
+    <field id="done" type="boolean" />
+  </interface>
+  <script type="text/brightscript" uri="ProbeScene.brs" />
+  <children>
+    <Rectangle width="1920" height="1080" color="0x000000FF" />
+    <Timer id="stopTimer" duration="1" />
+    <Timer id="guardTimer" duration="20" />
+  </children>
+</component>

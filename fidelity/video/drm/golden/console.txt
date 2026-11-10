@@ -1,0 +1,38 @@
+content drmParams roAssociativeArray
+-- dash
+dash buffering
+dash playing
+duration  60
+dash stopped
+-- widevine
+widevine buffering
+widevine playing
+duration  60
+widevine stopped
+-- badlicense
+badlicense buffering
+badlicense error
+errorCode -6
+errorMsg Protected content license error.
+errorStr buffer:loop:unset:DRM exception: Http error 400
+errorInfo category=drm
+errorInfo dbgmsg=buffer:loop:unset:DRM exception: Http error 400
+errorInfo drmerrcode= 0
+errorInfo errcode= 9
+errorInfo ignored=false
+errorInfo source=buffer:loop:unset
+badlicense finished
+-- nodrm
+nodrm buffering
+nodrm error
+errorCode -6
+errorMsg Protected content license error.
+errorStr buffer:loop:unset:DRM exception: license url missing
+errorInfo category=drm
+errorInfo dbgmsg=buffer:loop:unset:DRM exception: license url missing
+errorInfo drmerrcode= 0
+errorInfo errcode= 9
+errorInfo ignored=false
+errorInfo source=buffer:loop:unset
+nodrm finished
+-- done

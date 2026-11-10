@@ -211,3 +211,24 @@ Probes: `scenegraph/{lifecycle,node-api,observers,focus-keys,task-timer,label-ba
 - Node print format: `<Component: roSGNode:Type> =`, invalid fields print as
   `<Component: roInvalid>`; fields are listed most-derived type first.
 - `Rectangle.color` is stored as a signed 32-bit integer (`0xRRGGBBAA`).
+- Setting `Timer.control = "start"` again restarts the timer even though the
+  field still reads `"start"` after it fired (`video/drm` restarts one stop
+  timer per phase).
+
+## Video (F6)
+
+Probes: `video/{lifecycle,drm}`.
+
+- `play` reports `buffering` after the assignment returns, then `playing`;
+  `duration` is set first. `stop` reports `stopped` during the assignment.
+- HTTP errors: `errorCode` -1, `errorMsg` "There was an error in the HTTP
+  response. ...", `errorInfo.category` "http", `errcode` 2, `source`
+  "buffer:reader"; then `error` and `finished`.
+- DRM errors: `errorCode` -6, `errorMsg` "Protected content license error.",
+  `errorStr` "buffer:loop:unset:DRM exception: <reason>", where the reason is
+  "license url missing" (protected stream without `drmParams`) or
+  "Http error <status>" (status of the license request);
+  `errorInfo.category` "drm", `errcode` 9, `source` "buffer:loop:unset".
+- `errorInfo` also carries `clipid` (contents started by the app),
+  `dbgmsg` (= `errorStr`), `drmerrcode` 0 and `ignored` false.
+- `ContentNode.drmParams` defaults to an empty associative array.
