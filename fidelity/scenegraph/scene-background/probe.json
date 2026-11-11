@@ -1,0 +1,23 @@
+{
+  "kind": "conformance",
+  "startDelayMs": 300,
+  "settleMs": 100,
+  "steps": [
+    {
+      "key": "Right",
+      "waitMs": 200
+    },
+    {
+      "key": "Down",
+      "waitMs": 200
+    },
+    {
+      "key": "Left",
+      "waitMs": 200
+    }
+  ],
+  "capture": {
+    "appUi": true,
+    "screenshot": true
+  }
+}

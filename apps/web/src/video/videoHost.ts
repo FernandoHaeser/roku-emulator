@@ -146,11 +146,23 @@ class Player {
     this.shakaPlayer = null;
   }
 
-  async load(url: string, format: string, drm?: VideoDrm): Promise<void> {
+  async load(
+    url: string,
+    format: string,
+    drm?: VideoDrm,
+    headers: Record<string, string> = {},
+  ): Promise<void> {
     const video = this.element;
     if (drm || isAdaptive(url, format)) {
       setupShaka();
       this.shakaPlayer = new shaka.Player();
+      this.shakaPlayer.getNetworkingEngine()!.registerRequestFilter((type, request) => {
+        const selected =
+          type === shaka.net.NetworkingEngine.RequestType.LICENSE
+            ? (drm?.headers ?? headers)
+            : headers;
+        Object.assign(request.headers, selected);
+      });
       const keySystem = drm ? emeKeySystem(drm.keySystem) : null;
       if (drm && !keySystem) {
         this.unsupported();
@@ -189,7 +201,7 @@ class Player {
   command(command: Exclude<VideoCommand, { op: "reset" }>): void {
     switch (command.op) {
       case "load":
-        void this.load(command.url, command.format, command.drm);
+        void this.load(command.url, command.format, command.drm, command.headers);
         break;
       case "pause":
         this.element.pause();

@@ -6,6 +6,7 @@ mod regex_crypto;
 use crate::error::RuntimeError;
 use crate::value::{AssocArray, Object, ObjectRef, Value};
 use crate::vm::Vm;
+pub(crate) use network::request_headers;
 pub use network::{complete_http, PendingHttp};
 
 type ResultValue = Result<Value, RuntimeError>;

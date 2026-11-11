@@ -237,7 +237,7 @@ pub fn fields(name: &str) -> Vec<FieldSpec> {
         ],
         "Scene" => vec![
             spec("backgroundUri", Uri, empty),
-            spec("backgroundColor", Color, || Value::Integer(0x0000_00FF)),
+            spec("backgroundColor", Color, || Value::Integer(0x0B00_1BFF)),
             spec("backExitsScene", Boolean, yes),
             spec("dialog", Node, invalid),
             spec("currentDesignResolution", AssocArray, invalid),

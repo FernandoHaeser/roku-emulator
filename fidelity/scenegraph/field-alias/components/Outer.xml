@@ -1,0 +1,1 @@
+<component name="Outer" extends="Group"><interface><field id="innerWidth" type="float" alias="inner.width"/><field id="innerCaption" type="string" alias="inner.caption"/></interface><children><Card id="inner"/></children></component>

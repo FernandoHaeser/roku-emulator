@@ -19,11 +19,19 @@ export interface VideoDrm {
   /** Roku key system name ("widevine", "playready"). */
   keySystem: string;
   licenseServerURL: string;
+  headers?: Record<string, string>;
 }
 
 /** Command for the shell's video player (crates/brs-core/src/sg/video.rs). */
 export type VideoCommand =
-  | { id: number; op: "load"; url: string; format: string; drm?: VideoDrm }
+  | {
+      id: number;
+      op: "load";
+      url: string;
+      format: string;
+      headers?: Record<string, string>;
+      drm?: VideoDrm;
+    }
   | { id: number; op: "pause" | "resume" | "stop" }
   | { id: number; op: "seek"; position: number }
   /** Channel exited: destroy every player. */

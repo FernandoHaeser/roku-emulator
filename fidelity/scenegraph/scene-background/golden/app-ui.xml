@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<app-ui>
+	<status>OK</status>
+	<topscreen>
+		<plugin id="dev" name="Field alias conformance" />
+		<screen type="SGScreen" focused="true">
+			<BackgroundScene extends="Scene" focused="true" focusable="true" rcid="0" children="0" />
+		</screen>
+	</topscreen>
+</app-ui>

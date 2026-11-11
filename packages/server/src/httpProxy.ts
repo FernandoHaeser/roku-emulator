@@ -33,6 +33,22 @@ function validateUrl(value: string): URL {
     throw new Error("Unsupported URL");
   return url;
 }
+/** Fetch wraps resolver errors in cause (or AggregateError for multiple addresses). */
+function isDnsFailure(error: unknown): boolean {
+  const pending: unknown[] = [error];
+  const visited = new Set<unknown>();
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current || typeof current !== "object" || visited.has(current)) continue;
+    visited.add(current);
+    const detail = current as { code?: unknown; cause?: unknown; errors?: unknown };
+    if (detail.code === "ENOTFOUND" || detail.code === "EAI_AGAIN") return true;
+    pending.push(detail.cause);
+    if (Array.isArray(detail.errors)) pending.push(...detail.errors);
+  }
+  return false;
+}
+
 export async function httpRequest(
   input: unknown,
   cancellation?: AbortSignal,
@@ -184,7 +200,7 @@ export async function httpRequest(
     throw new Error("Too many HTTP redirects");
   } catch (error) {
     return {
-      status: signal.aborted ? -28 : -7,
+      status: signal.aborted ? -28 : isDnsFailure(error) ? -6 : -7,
       headers: {},
       headersArray: [],
       body: "",

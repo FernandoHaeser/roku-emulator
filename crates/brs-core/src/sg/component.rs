@@ -15,7 +15,7 @@ pub struct InterfaceField {
     pub value: Option<String>,
     pub on_change: Option<String>,
     pub always_notify: bool,
-    /// `alias="child.field"` is recorded but not linked yet.
+    /// `alias="child.field"` links the interface to a child field before init.
     pub alias: Option<String>,
 }
 

@@ -151,6 +151,7 @@ fn allocate_node(vm: &mut Vm, type_name: &str) -> Option<ObjectRef> {
                 // The device draws its theme background here, but BrightScript
                 // reads `uri` as "" (fidelity/scenegraph/render-composite).
                 n.internal = true;
+                n.native_paint = Some(super::NativePaint::SceneTheme);
                 if let Some(f) = n.field_mut("inheritParentTransform") {
                     f.value = Value::Boolean(false);
                 }
@@ -172,6 +173,7 @@ fn populate_node(vm: &mut Vm, object: &ObjectRef) -> Result<(), RuntimeError> {
             create_children(vm, object, children, &def.file)?;
         }
     }
+    bind_aliases(vm, object, &components)?;
     let m = with_node(object, |n| n.component.as_ref().map(|c| c.m.clone()));
     if let Some(m) = m {
         for def in components.iter().rev() {
@@ -293,13 +295,19 @@ pub(super) fn ancestors(object: &ObjectRef) -> Vec<ObjectRef> {
 // ---- fields ---------------------------------------------------------------------
 
 pub fn get_field(object: &ObjectRef, name: &str) -> Value {
+    if let Some(target) = alias_target(object, name) {
+        return get_field(&target.node, &target.field);
+    }
     with_node(object, |n| {
         n.field(name)
             .map_or(Value::Invalid, |field| field.kind.read(&field.value))
     })
 }
 
-fn same_value(old: &Value, new: &Value, borrowed_node: &ObjectRef) -> bool {
+fn same_value(old: &Value, new: &Value, kind: FieldKind, borrowed_node: &ObjectRef) -> bool {
+    if kind == FieldKind::Vector2D {
+        return matches!((super::numbers_of(old),super::numbers_of(new)),(Some(a),Some(b)) if a==b);
+    }
     match (old, new) {
         (Value::Object(a), Value::Object(b)) => {
             Rc::ptr_eq(a, b) && (Rc::ptr_eq(a, borrowed_node) || is_node(a))
@@ -333,6 +341,9 @@ pub fn set_field(
     name: &str,
     value: Value,
 ) -> Result<(), RuntimeError> {
+    if let Some(target) = alias_target(object, name) {
+        return set_field(vm, &target.node, &target.field, value);
+    }
     // A Timer restarts on every `control = "start"`, even when the field
     // already holds it (it still reads "start" after firing; video/drm
     // restarts its stop timer per phase on the device).
@@ -351,6 +362,21 @@ pub fn set_field(
     let Some(converted) = kind.and_then(|kind| kind.convert(&value)) else {
         return Ok(());
     };
+    // Assigning even the initial empty backgroundUri removes the theme image.
+    if name.eq_ignore_ascii_case("backgroundUri")
+        && with_node(object, |n| n.ancestry.iter().any(|t| &**t == "Scene"))
+    {
+        let background = with_node(object, |n| {
+            n.children
+                .iter()
+                .find(|child| with_node(child, |n| n.internal))
+                .cloned()
+        });
+        if let Some(background) = background {
+            with_node_mut(&background, |n| n.native_paint = None);
+            set_field(vm, &background, "uri", converted.clone())?;
+        }
+    }
     let change = with_node_mut(object, |n| {
         if n.field_index(name).is_none() {
             if !n.ancestry.iter().any(|t| &**t == "ContentNode") {
@@ -369,7 +395,7 @@ pub fn set_field(
         let field = n.field_mut(name)?;
         let changed = field.always_notify
             || field.kind == FieldKind::Trigger
-            || !same_value(&field.value, &converted, object);
+            || !same_value(&field.value, &converted, field.kind, object);
         field.value = converted;
         changed.then(|| Change {
             field: field.name.clone(),
@@ -385,6 +411,7 @@ pub fn set_field(
         }
         return Ok(());
     };
+    sync_alias_values(object, &change.field);
     side_effects(vm, object, &change.field)?;
     super::widgets::changed(vm, object, &change.field)?;
     super::channel_store::changed(vm, object, &change.field);
@@ -409,11 +436,36 @@ fn infer_kind(value: &Value) -> FieldKind {
 }
 
 fn notify(vm: &mut Vm, object: &ObjectRef, change: Change) -> Result<(), RuntimeError> {
+    let aliases = live_alias_dependents(object, &change.field)
+        .next()
+        .is_some();
+    let key = change.field.to_ascii_lowercase();
+    if aliases && !with_node_mut(object, |n| n.aliases.dispatch.insert(key.clone())) {
+        return Ok(());
+    }
+    let result = notify_inner(vm, object, change, aliases);
+    if aliases {
+        with_node_mut(object, |n| {
+            n.aliases.dispatch.remove(&key);
+        });
+    }
+    result
+}
+fn notify_inner(
+    vm: &mut Vm,
+    object: &ObjectRef,
+    change: Change,
+    live: bool,
+) -> Result<(), RuntimeError> {
     let (component, node_id) = with_node(object, |n| (n.component.clone(), n.id()));
-    let event = || {
+    let make_event = |field: &str| {
         Value::object(Object::NodeEvent(NodeEvent {
-            field: change.field.clone(),
-            data: change.data.clone(),
+            field: field.to_string(),
+            data: if live {
+                get_field(object, field)
+            } else {
+                change.data.clone()
+            },
             node: node_value(object),
             node_id: node_id.clone(),
         }))
@@ -421,20 +473,52 @@ fn notify(vm: &mut Vm, object: &ObjectRef, change: Change) -> Result<(), Runtime
     if let (Some(function), Some(component)) = (&change.on_change, &component) {
         if let Some(index) = vm.program().lookup(component.scope, function) {
             let m = component.m.clone();
-            let args = vec![event()];
+            let args = vec![make_event(&change.field)];
             vm.run_in_render(|vm| vm.call_sync(index, args, m))?;
         }
     }
     for observer in &change.observers {
-        match observer {
-            Observer::Callback { scope, function, m } => {
-                if let Some(index) = vm.program().lookup(*scope, function) {
-                    let m = m.clone();
-                    let args = vec![event()];
-                    vm.run_in_render(|vm| vm.call_sync(index, args, m))?;
+        deliver_observer(vm, observer, &change.field, &make_event)?;
+    }
+    Ok(())
+}
+fn deliver_observer(
+    vm: &mut Vm,
+    observer: &Observer,
+    field: &str,
+    event: &dyn Fn(&str) -> Value,
+) -> Result<(), RuntimeError> {
+    match observer {
+        Observer::Callback { scope, function, m } => {
+            if let Some(index) = vm.program().lookup(*scope, function) {
+                let args = vec![event(field)];
+                let m = m.clone();
+                vm.run_in_render(|vm| vm.call_sync(index, args, m))?;
+            }
+        }
+        Observer::Port { port } => vm.post_message(*port, event(field)),
+        Observer::Alias {
+            owner,
+            field: alias,
+            event_node,
+            observer,
+        } => {
+            if owner
+                .upgrade()
+                .is_some_and(|owner| alias_target(&owner, alias).is_some())
+            {
+                if let Some(node) = event_node.upgrade() {
+                    let make_alias_event = |field: &str| {
+                        Value::object(Object::NodeEvent(NodeEvent {
+                            field: field.to_string(),
+                            data: get_field(&node, field),
+                            node: node_value(&node),
+                            node_id: with_node(&node, |n| n.id()),
+                        }))
+                    };
+                    deliver_observer(vm, observer, alias, &make_alias_event)?;
                 }
             }
-            Observer::Port { port } => vm.post_message(*port, event()),
         }
     }
     Ok(())
@@ -549,7 +633,7 @@ fn set_raw_and_notify(
 ) -> Result<(), RuntimeError> {
     let change = with_node_mut(object, |n| {
         let field = n.field_mut(name)?;
-        if same_value(&field.value, &value, object) {
+        if same_value(&field.value, &value, field.kind, object) {
             return None;
         }
         field.value = value;
@@ -561,7 +645,10 @@ fn set_raw_and_notify(
         })
     });
     match change {
-        Some(change) => notify(vm, object, change),
+        Some(change) => {
+            sync_alias_values(object, &change.field);
+            notify(vm, object, change)
+        }
         None => Ok(()),
     }
 }
@@ -786,6 +873,9 @@ pub fn node_method(
     name: &str,
     args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
+    if let Some(result) = super::http_agent::call(vm, object, name, &args) {
+        return result;
+    }
     let children = || with_node(object, |n| n.children.clone());
     Ok(match name {
         "signalbeacon" => {
@@ -1043,23 +1133,55 @@ pub fn node_method(
                 },
                 _ => return Ok(bool_value(false)),
             };
-            bool_value(with_node_mut(object, |n| match n.field_mut(&field_name) {
-                Some(field) => {
-                    field.observers.push(observer);
-                    true
-                }
-                None => false,
-            }))
+            if let Some(direct) = alias_target(object, &field_name) {
+                let target = observer_target(&direct.node, &direct.field);
+                let observer = Observer::Alias {
+                    owner: Rc::downgrade(object),
+                    field: field_name.clone(),
+                    event_node: Rc::downgrade(object),
+                    observer: Box::new(observer),
+                };
+                bool_value(with_node_mut(&target.node, |n| {
+                    match n.field_mut(&target.field) {
+                        Some(field) => {
+                            field.observers.push(observer);
+                            true
+                        }
+                        None => false,
+                    }
+                }))
+            } else {
+                bool_value(with_node_mut(object, |n| match n.field_mut(&field_name) {
+                    Some(field) => {
+                        field.observers.push(observer);
+                        true
+                    }
+                    None => false,
+                }))
+            }
         }
         "unobservefield" | "unobservefieldscoped" => {
             let field_name = arg_str(&args, 0);
-            bool_value(with_node_mut(object, |n| match n.field_mut(&field_name) {
-                Some(field) => {
-                    field.observers.clear();
-                    true
-                }
-                None => false,
-            }))
+            if let Some(direct) = alias_target(object, &field_name) {
+                let target = observer_target(&direct.node, &direct.field);
+                bool_value(with_node_mut(&target.node, |n| {
+                    match n.field_mut(&target.field) {
+                        Some(field) => {
+                            field.observers.retain(|observer|!matches!(observer,Observer::Alias{owner,field,..} if field.eq_ignore_ascii_case(&field_name)&&owner.upgrade().is_some_and(|owner|Rc::ptr_eq(&owner,object))));
+                            true
+                        }
+                        None => false,
+                    }
+                }))
+            } else {
+                bool_value(with_node_mut(object, |n| match n.field_mut(&field_name) {
+                    Some(field) => {
+                        field.observers.clear();
+                        true
+                    }
+                    None => false,
+                }))
+            }
         }
         "callfunc" => {
             let function_name = arg_str(&args, 0);
@@ -1107,10 +1229,55 @@ pub fn node_method(
         }
         "clone" => {
             let deep = crate::ops::condition(arg(&args, 0)).unwrap_or(false);
-            node_value(&clone_node(object, deep))
+            if let Some((class, field)) = alias_clone_error(vm, object, deep) {
+                vm.write(&format!(
+                    "BRIGHTSCRIPT: ERROR: roSGNode.Clone: No such field {class}::{field}: {}\n",
+                    vm.current_location()
+                ));
+                Value::Invalid
+            } else {
+                node_value(&clone_node(object, deep))
+            }
         }
         "count" => Value::Integer(children().len() as i32),
         _ => return Err(RuntimeError::member_not_found()),
+    })
+}
+
+// Native cloning validates children before their owner and rejects custom
+// alias fields that do not exist in the underlying native node class.
+fn alias_clone_error(vm: &Vm, object: &ObjectRef, deep: bool) -> Option<(String, String)> {
+    if deep {
+        for child in with_node(object, |n| n.children.clone()) {
+            if let Some(error) = alias_clone_error(vm, &child, true) {
+                return Some(error);
+            }
+        }
+    }
+    let subtype = with_node(object, |n| n.subtype.to_string());
+    let (_, builtin) = type_chain(vm, &subtype)?;
+    let levels = builtin_levels(builtin);
+    with_node(object, |n| {
+        n.fields.iter().find_map(|field| {
+            if n.aliases
+                .targets
+                .contains_key(&field.name.to_ascii_lowercase())
+                && !levels.iter().any(|level| {
+                    schema::fields(level)
+                        .iter()
+                        .any(|spec| spec.name.eq_ignore_ascii_case(&field.name))
+                })
+            {
+                let class = if builtin == "Group" {
+                    "RenderableNode"
+                } else {
+                    builtin
+                };
+                Some((class.to_string(), field.name.clone()))
+            } else {
+                None
+            }
+        })
     })
 }
 
@@ -1118,6 +1285,9 @@ fn clone_node(object: &ObjectRef, deep: bool) -> ObjectRef {
     let mut copy = with_node(object, |n| n.clone());
     copy.parent = None;
     copy.has_focus = false;
+    copy.aliases.targets.clear();
+    copy.aliases.dependents.clear();
+    copy.aliases.dispatch.clear();
     let children = std::mem::take(&mut copy.children);
     for field in &mut copy.fields {
         field.observers.clear();
@@ -1237,4 +1407,155 @@ pub fn screen_method(
         "getglobalnode" => node_value(&global_node(vm)),
         _ => return Err(RuntimeError::member_not_found()),
     })
+}
+
+fn alias_target(object: &ObjectRef, name: &str) -> Option<super::AliasTarget> {
+    with_node(object, |n| {
+        n.aliases.targets.get(&name.to_ascii_lowercase()).cloned()
+    })
+}
+
+fn bind_aliases(
+    vm: &mut Vm,
+    owner: &ObjectRef,
+    components: &[Rc<ComponentDef>],
+) -> Result<(), RuntimeError> {
+    let subtype = with_node(owner, |n| n.subtype.to_string());
+    let native_levels = type_chain(vm, &subtype)
+        .map(|(_, builtin)| builtin_levels(builtin))
+        .unwrap_or_default();
+    for def in components {
+        for interface in &def.fields {
+            let Some(alias) = &interface.alias else {
+                continue;
+            };
+            // Native interface declarations cannot redirect a built-in field.
+            if native_levels.iter().any(|level| {
+                schema::fields(level)
+                    .iter()
+                    .any(|spec| spec.name.eq_ignore_ascii_case(&interface.id))
+            }) {
+                continue;
+            }
+            let key = interface.id.to_ascii_lowercase();
+            if alias_target(owner, &key).is_some() {
+                continue;
+            }
+            let Some((id, field)) = alias.rsplit_once('.') else {
+                continue;
+            };
+            let Some(target) = with_node(owner, |n| n.children.clone())
+                .iter()
+                .find_map(|node| find_node(node, id))
+            else {
+                vm.write(&format!(
+                    "BRIGHTSCRIPT: ERROR: Interface field alias failed: node {id} not found\n"
+                ));
+                continue;
+            };
+            let kind = with_node(&target, |n| n.field(field).map(|f| f.kind));
+            if kind != Some(interface.kind) {
+                vm.write(&format!("BRIGHTSCRIPT: ERROR: Interface field alias failed: incompatible field {alias}\n"));
+                continue;
+            }
+            if let Some(value) = &interface.value {
+                set_field_from_text(vm, &target, field, value)?;
+            }
+            let initial = with_node(&target, |n| n.field(field).unwrap().value.clone());
+            with_node_mut(owner, |n| {
+                n.aliases.targets.insert(
+                    key.clone(),
+                    super::AliasTarget {
+                        node: target.clone(),
+                        field: field.to_string(),
+                    },
+                );
+                if let Some(field) = n.field_mut(&interface.id) {
+                    field.value = initial;
+                    field.on_change = None;
+                }
+            });
+            with_node_mut(&target, |n| {
+                n.aliases.dependents.push(super::AliasDependent {
+                    owner: Rc::downgrade(owner),
+                    field: interface.id.clone(),
+                    target_field: field.to_string(),
+                })
+            });
+            let component = with_node(owner, |n| n.component.clone());
+            if let (Some(function), Some(component)) = (&interface.on_change, component) {
+                let observer = Observer::Alias {
+                    owner: Rc::downgrade(owner),
+                    field: interface.id.clone(),
+                    event_node: Rc::downgrade(&target),
+                    observer: Box::new(Observer::Callback {
+                        scope: component.scope,
+                        function: function.clone(),
+                        m: component.m,
+                    }),
+                };
+                let sink = observer_target(&target, field);
+                with_node_mut(&sink.node, |n| {
+                    n.field_mut(&sink.field).unwrap().observers.push(observer)
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn live_alias_dependents(
+    object: &ObjectRef,
+    name: &str,
+) -> impl Iterator<Item = super::AliasDependent> {
+    let dependents = with_node(object, |n| n.aliases.dependents.clone());
+    let object = object.clone();
+    let name = name.to_string();
+    dependents.into_iter().filter(move |alias| {
+        alias.target_field.eq_ignore_ascii_case(&name)
+            && alias.owner.upgrade().is_some_and(|owner| {
+                alias_target(&owner, &alias.field).is_some_and(|target| {
+                    Rc::ptr_eq(&target.node, &object) && target.field.eq_ignore_ascii_case(&name)
+                })
+            })
+    })
+}
+
+fn sync_alias_values(object: &ObjectRef, name: &str) {
+    let (value, dependents) = with_node(object, |n| {
+        (
+            n.field(name).map(|f| f.value.clone()),
+            n.aliases.dependents.clone(),
+        )
+    });
+    let Some(value) = value else { return };
+    for alias in dependents
+        .iter()
+        .filter(|alias| alias.target_field.eq_ignore_ascii_case(name))
+    {
+        if let Some(owner) = alias.owner.upgrade() {
+            let linked = alias_target(&owner, &alias.field).is_some_and(|target| {
+                Rc::ptr_eq(&target.node, object) && target.field.eq_ignore_ascii_case(name)
+            });
+            if !linked {
+                continue;
+            }
+            with_node_mut(&owner, |n| {
+                if let Some(field) = n.field_mut(&alias.field) {
+                    field.value = value.clone();
+                }
+            });
+            sync_alias_values(&owner, &alias.field);
+        }
+    }
+}
+
+fn observer_target(object: &ObjectRef, name: &str) -> super::AliasTarget {
+    match alias_target(object, name) {
+        Some(target) => observer_target(&target.node, &target.field),
+        None => super::AliasTarget {
+            node: object.clone(),
+            field: name.to_string(),
+        },
+    }
 }

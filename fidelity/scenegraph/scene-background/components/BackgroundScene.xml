@@ -1,0 +1,16 @@
+<component name="BackgroundScene" extends="Scene"><script type="text/brightscript"><![CDATA[
+sub init()
+ print "color=";m.top.backgroundColor;",uri=";FormatJSON(m.top.backgroundUri)
+ m.top.setFocus(true)
+
+end sub
+function onKeyEvent(key as string, press as boolean) as boolean
+ if not press then return false
+ if key="right" then m.top.backgroundColor="0x123456ff"
+ if key="down" then m.top.backgroundColor="0x000000ff"
+ if key="left" then m.top.backgroundUri=""
+ print "color=";m.top.backgroundColor;",uri=";FormatJSON(m.top.backgroundUri)
+ if key="left" then print "@@PROBE_END"
+ return true
+end function
+]]></script></component>

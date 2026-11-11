@@ -403,14 +403,59 @@ fn play(vm: &mut Vm, node: &ObjectRef, index: usize) -> Result<()> {
 
 /// Hands a content to the host player.
 fn load(vm: &mut Vm, id: u32, source: &Source) {
-    let mut message = json!({"url": source.url, "format": source.format});
+    let headers = request_headers(vm, id, &source.url, false);
+    let mut message = json!({"url": source.url, "format": source.format, "headers": headers});
     if !source.license_url.is_empty() {
+        let headers = request_headers(vm, id, &source.license_url, true);
         message["drm"] = json!({
             "keySystem": source.key_system,
             "licenseServerURL": source.license_url,
+            "headers": headers,
         });
     }
     command(vm, id, "load", message);
+}
+
+fn request_headers(vm: &mut Vm, id: u32, url: &str, license: bool) -> Json {
+    let Some((_, node)) = by_id(vm, id) else {
+        return json!({});
+    };
+    let drm_agent = license
+        .then(|| with_node(&node, |n| n.raw("drmHttpAgent")))
+        .and_then(|value| match value {
+            Value::Object(agent) if agent.borrow().class_name() == "roHttpAgent" => Some(agent),
+            _ => None,
+        });
+    let agent = drm_agent.unwrap_or_else(|| super::http_agent::get(vm, &node));
+    let content = with_node(&node, |n| node_ref(&n.raw("content")));
+    if let Some(content) = content {
+        let field = if license {
+            "DrmHttpHeaders"
+        } else {
+            "HttpHeaders"
+        };
+        let value = with_node(&content, |n| n.raw(field));
+        if let Value::Object(array) = value {
+            if let Object::Array(items) | Object::List(items) = &*array.borrow() {
+                let mut headers = AssocArray::new();
+                for item in items {
+                    if let Some((name, value)) = item.as_str().and_then(|s| s.split_once(':')) {
+                        headers.set(name.trim(), Value::string(value.trim()));
+                    }
+                }
+                // Content metadata replaces the agent's custom headers on the
+                // device; merging would send stale authentication headers.
+                crate::runtime_objects::call(
+                    vm,
+                    &agent,
+                    "setheaders",
+                    &[Value::object(Object::AssocArray(headers))],
+                )
+                .expect("roHttpAgent supports SetHeaders");
+            }
+        }
+    }
+    crate::runtime_objects::request_headers(vm, &agent, url)
 }
 
 fn is_mp4(url: &str, format: &str) -> bool {
@@ -431,7 +476,7 @@ fn fetch(vm: &mut Vm, player: u32, url: &str, format: &str) {
         });
         return;
     }
-    let mut headers = json!({});
+    let mut headers = request_headers(vm, player, url, false);
     if is_mp4(url, format) {
         headers["Range"] = json!(format!("bytes=0-{}", MP4_PROBE_BYTES - 1));
     }
@@ -444,9 +489,18 @@ fn fetch(vm: &mut Vm, player: u32, url: &str, format: &str) {
 
 /// Tests a license server with a Widevine service certificate request.
 fn check_license(vm: &mut Vm, player: u32, url: &str) {
+    let mut headers = request_headers(vm, player, url, true);
+    if !headers
+        .as_object()
+        .unwrap()
+        .keys()
+        .any(|key| key.eq_ignore_ascii_case("Content-Type"))
+    {
+        headers["Content-Type"] = json!("application/octet-stream");
+    }
     let request = json!({
         "url": url, "method": "POST",
-        "headers": {"Content-Type": "application/octet-stream"},
+        "headers": headers,
         "body": STANDARD.encode(LICENSE_PROBE),
         "peerVerify": true, "hostVerify": true, "timeout": 30000
     });

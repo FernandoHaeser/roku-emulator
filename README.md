@@ -148,7 +148,7 @@ Beta. Phases follow the [roadmap](#roadmap); details in the [CHANGELOG](CHANGELO
 | Fidelity oracle            | Working against a real device (H302X, Roku OS 16.0.4), including remote key steps                  |
 | BrightScript language (F1) | Byte-exact except `language/collections` (25 / 26 probes overall)                                  |
 | Runtime objects (F2)       | Done: network via local proxy, files, regex, crypto (device-verified probe `runtime/extended`)     |
-| SceneGraph core (F3)       | Done; field `alias`, `ComponentLibrary` pending                                                    |
+| SceneGraph core (F3)       | Field aliases validated on device; `ComponentLibrary` pending                                      |
 | Renderer (F4)              | Screenshot diffs, measured text, package fonts, Poster/9-patch, remote loads, rotation, animations |
 | Widgets (F5)               | In progress: lists, grid bindings, buttons, modal dialogs and keyboard                             |
 | Video (F6)                 | In progress: device-recorded lifecycle (MP4, HLS, DASH, HTTP errors) and Widevine DRM errors       |
@@ -356,6 +356,7 @@ pending.
 | [docs/fidelity-workflow.md](docs/fidelity-workflow.md)           | Add a probe, record it on the device, make the emulator match                                 |
 | [docs/marketplace-publishing.md](docs/marketplace-publishing.md) | Publish the VS Code extension: Entra ID (OIDC) setup, releases, troubleshooting               |
 | [docs/git-workflow.md](docs/git-workflow.md)                     | Gitflow: `develop` (default), `release` (pre-prod), `master` (prod), PRs and releases         |
+| [docs/vibeview-review.md](docs/vibeview-review.md)               | VibeView architecture, licensing and useful automation techniques                             |
 | [CHANGELOG.md](CHANGELOG.md)                                     | Changes per phase                                                                             |
 
 ## Contributing

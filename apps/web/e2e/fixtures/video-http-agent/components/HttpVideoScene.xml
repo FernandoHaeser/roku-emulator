@@ -1,0 +1,36 @@
+<component name="HttpVideoScene" extends="Scene">
+<script type="text/brightscript"><![CDATA[
+sub init()
+    agent = CreateObject("roHttpAgent")
+    agent.AddHeader("X-Emulator-Probe", "agent")
+    m.top.setHttpAgent(agent)
+    m.video = m.top.findNode("video")
+    m.video.observeField("state", "stateChanged")
+    m.timer = m.top.findNode("timer")
+    m.timer.observeField("fire", "finish")
+    content = CreateObject("roSGNode", "ContentNode")
+    content.url = ReadAsciiFile("pkg:/base-url.txt") + "/media/playlist.m3u8"
+    content.streamFormat = "hls"
+    if ReadAsciiFile("pkg:/header-mode.txt") = "content"
+        content.HttpHeaders = ["X-Emulator-Content: content"]
+    end if
+    m.video.content = content
+    m.video.control = "play"
+end sub
+sub stateChanged()
+    if m.video.state = "playing" and m.started <> true
+        m.started = true
+        print "playing"
+        m.timer.control = "start"
+    else if m.video.state = "error"
+        print "error=";m.video.errorCode
+        print "@@PROBE_END"
+    end if
+end sub
+sub finish()
+    m.video.control = "stop"
+    print "@@PROBE_END"
+end sub
+]]></script>
+<children><Video id="video"/><Timer id="timer" duration="0.3"/></children>
+</component>

@@ -9,6 +9,7 @@ pub mod bitmap;
 pub mod channel_store;
 pub mod component;
 mod font_metrics;
+pub mod http_agent;
 pub mod layout;
 pub mod render;
 pub mod runtime;
@@ -19,7 +20,7 @@ pub mod video;
 pub mod widgets;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
 
 use crate::value::{deep_copy, to_display_string, AssocArray, Object, ObjectRef, Value};
@@ -259,6 +260,12 @@ pub enum Observer {
     },
     /// `observeField(name, port)`: a roSGNodeEvent is posted to the port.
     Port { port: usize },
+    Alias {
+        owner: Weak<RefCell<Object>>,
+        field: String,
+        event_node: Weak<RefCell<Object>>,
+        observer: Box<Observer>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -284,6 +291,7 @@ pub struct ComponentInstance {
 #[derive(Debug, Clone, Copy)]
 pub enum NativePaint {
     InfoPanel,
+    SceneTheme,
 }
 
 /// How a Font node created by the engine (not by the channel) is measured.
@@ -298,6 +306,25 @@ pub enum NativeFont {
 }
 
 #[derive(Debug, Clone)]
+pub struct AliasTarget {
+    pub node: ObjectRef,
+    pub field: String,
+}
+#[derive(Debug, Clone)]
+pub struct AliasDependent {
+    pub owner: Weak<RefCell<Object>>,
+    pub field: String,
+    pub target_field: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AliasState {
+    pub targets: HashMap<String, AliasTarget>,
+    pub dependents: Vec<AliasDependent>,
+    pub dispatch: HashSet<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Node {
     pub subtype: Rc<str>,
     /// Type chain, most derived first, ending with "Node".
@@ -308,6 +335,8 @@ pub struct Node {
     pub parent: Option<Weak<RefCell<Object>>>,
     pub component: Option<ComponentInstance>,
     pub has_focus: bool,
+    pub aliases: Box<AliasState>,
+    pub http_agent: Option<ObjectRef>,
     /// Position supplied by a native list/grid container, separate from translation.
     pub render_offset: (f64, f64),
     pub native_paint: Option<NativePaint>,
@@ -338,6 +367,8 @@ impl Node {
             parent: None,
             component: None,
             has_focus: false,
+            aliases: Box::default(),
+            http_agent: None,
             render_offset: (0.0, 0.0),
             native_paint: None,
             load_display_mode: None,
@@ -410,6 +441,7 @@ impl Node {
         let Some(position) = self.index.remove(&name.to_lowercase()) else {
             return false;
         };
+        self.aliases.targets.remove(&name.to_lowercase());
         self.fields.remove(position);
         for slot in self.index.values_mut() {
             if *slot > position {
@@ -489,6 +521,7 @@ pub struct Timer {
 pub struct SceneGraph {
     pub components: HashMap<String, Rc<ComponentDef>>,
     pub global: Option<ObjectRef>,
+    pub default_http_agent: Option<ObjectRef>,
     pub screens: Vec<ScreenState>,
     /// Nodes created by CreateScene whose children/init still have to run on
     /// the render thread.

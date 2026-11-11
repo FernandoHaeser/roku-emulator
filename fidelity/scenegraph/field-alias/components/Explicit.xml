@@ -1,0 +1,1 @@
+<component name="Explicit" extends="Group"><interface><field id="caption" type="string" value="interface" alias="inside.text"/></interface><children><Label id="inside" text="child"/></children></component>

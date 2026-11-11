@@ -1,0 +1,26 @@
+<component name="Card" extends="Group"><interface>
+<field id="width" type="float" alias="box.width" onChange="widthChanged"/>
+<field id="mirror" type="float" alias="box.width" onChange="mirrorChanged"/>
+<field id="caption" type="string" alias="title.text"/>
+<field id="heightAlias" type="float" alias="box.height" alwaysNotify="true"/>
+<field id="point" type="vector2d" alias="box.translation"/>
+</interface><script type="text/brightscript"><![CDATA[
+sub init()
+ print "init width=";m.top.width;" mirror=";m.top.mirror;" caption=";FormatJSON(m.top.caption);" point=";FormatJSON(m.top.point)
+ m.top.observeField("width","observed")
+ m.top.findNode("box").observeField("width","childChanged")
+end sub
+sub widthChanged(event as object)
+ print "width=";event.getData();" live=";m.top.width;" field=";event.getField();" node=";event.getRoSGNode().subtype();" id=";event.getNode()
+ if m.top.width=90 then m.top.findNode("box").width=30
+end sub
+sub mirrorChanged(event as object)
+ print "mirror=";event.getData();" live=";m.top.mirror;" field=";event.getField();" node=";event.getRoSGNode().subtype();" id=";event.getNode()
+end sub
+sub observed(event as object)
+ print "observed=";event.getData();" live=";m.top.width;" field=";event.getField();" node=";event.getRoSGNode().subtype();" id=";event.getNode()
+end sub
+sub childChanged(event as object)
+ print "child=";event.getData();" parent=";m.top.width;" field=";event.getField();" node=";event.getRoSGNode().subtype();" id=";event.getNode()
+end sub
+]]></script><children><Rectangle id="box" width="40" height="20" translation="[5,6]"/><Label id="title" text="child"/></children></component>

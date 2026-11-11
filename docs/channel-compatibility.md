@@ -10,7 +10,7 @@ username and password fields, and masks the password. On 2026-11-10, login with
 the user-provided test account succeeded on the second result for `demo`
 (`demo.cdn.tv.br`): the authentication callback completed and the channel grid
 loaded without reported runtime errors. Credentials, tokens and private traces
-are not stored in this repository. Catalog layout still shows overlaps;
+are not stored in this repository. Catalog overlap was corrected with native LayoutGroup and MarkupGrid geometry;
 playback has not been validated by this login check.
 
 On 2026-11-10, the same remote-key sequence typed exactly `demo` in the
@@ -66,13 +66,20 @@ References: [collection literals and optional operators](https://developer.roku.
 [RadioButtonList](https://developer.roku.com/dev/docs/radiobuttonlist), and
 [ChannelStore](https://developer.roku.com/dev/docs/channelstore).
 
-The MiniKeyboard screenshots differ by 0.357% (FHD) and 0.382% (HD). Their
-behavioral traces pass in both resolutions. Like the selection-control probes,
-they document a substitute-artwork budget (0.5%): the clear/space/delete icons
-are locally drawn glyphs instead of Roku system artwork, and key labels use
-the substitute font. Icon and glyph parity remain open. The standard keyboard dialog's final-state
-screenshot passes its current budget; its open-dialog artwork still differs
-from the device and requires broader visual coverage.
+The MiniKeyboard screenshots currently differ by 0.263% (FHD) and 0.241% (HD)
+on macOS (0.402% / 0.396% on the Linux CI runner before the latest changes).
+Key labels are bold like the captures, the clear/space/delete icons and the
+focus box (1 px black border, rounded corners, 2 px gradient bands) use
+geometry measured on the device screenshots. The remainder is glyph shape:
+the key grid alone accounts for about 1,900 differing pixels (about 55 per
+glyph, the substitute font against the Roku system font), more than a whole
+0.1% budget (921 pixels at 1280x720). Both probes therefore use a 0.5%
+budget, like the other keyboard probes whose budgets cover the substitute
+font, with margin for the Linux rasterizer. Any non-glyph regression still
+fails it.
+Behavioral traces still pass in both resolutions. The standard keyboard dialog's
+final-state screenshot passes its current budget; its open-dialog artwork still
+differs from the device and requires broader visual coverage.
 
 Physical keyboard input is an emulator convenience alongside remote navigation.
 The active TextEditBox or keyboard accepts Unicode text, spaces and punctuation,
@@ -84,8 +91,9 @@ Options when their former letter/backspace shortcuts are used for typing.
 
 The first result for `demo` (`CDNTV - SEDE-POA`) supplies the bare hostname
 `demo`. Authentication fails before an HTTP response on both runtimes: the
-physical Roku reports DNS error -6; the emulator currently reports transport
-error -7. The transport error difference remains open; the endpoint is not
+physical Roku reports DNS error -6. The emulator now maps resolver failures
+(ENOTFOUND/EAI_AGAIN, including wrapped fetch causes) to -6, while connection
+refusal remains -7. A transport test verifies both cases. The endpoint is not
 rewritten to another provider.
 
 The InfoPane used to show that failure is now implemented from the
@@ -108,3 +116,42 @@ Device rules recorded while doing so, each with its own probe:
   writes integral Float/Double values in full (`runtime/json-numbers`).
 - `isSubtype()` excludes the node's own type, except where a native widget
   reports a public type other than its own (InfoPane → `InfoLabel`).
+
+The physical device became reachable again on 2026-11-10. The new
+`scenegraph/field-alias` probe validates initialization before `init()`, explicit
+initial values, parent/child writes, nested aliases, callback identity and order,
+message-port snapshots, repeated vector values, removal and clone isolation.
+Native aliases do not redirect built-in fields. Cloning a custom alias field
+that is absent from the native class returns `invalid` with a diagnostic;
+cloning an ordinary target child does not retain its parent's alias bindings.
+This coverage does not establish complete SceneGraph compatibility;
+`ComponentLibrary` and broader invalid-alias cases remain pending.
+
+The default Scene background is now based on a separate device measurement
+(`scenegraph/scene-background`): `backgroundColor` initially reads `0x0B001BFF`,
+while an opaque Geneva theme image is visible above it. Assigning only the color
+does not remove that image. Explicitly assigning `backgroundUri = ""`, even
+though the field already reads empty, clears it and reveals the color. The
+renderer reproduces the measured solid theme color; custom background images
+and other Roku themes still require coverage.
+
+Opening a catalog item exposed the missing `Video.setHttpAgent()` method.
+`scenegraph/http-agent` now covers native agent access, interface discovery,
+ancestor inheritance, per-node overrides and rejected assignments. Video
+metadata/preflight and adaptive web playback use the selected agent's headers;
+`ContentNode.HttpHeaders` replaces its custom headers, as observed on the Roku.
+The browser HLS tests require the expected headers on both manifests and media
+segments and reject stale agent headers after metadata replacement. The same
+owned HLS fixture was checked on the physical device in both modes.
+
+This does not complete media/network compatibility: forwarding node-agent
+settings in the Poster loader, custom headers for native progressive browser
+playback, complete certificate/client identity handling and broader separate
+DRM-agent coverage remain open.
+
+After the agent fix, the unchanged ZIP also opened the first catalog stream
+from the authenticated second `demo` provider. The browser's actual media
+player reported `readyState = 4`, advancing past 18 seconds with `paused = false`,
+no media error and no channel runtime error. This is a single-stream playback
+check; captions, alternate audio, trick play, other providers and protected
+streams are not validated by it.
