@@ -315,10 +315,8 @@ pub fn iteration_items(value: &Value) -> Result<Vec<Value>, RuntimeError> {
                 .iter()
                 .map(|b| Value::Integer(i32::from(*b)))
                 .collect()),
-            // NOTE: the device iterates AAs in internal hash order, which is not
-            // reproduced yet; insertion order is used meanwhile.
             Object::AssocArray(aa) => Ok(aa
-                .keys_in_insertion_order()
+                .enumeration_keys()
                 .into_iter()
                 .map(Value::string)
                 .collect()),

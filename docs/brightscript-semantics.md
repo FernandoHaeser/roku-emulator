@@ -232,3 +232,15 @@ Probes: `video/{lifecycle,drm}`.
 - `errorInfo` also carries `clipid` (contents started by the app),
   `dbgmsg` (= `errorStr`), `drmerrcode` 0 and `ignored` false.
 - `ContentNode.drmParams` defaults to an empty associative array.
+
+## Associative-array enumeration
+
+`Keys()`/`Items()` retain their lexicographic contract. `for each` visits the
+native hash layout instead of insertion order. Device captures in
+`language/aa-enumeration` cover 1–26 keys in both insertion directions,
+collisions, growth, deletion, clear, replacement casing, punctuation and UTF-8.
+The hash uses Jenkins mixing with a byte-wise `0x20` case mask; enumeration
+storage retains its grown capacity after deletion and clear. Replacing a value
+retains its position and adopts the latest spelling of the key. These observed
+orders describe the reference profile, not a portable ordering guarantee for
+channel code. Code requiring ordered keys should use `Keys()`.

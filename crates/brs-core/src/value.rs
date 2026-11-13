@@ -146,6 +146,23 @@ pub struct AssocArray {
     entries: Vec<(String, Value)>,
     /// Lowercased key -> position in `entries` (lookups are case-insensitive).
     index: HashMap<String, usize>,
+    /// Native hash storage grows at half occupancy and retains capacity on clear.
+    enumeration_capacity: usize,
+}
+
+// Jenkins mixing with the byte-wise case mask used by the native AA hash.
+// The mask also affects punctuation and UTF-8; Unicode lowercasing here would
+// produce the wrong enumeration even though lookups remain case-insensitive.
+fn aa_hash(key: &str) -> u32 {
+    let mut hash = 0u32;
+    for byte in key.bytes() {
+        hash = hash.wrapping_add(u32::from(byte | 0x20));
+        hash = hash.wrapping_add(hash << 10);
+        hash ^= hash >> 6;
+    }
+    hash = hash.wrapping_add(hash << 3);
+    hash ^= hash >> 11;
+    hash.wrapping_add(hash << 15)
 }
 
 impl AssocArray {
@@ -171,12 +188,16 @@ impl AssocArray {
         self.index.contains_key(&key.to_lowercase())
     }
 
-    /// Inserts or replaces. An existing entry keeps its original key spelling.
+    /// Inserts or replaces, retaining position but using the latest key spelling.
     pub fn set(&mut self, key: &str, value: Value) {
         let lower = key.to_lowercase();
         match self.index.get(&lower) {
-            Some(&i) => self.entries[i].1 = value,
+            Some(&i) => self.entries[i] = (key.to_string(), value),
             None => {
+                self.enumeration_capacity = self.enumeration_capacity.max(4);
+                if self.entries.len() + 1 > self.enumeration_capacity / 2 {
+                    self.enumeration_capacity *= 2;
+                }
                 self.index.insert(lower, self.entries.len());
                 self.entries.push((key.to_string(), value));
             }
@@ -199,6 +220,27 @@ impl AssocArray {
     pub fn clear(&mut self) {
         self.entries.clear();
         self.index.clear();
+    }
+
+    /// Roku's enumeration layout is distinct from lexicographic Keys()/Items().
+    /// Native captures cover both insertion directions, collisions, growth,
+    /// deletion, clear, punctuation, UTF-8 and replacement casing.
+    pub fn enumeration_keys(&self) -> Vec<String> {
+        let capacity = self.enumeration_capacity.max(4);
+        let mut buckets = vec![None; capacity];
+        for index in 0..self.entries.len() {
+            let mut entry = index;
+            let mut bucket = aa_hash(&self.entries[entry].0) as usize & (capacity - 1);
+            while let Some(displaced) = buckets[bucket].replace(entry) {
+                entry = displaced;
+                bucket = (bucket + 1) & (capacity - 1);
+            }
+        }
+        buckets
+            .into_iter()
+            .flatten()
+            .map(|index| self.entries[index].0.clone())
+            .collect()
     }
 
     pub fn keys_in_insertion_order(&self) -> Vec<String> {
@@ -307,6 +349,7 @@ pub fn deep_copy(value: &Value) -> Value {
                     copy.set(&key, deep_copy(item));
                 }
             }
+            copy.enumeration_capacity = aa.enumeration_capacity;
             Object::AssocArray(copy)
         }
         _ => return value.clone(),
