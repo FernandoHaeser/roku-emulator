@@ -1,13 +1,4 @@
 {
-  "language/collections": {
-    "status": "(ok)",
-    "detail": [
-      "trace: actual=258c096125eaaab17f9af203c5291bcd expected=7659d890211175f32426496476b82e9f",
-      "line 16",
-      "device:   \"a= 1\"",
-      "emulator: \"b= 2\""
-    ]
-  },
   "scenegraph/label-package-font": {
     "status": "(ok)",
     "detail": [

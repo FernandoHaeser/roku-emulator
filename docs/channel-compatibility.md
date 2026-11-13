@@ -67,16 +67,13 @@ References: [collection literals and optional operators](https://developer.roku.
 [ChannelStore](https://developer.roku.com/dev/docs/channelstore).
 
 The MiniKeyboard screenshots currently differ by 0.263% (FHD) and 0.241% (HD)
-on macOS (0.402% / 0.396% on the Linux CI runner before the latest changes).
-Key labels are bold like the captures, the clear/space/delete icons and the
-focus box (1 px black border, rounded corners, 2 px gradient bands) use
-geometry measured on the device screenshots. The remainder is glyph shape:
-the key grid alone accounts for about 1,900 differing pixels (about 55 per
-glyph, the substitute font against the Roku system font), more than a whole
-0.1% budget (921 pixels at 1280x720). Both probes therefore use a 0.5%
-budget, like the other keyboard probes whose budgets cover the substitute
-font, with margin for the Linux rasterizer. Any non-glyph regression still
-fails it.
+on macOS. The original 0.1% visual budget has been restored, so these checks
+remain failing until actual glyph/rendering differences are corrected. The
+0.5% budget used in PR #23 is not evidence of strict visual parity. Key labels,
+icons and focus geometry are closer to the captures, but substitute-font shape
+and rasterization still require work. Comparisons of additional open fonts and
+size/weight/position settings have not yet met the original budget; no
+experimental font change has been adopted.
 Behavioral traces still pass in both resolutions. The standard keyboard dialog's
 final-state screenshot passes its current budget; its open-dialog artwork still
 differs from the device and requires broader visual coverage.
@@ -155,3 +152,10 @@ player reported `readyState = 4`, advancing past 18 seconds with `paused = false
 no media error and no channel runtime error. This is a single-stream playback
 check; captions, alternate audio, trick play, other providers and protected
 streams are not validated by it.
+
+The associative-array exception was removed after implementing the native
+hash enumeration layout and latest-write key casing. The new
+`language/aa-enumeration` trace validates insertion in both directions, growth,
+collisions, deletion/reinsertion, retained clear capacity and mixed UTF-8 keys.
+The system-font reference in `label-package-font` remains a 3 px mismatch;
+further per-size measurements require the physical Roku to be reachable.
