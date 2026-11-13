@@ -85,6 +85,6 @@
     "screenshot": true
   },
   "visual": {
-    "tolerance": 0.005
+    "tolerance": 0.001
   }
 }
